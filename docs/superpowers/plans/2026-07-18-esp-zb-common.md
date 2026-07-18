@@ -51,7 +51,7 @@ __pycache__/
 .pytest_cache/
 examples/*/managed_components/
 examples/*/dependencies.lock
-examples/*/sdkconfig.*.
+examples/*/sdkconfig.dfrobot_firebeetle2_esp32c6_zigbee
 examples/*/.pio/
 ```
 
@@ -469,6 +469,7 @@ bool zb_core_is_joined(void);
 
 #include "esp_zigbee_core.h"
 #include "platform/esp_zigbee_platform.h"
+#include "nwk/esp_zigbee_nwk.h"           /* esp_zb_get_short_address */
 #include "bdb/esp_zigbee_bdb_commissioning.h"
 #include "zdo/esp_zigbee_zdo_common.h"
 #include "esp_zigbee_cluster.h"
