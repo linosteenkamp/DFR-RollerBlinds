@@ -114,9 +114,15 @@ GPIO budget: 7 (STEP, DIR, EN, BTN_UP, BTN_DOWN, BTN_FN, LED).
 
 ## 3. `esp-zb-common` Library (Deliverable 1)
 
-New repo `~/Developer/499/esp-zb-common`, pushed to GitHub, consumed via
-`platformio.ini` `lib_deps` pinned to a **version tag** (local-path override
-during active development). Extracted from DoorSensor's proven code:
+New repo `~/Developer/499/esp-zb-common`, pushed to GitHub, packaged as an
+**ESP-IDF component** consumed via the IDF Component Manager — a git dependency
+in each project's `src/idf_component.yml` pinned to a **version tag**, with
+`override_path` for local development. (Revised from the originally decided
+PlatformIO `lib_deps`: `lib_deps` cannot express ESP-IDF component `REQUIRES`
+on esp-zigbee-lib in pure-espidf projects; the component manager is the same
+proven mechanism both siblings already use to consume esp-zigbee-lib itself.
+All decided properties — own repo, GitHub, tag pinning, local override — are
+preserved.) Extracted from DoorSensor's proven code:
 
 | Component | Source | Notes |
 |---|---|---|
