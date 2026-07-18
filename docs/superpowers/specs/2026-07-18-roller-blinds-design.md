@@ -70,7 +70,8 @@ supports it since `EN̅` is firmware-controlled).
 Membrane keypad common → GND; **Up / Down / Fn** → three GPIOs with internal
 pull-ups, firmware debounce (library `debounce` module).
 
-- **Up / Down** — tap: full open / close. Hold: jog while held.
+- **Up / Down** — tap: full open / close (when calibrated; uncalibrated devices
+  jog on tap too, §5). Hold: jog while held.
 - **Fn** — tap: **stop** any motion. Long-press (~3 s): enter/exit
   **calibration mode** (§6).
 
