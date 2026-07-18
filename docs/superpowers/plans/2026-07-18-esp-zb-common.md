@@ -15,7 +15,7 @@
 - All Zigbee code gated by `#ifdef USE_ZIGBEE`; consumers pass `-DUSE_ZIGBEE`
 - Naming: functions `module_verb_noun()`, constants `UPPER_SNAKE_CASE`, types `snake_case_t`, log tags short uppercase
 - ZCL strings are length-prefixed: first byte = char count (e.g. `"\x0B" "DFRobot-DIY"`)
-- Component name is `esp_zb_common` (underscores — IDF component naming); repo name is `esp-zb-common`
+- Component/dependency name is `esp-zb-common` (must match the component folder basename for `override_path` resolution — verified in Task 6); repo name is also `esp-zb-common`
 - GitHub owner `linosteenkamp`, repo **private** (matches siblings)
 - Source of truth for copied files is `/Users/lino/Developer/499/DFR-DoorSensor` (referred to below as `$DS`)
 - Library working directory: `/Users/lino/Developer/499/esp-zb-common` (all task paths relative to it unless absolute)
@@ -725,7 +725,7 @@ project(esp-zb-common-minimal-router)
 
 ```yaml
 dependencies:
-  esp_zb_common:
+  esp-zb-common:
     version: "*"
     override_path: "../../.."
 ```
@@ -740,7 +740,7 @@ idf_component_register(
 )
 ```
 
-(The `esp_zb_common` dependency is injected by the component manager from `idf_component.yml`; its include dirs propagate automatically.)
+(The `esp-zb-common` dependency is injected by the component manager from `idf_component.yml`; its include dirs propagate automatically.)
 
 - [ ] **Step 6: Write `examples/minimal_router/src/main.c`** (complete file)
 
@@ -881,7 +881,7 @@ In your project's `src/idf_component.yml`:
 
 ```yaml
 dependencies:
-  esp_zb_common:
+  esp-zb-common:
     git: https://github.com/linosteenkamp/esp-zb-common.git
     version: v0.1.0
 ```
@@ -890,7 +890,7 @@ For local development against a checkout, use an override instead:
 
 ```yaml
 dependencies:
-  esp_zb_common:
+  esp-zb-common:
     version: "*"
     override_path: "../../esp-zb-common"
 ```
