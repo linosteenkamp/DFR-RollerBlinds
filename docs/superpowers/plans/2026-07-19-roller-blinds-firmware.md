@@ -14,7 +14,7 @@
 - Platform pin: `platform = https://github.com/pioarduino/platform-espressif32/releases/download/55.03.31-2/platform-espressif32.zip`; board `dfrobot_firebeetle2_esp32c6`; `framework = espidf`; `build_flags = -DUSE_ZIGBEE`
 - Library dependency: `esp-zb-common` (hyphenated key) pinned to **git tag `v0.1.1`** — never v0.1.0 (it predates the OTA-rollback doc fixes)
 - Consumer obligations from the library's final review: call `ota_client_mark_valid()` after successful boot; **all `action_handler` work defers to the app queue** (it runs in stack context with the Zigbee lock held); OTA CI must pass `--header-string` explicitly
-- Zigbee identity: manufacturer `"\x0B" "DFRobot-DIY"`, model `"\x0F" "DFR-RollerBlinds"` (ZCL length-prefixed; 11 and 15 chars). OTA identity: manufacturer code `0xFEFE`, image type **`0x0003`** (soil=0x0001, door=0x0002)
+- Zigbee identity: manufacturer `"\x0B" "DFRobot-DIY"`, model `"\x10" "DFR-RollerBlinds"` (ZCL length-prefixed; 11 and 16 chars). OTA identity: manufacturer code `0xFEFE`, image type **`0x0003`** (soil=0x0001, door=0x0002)
 - ZCL Window Covering facts (verified against esp-zigbee-lib 1.6.8 headers): device id `ESP_ZB_HA_WINDOW_COVERING_DEVICE_ID` (0x0202); attrs `CURRENT_POSITION_LIFT_PERCENTAGE` 0x0008 (u8, 0=open, 100=closed, 0xFF=unknown), `CONFIG_STATUS` 0x0007 (bit0 = Operational → our Calibrated flag), `MODE` 0x0017 (bit0 = motor direction reversed, writable); movement commands arrive via core action `ESP_ZB_CORE_WINDOW_COVERING_MOVEMENT_CB_ID` (`esp_zb_zcl_window_covering_movement_message_t`: `.command` per `esp_zb_zcl_window_covering_cmd_t`, `.payload.percentage_lift_value`); Mode writes arrive via `ESP_ZB_CORE_SET_ATTR_VALUE_CB_ID` (`esp_zb_zcl_set_attr_value_message_t`)
 - Motion facts: 1/8 microstep hard-wired → 1600 µsteps/motor-rev, 24 000 µsteps/output-rev (1:15). Steps counted signed from Open=0, increasing toward Closed. DRV8825 `EN̅` is active-low enable (GPIO high = driver disabled). Step ISR + its data in IRAM
 - Default GPIO map (single source of truth in `src/main.c`; bench-verifiable, avoid strapping 8/9/15 as inputs and USB-JTAG 12/13): `STEP=2, DIR=3, EN=4, BTN_UP=5, BTN_DOWN=6, BTN_FN=7, LED_EXT=14, LED_ONBOARD=15` (onboard LED output on a strapping pin is fine post-boot)
@@ -220,7 +220,7 @@ dependencies:
 static const char *TAG = "BLINDS";
 
 #define MANUF_NAME  "\x0B" "DFRobot-DIY"
-#define MODEL_ID    "\x0F" "DFR-RollerBlinds"
+#define MODEL_ID    "\x10" "DFR-RollerBlinds"
 
 static void build_clusters(esp_zb_cluster_list_t *clusters)
 {
@@ -485,6 +485,16 @@ static void test_wipe_forces_full_recal_not_rehome(void)
     TEST_ASSERT_EQUAL(POS_CAL_WAIT_MARK1, p.cal); /* span wiped -> two marks */
 }
 
+static void test_zero_min_span_cannot_commit_empty_span(void)
+{
+    position_t p = fresh();
+    position_cal_enter(&p);
+    TEST_ASSERT_TRUE(position_cal_mark(&p, 5000, 0));
+    TEST_ASSERT_FALSE(position_cal_mark(&p, 5000, 0));  /* zero span rejected */
+    TEST_ASSERT_EQUAL(POS_CAL_WAIT_MARK2, p.cal);
+    TEST_ASSERT_FALSE(position_calibrated(&p));
+}
+
 static void test_mark_outside_calibration_is_inert(void)
 {
     position_t p = calibrated();
@@ -505,6 +515,7 @@ int main(void)
     RUN_TEST(test_rehome_entry_when_position_unknown);
     RUN_TEST(test_wipe_forces_full_recal_not_rehome);
     RUN_TEST(test_mark_outside_calibration_is_inert);
+    RUN_TEST(test_zero_min_span_cannot_commit_empty_span);
     return UNITY_END();
 }
 ```
@@ -587,18 +598,22 @@ bool position_cal_mark(position_t *p, int32_t raw, int32_t min_span)
         p->cal_mark1 = raw;
         p->cal = POS_CAL_WAIT_MARK2;
         return true;
-    case POS_CAL_WAIT_MARK2:
-        /* Closed must lie below Open by at least min_span (down = raw increase). */
-        if (raw - p->cal_mark1 < min_span) {
+    case POS_CAL_WAIT_MARK2: {
+        int32_t span = raw - p->cal_mark1;
+        /* Closed must lie below Open by at least min_span (down = raw
+         * increase); span must also be positive even if a caller ever passes
+         * min_span <= 0 — a zero span would make lift math divide by zero. */
+        if (span < min_span || span < 1) {
             return false;   /* rejected; stay in WAIT_MARK2 */
         }
         /* Atomic commit: span + position together, then exit the mode. */
-        p->closed_steps = raw - p->cal_mark1;
+        p->closed_steps = span;
         p->span_valid   = true;
         p->cur_steps    = p->closed_steps;   /* physically at Closed */
         p->pos_known    = true;
         p->cal          = POS_CAL_NONE;
         return true;
+    }
     case POS_CAL_WAIT_REHOME:
         p->cur_steps = 0;                    /* physically at Open */
         p->pos_known = true;
@@ -635,7 +650,7 @@ void position_mark_unknown(position_t *p)
 - [ ] **Step 6: Run to verify it passes**
 
 Run: `pio test -e native -f test_position`
-Expected: PASS — 9/9.
+Expected: PASS — 10/10.
 
 - [ ] **Step 7: Device build still green**
 
@@ -984,6 +999,39 @@ static void test_two_keys_without_long_hold_are_independent(void)
     TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_DOWN, false, 200).type);
 }
 
+static void test_chord_during_jog_ends_hold(void)
+{
+    init();
+    kp_on_change(&s, KEY_UP, true, 0);
+    TEST_ASSERT_EQUAL(KP_EVT_HOLD_START, kp_on_tick(&s, HOLD + 10).type);
+    kp_event_t e = kp_on_change(&s, KEY_DOWN, true, HOLD + 100);  /* chord latch */
+    TEST_ASSERT_EQUAL(KP_EVT_HOLD_END, e.type);   /* jog is closed, not orphaned */
+    TEST_ASSERT_EQUAL(KEY_UP, e.key);
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_UP, false, HOLD + 200).type);
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_DOWN, false, HOLD + 300).type);
+}
+
+static void test_fn_press_does_not_rearm_chord(void)
+{
+    init();
+    kp_on_change(&s, KEY_UP, true, 0);
+    kp_on_change(&s, KEY_DOWN, true, 100);
+    TEST_ASSERT_EQUAL(KP_EVT_CHORD_REVERSE, kp_on_tick(&s, 100 + LONG).type);
+    kp_on_change(&s, KEY_FN, true, 100 + LONG + 100);
+    kp_event_t e = kp_on_tick(&s, 100 + LONG + 100 + LONG + 100);
+    TEST_ASSERT_TRUE(e.type != KP_EVT_CHORD_REVERSE);   /* no duplicate toggle */
+}
+
+static void test_fn_long_fires_during_chord(void)
+{
+    init();
+    kp_on_change(&s, KEY_FN, true, 0);
+    kp_on_change(&s, KEY_UP, true, 100);
+    kp_on_change(&s, KEY_DOWN, true, 200);   /* chord latch at 200 */
+    TEST_ASSERT_EQUAL(KP_EVT_FN_LONG, kp_on_tick(&s, LONG + 10).type);
+    TEST_ASSERT_EQUAL(KP_EVT_CHORD_REVERSE, kp_on_tick(&s, 200 + LONG + 10).type);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -993,6 +1041,9 @@ int main(void)
     RUN_TEST(test_fn_short_press_is_tap);
     RUN_TEST(test_chord_fires_once_and_suppresses_up_down_events);
     RUN_TEST(test_two_keys_without_long_hold_are_independent);
+    RUN_TEST(test_chord_during_jog_ends_hold);
+    RUN_TEST(test_fn_press_does_not_rearm_chord);
+    RUN_TEST(test_fn_long_fires_during_chord);
     return UNITY_END();
 }
 ```
@@ -1036,11 +1087,19 @@ kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_
         s->t_press[key] = now_ms;
         s->holding[key] = false;
         if (key == KEY_FN) s->long_fired = false;
-        if (s->down[KEY_UP] && s->down[KEY_DOWN]) {
+        if ((key == KEY_UP || key == KEY_DOWN) &&
+            s->down[KEY_UP] && s->down[KEY_DOWN] && !s->in_chord) {
             s->in_chord    = true;   /* latch: suppress both keys until released */
             s->chord_fired = false;
             /* chord timing restarts from this (second) press */
             s->t_press[KEY_UP] = s->t_press[KEY_DOWN] = now_ms;
+            /* if the other key was mid-jog, close that hold before suppressing
+             * it — otherwise the consumer never gets the jog-stop signal */
+            key_id_t other = (key == KEY_UP) ? KEY_DOWN : KEY_UP;
+            if (s->holding[other]) {
+                s->holding[other] = false;
+                return evt(KP_EVT_HOLD_END, other);
+            }
         }
         return evt(KP_EVT_NONE, key);
     }
@@ -1073,7 +1132,15 @@ kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_
 
 kp_event_t kp_on_tick(kp_state_t *s, uint32_t now_ms)
 {
-    /* chord first: highest priority, suppresses everything else */
+    /* Fn is independent of the Up/Down chord — checked first so a chord
+     * attempt can never starve FN_LONG */
+    if (s->down[KEY_FN] && !s->long_fired &&
+        now_ms - s->t_press[KEY_FN] >= s->long_ms) {
+        s->long_fired = true;
+        return evt(KP_EVT_FN_LONG, KEY_FN);
+    }
+
+    /* chord: suppresses Up/Down hold processing */
     if (s->in_chord && !s->chord_fired &&
         s->down[KEY_UP] && s->down[KEY_DOWN] &&
         now_ms - s->t_press[KEY_UP] >= s->long_ms) {
@@ -1081,13 +1148,6 @@ kp_event_t kp_on_tick(kp_state_t *s, uint32_t now_ms)
         return evt(KP_EVT_CHORD_REVERSE, KEY_UP);
     }
     if (s->in_chord) return evt(KP_EVT_NONE, KEY_UP);
-
-    /* Fn long-press */
-    if (s->down[KEY_FN] && !s->long_fired &&
-        now_ms - s->t_press[KEY_FN] >= s->long_ms) {
-        s->long_fired = true;
-        return evt(KP_EVT_FN_LONG, KEY_FN);
-    }
 
     /* Up/Down hold -> jog (Fn never jogs) */
     for (key_id_t k = KEY_UP; k <= KEY_DOWN; k++) {
@@ -1149,6 +1209,7 @@ typedef enum {
     APP_EVT_ZB_SET_REVERSED, /* .on: Mode attr bit0 written from z2m */
     APP_EVT_MOTION_DONE,     /* .steps final position, .completed reached target */
     APP_EVT_CAL_TIMEOUT,     /* 5-min calibration timeout */
+    APP_EVT_REPORT_TICK,     /* 1 s live-position reporting tick during moves */
 } app_event_type_t;
 
 typedef struct {
@@ -1585,7 +1646,7 @@ git commit -m "Add motion module: GPTimer IRAM step ISR, trapezoid + decel-stop"
 typedef enum {
     LED_OFF = 0,        /* normal: calibrated, idle */
     LED_CAL_MARK1,      /* 1 Hz blink: awaiting mark 1 (Open) */
-    LED_CAL_MARK2,      /* 4 Hz blink: awaiting mark 2 (Closed) */
+    LED_CAL_MARK2,      /* fast ~5 Hz blink: awaiting mark 2 (Closed) */
     LED_UNCAL,          /* double-flash every 3 s: uncalibrated / pos unknown */
     LED_IDENTIFY,       /* steady rapid blink: Zigbee Identify */
     LED_ACK,            /* transient: three quick flashes */
@@ -1620,7 +1681,8 @@ void status_led_flash(led_pattern_t transient);/* LED_ACK / LED_ERROR overlay */
 static int s_ext = -1, s_onb = -1;
 static led_pattern_t s_base = LED_OFF;
 static led_pattern_t s_trans = LED_OFF;   /* LED_OFF = no transient */
-static int s_tick;
+static int s_base_tick;    /* base and transient keep independent tick counters */
+static int s_trans_tick;   /* so a base change can never corrupt a flash train */
 static esp_timer_handle_t s_timer;
 
 /* on/off per tick for each pattern; t is the tick inside the frame */
@@ -1628,7 +1690,7 @@ static bool pattern_level(led_pattern_t p, int t)
 {
     switch (p) {
     case LED_CAL_MARK1: return (t / 10) % 2 == 0;          /* 1 Hz */
-    case LED_CAL_MARK2: return (t / 2)  % 2 == 0;          /* ~4 Hz (5 Hz grid) */
+    case LED_CAL_MARK2: return (t / 2)  % 2 == 0;          /* fast, 5 Hz (spec: ~5 Hz) */
     case LED_UNCAL:     return t == 0 || t == 1 || t == 4 || t == 5; /* dbl flash / 3 s */
     case LED_IDENTIFY:  return t % 2 == 0;                 /* rapid 10 Hz */
     case LED_ACK:       return t < 12 && (t / 2) % 2 == 0; /* 3 flashes */
@@ -1641,14 +1703,21 @@ static bool pattern_level(led_pattern_t p, int t)
 static void tick_cb(void *arg)
 {
     (void)arg;
-    led_pattern_t p = (s_trans != LED_OFF) ? s_trans : s_base;
-    bool lvl = pattern_level(p, s_tick);
+    bool lvl;
+    if (s_trans != LED_OFF) {
+        lvl = pattern_level(s_trans, s_trans_tick);
+        s_trans_tick++;
+        /* transient ends after its flash train (ACK 12, ERROR 20 ticks) */
+        if ((s_trans == LED_ACK && s_trans_tick >= 12) ||
+            (s_trans == LED_ERROR && s_trans_tick >= 20)) {
+            s_trans = LED_OFF;
+        }
+    } else {
+        lvl = pattern_level(s_base, s_base_tick);
+        s_base_tick = (s_base_tick + 1) % FRAME;
+    }
     gpio_set_level(s_ext, lvl);
     gpio_set_level(s_onb, lvl);
-    s_tick = (s_tick + 1) % FRAME;
-    /* transient patterns end after their flash train (ACK 12, ERROR 20 ticks) */
-    if (s_trans == LED_ACK && s_tick >= 12) { s_trans = LED_OFF; s_tick = 0; }
-    if (s_trans == LED_ERROR && s_tick >= 20) { s_trans = LED_OFF; s_tick = 0; }
 }
 
 esp_err_t status_led_init(int gpio_ext, int gpio_onboard)
@@ -1671,13 +1740,16 @@ esp_err_t status_led_init(int gpio_ext, int gpio_onboard)
 
 void status_led_set(led_pattern_t base)
 {
-    if (base != s_base) { s_base = base; s_tick = 0; }
+    if (base != s_base) { s_base = base; s_base_tick = 0; }
 }
 
 void status_led_flash(led_pattern_t transient)
 {
+    if (transient != LED_ACK && transient != LED_ERROR) {
+        return;   /* only flash trains are transients; base patterns never overlay */
+    }
     s_trans = transient;
-    s_tick = 0;
+    s_trans_tick = 0;
 }
 ```
 
@@ -2048,7 +2120,7 @@ static const char *TAG = "BLINDS";
 
 /* ---- identity ---- */
 #define MANUF_NAME  "\x0B" "DFRobot-DIY"
-#define MODEL_ID    "\x0F" "DFR-RollerBlinds"
+#define MODEL_ID    "\x10" "DFR-RollerBlinds"
 #define APP_ENDPOINT 1
 
 /* ---- GPIO map (bench-verify; see HARDWARE.md) ---- */
@@ -2076,6 +2148,10 @@ static QueueHandle_t s_queue;
 static position_t    s_pos;
 static bool          s_reversed;
 static bool          s_cal_mode;      /* position.cal != NONE mirror for clarity */
+static bool          s_cal_moved;     /* blind was jogged inside calibration mode */
+static bool          s_cal_abort_pending; /* timeout hit mid-jog: abort on DONE */
+static bool          s_pending_valid; /* ZB target parked while a move decelerates */
+static uint8_t       s_pending_pct;
 static int32_t       s_raw;           /* raw step counter (valid in cal mode too) */
 static esp_timer_handle_t s_cal_timer;
 static esp_timer_handle_t s_report_timer;
@@ -2102,8 +2178,12 @@ static void refresh_outputs(void)
 
 static int32_t hard_cap(void)
 {
-    return s_pos.span_valid ? s_pos.closed_steps + HARD_CAP_MARGIN
-                            : JOG_UNBOUNDED + 1;
+    /* Watchdog cap applies to calibrated moves only. Every state where the
+     * operator jogs with a deadman hold (uncalibrated, Position Unknown,
+     * calibration mode) must be uncapped — matching jog()'s target choice —
+     * or Re-home/recal jogs would be refused while span_valid is still set. */
+    return position_calibrated(&s_pos) ? s_pos.closed_steps + HARD_CAP_MARGIN
+                                       : JOG_UNBOUNDED + 1;
 }
 
 static void start_move(int32_t target, const motion_profile_t *prof)
@@ -2142,13 +2222,24 @@ static void cal_timeout_cb(void *arg)
     xQueueSend(s_queue, &ev, 0);
 }
 
-static void report_tick_cb(void *arg)   /* esp_timer task = task context: OK */
+static void report_tick_cb(void *arg)
 {
+    /* esp_timer task: only post — s_pos is owned by the dispatcher task, so
+     * the live-position computation happens there (no cross-task reads). */
     (void)arg;
-    if (motion_is_moving() && position_calibrated(&s_pos)) {
-        position_t tmp = s_pos;
-        position_set_current(&tmp, motion_current_steps());
-        covering_report_lift(position_lift_pct(&tmp));
+    app_event_t ev = { .type = APP_EVT_REPORT_TICK };
+    xQueueSend(s_queue, &ev, 0);
+}
+
+/* Abort policy: the span stays untouched (spec §6), but if the blind was
+ * jogged while in the mode, the stored position no longer matches reality —
+ * drop to Position Unknown so a Re-home is demanded instead of trusting
+ * stale state. */
+static void cal_abort_position_policy(void)
+{
+    if (s_cal_moved && s_pos.span_valid) {
+        position_mark_unknown(&s_pos);
+        blind_store_save_position(false, 0);
     }
 }
 
@@ -2159,9 +2250,12 @@ static void enter_or_exit_cal(void)
         position_cal_abort(&s_pos);
         s_cal_mode = false;
         esp_timer_stop(s_cal_timer);
+        cal_abort_position_policy();
     } else {
         position_cal_enter(&s_pos);
         s_cal_mode = true;
+        s_cal_moved = false;
+        s_cal_abort_pending = false;
         s_raw = s_pos.pos_known ? s_pos.cur_steps : 0;   /* fresh raw frame */
         esp_timer_start_once(s_cal_timer, CAL_TIMEOUT_US);
     }
@@ -2172,7 +2266,9 @@ static void handle_mark(void)
 {
     if (motion_is_moving()) { motion_stop(); return; }   /* Fn tap = stop first */
     if (!s_cal_mode) return;                             /* idle taps inert */
-    pos_cal_state_t before = s_pos.cal;
+    /* NOTE: s_raw stays one continuous frame through the whole calibration —
+     * position_cal_mark stores mark 1's raw and computes the span as the
+     * difference at mark 2, so the caller must NOT re-anchor between marks. */
     if (position_cal_mark(&s_pos, s_raw, MIN_SPAN_STEPS)) {
         if (s_pos.cal == POS_CAL_NONE) {                 /* calibration finished */
             s_cal_mode = false;
@@ -2180,9 +2276,6 @@ static void handle_mark(void)
             blind_store_save_span(s_pos.span_valid, s_pos.closed_steps);
             blind_store_save_position(s_pos.pos_known, s_pos.cur_steps);
             s_raw = s_pos.cur_steps;                     /* re-anchor raw frame */
-        } else if (before == POS_CAL_WAIT_MARK1) {
-            /* mark 1 accepted: re-zero the raw frame at Open */
-            s_raw = 0;
         }
         status_led_flash(LED_ACK);
     } else {
@@ -2208,10 +2301,25 @@ static void toggle_reversed(void)
     refresh_outputs();
 }
 
+/* Spec §7: a command during a move preempts — decelerate to stop, then run
+ * the new target (last writer wins). The target is parked until MOTION_DONE. */
+static void zb_goto_request(uint8_t pct)
+{
+    if (!position_calibrated(&s_pos)) return;   /* lockout backstop */
+    if (motion_is_moving()) {
+        s_pending_pct   = pct;
+        s_pending_valid = true;
+        motion_stop();
+    } else {
+        goto_pct(pct);
+    }
+}
+
 /* ---------- event dispatch ---------- */
 
 static void handle_keypad(kp_event_t e)
 {
+    s_pending_valid = false;   /* any local input is the last writer (spec §7) */
     bool cal_dev = position_calibrated(&s_pos);
     switch (e.type) {
     case KP_EVT_TAP:
@@ -2248,29 +2356,59 @@ static void dispatcher_task(void *pv)
         case APP_EVT_KEYPAD:
             handle_keypad(ev.kp);
             break;
-        case APP_EVT_ZB_OPEN:   if (!motion_is_moving()) goto_pct(0);   break;
-        case APP_EVT_ZB_CLOSE:  if (!motion_is_moving()) goto_pct(100); break;
-        case APP_EVT_ZB_GOTO:   if (!motion_is_moving()) goto_pct(ev.pct); break;
-        case APP_EVT_ZB_STOP:   motion_stop(); break;
+        case APP_EVT_ZB_OPEN:   zb_goto_request(0);      break;
+        case APP_EVT_ZB_CLOSE:  zb_goto_request(100);    break;
+        case APP_EVT_ZB_GOTO:   zb_goto_request(ev.pct); break;
+        case APP_EVT_ZB_STOP:
+            s_pending_valid = false;
+            motion_stop();
+            break;
         case APP_EVT_ZB_SET_REVERSED:
             if (ev.on != s_reversed) toggle_reversed();
             break;
         case APP_EVT_MOTION_DONE:
             esp_timer_stop(s_report_timer);
             s_raw = ev.steps;
-            if (!s_cal_mode) {
+            if (s_cal_mode) {
+                s_cal_moved = true;
+                if (s_cal_abort_pending) {   /* timeout hit mid-jog */
+                    s_cal_abort_pending = false;
+                    position_cal_abort(&s_pos);
+                    s_cal_mode = false;
+                    esp_timer_stop(s_cal_timer);
+                    cal_abort_position_policy();
+                }
+            } else {
                 position_set_current(&s_pos, position_clamp(&s_pos, ev.steps));
                 blind_store_save_position(s_pos.pos_known, s_pos.cur_steps);
             }
             blind_store_set_move_flag(false);
+            if (s_pending_valid && !s_cal_mode && position_calibrated(&s_pos)) {
+                uint8_t pct = s_pending_pct;   /* ZB preemption: last writer */
+                s_pending_valid = false;
+                goto_pct(pct);
+            }
             refresh_outputs();
             break;
         case APP_EVT_CAL_TIMEOUT:
-            if (s_cal_mode) {
-                if (motion_is_moving()) motion_stop();
+            if (!s_cal_mode) break;
+            if (motion_is_moving()) {
+                s_cal_abort_pending = true;    /* finish stopping; abort on DONE
+                                                * so the DONE steps aren't written
+                                                * into position as trusted state */
+                motion_stop();
+            } else {
                 position_cal_abort(&s_pos);
                 s_cal_mode = false;
+                cal_abort_position_policy();
                 refresh_outputs();
+            }
+            break;
+        case APP_EVT_REPORT_TICK:
+            if (motion_is_moving() && position_calibrated(&s_pos)) {
+                position_t tmp = s_pos;        /* dispatcher owns s_pos: safe */
+                position_set_current(&tmp, motion_current_steps());
+                covering_report_lift(position_lift_pct(&tmp));
             }
             break;
         default:
@@ -2318,7 +2456,10 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_timer_create(&rep_t, &s_report_timer));
 
     covering_set_queue(s_queue);
-    covering_set_motion_allowed(false);   /* until refresh after join */
+    /* The lockout flag needs no Zigbee stack — set it truthfully NOW so a
+     * calibrated device that joins slowly doesn't reject remote motion in
+     * the meantime; attribute sync still happens after the join wait. */
+    covering_set_motion_allowed(position_calibrated(&s_pos));
 
     zb_core_cfg_t cfg = {
         .role              = ZB_CORE_ROLE_ROUTER,
@@ -2358,7 +2499,7 @@ void app_main(void)
 - [ ] **Step 4: Add `"keypad.c"` to `src/CMakeLists.txt` `SRCS`; build + host tests**
 
 Run: `pio run && pio test -e native`
-Expected: build SUCCESS; all host suites still green (20/20 across the three).
+Expected: build SUCCESS; all host suites still green (24 cases across the three).
 
 - [ ] **Step 5: Commit**
 

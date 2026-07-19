@@ -104,7 +104,7 @@ on the enclosure face (a GPIO through a resistor); the onboard LED mirrors it.
 |---|---|
 | Off | Normal: calibrated, idle |
 | 1 Hz blink | Calibration mode, awaiting mark 1 (Open) |
-| 4 Hz blink | Calibration mode, awaiting mark 2 (Closed) |
+| Fast blink (~5 Hz) | Calibration mode, awaiting mark 2 (Closed) |
 | Double-flash every 3 s | Uncalibrated / Position Unknown (z2m motion locked) |
 | Three quick flashes | Ack: mark accepted / direction toggled |
 | Five rapid flashes | Error: mark rejected (§6 validation) |
@@ -197,8 +197,9 @@ never stall stepping mid-move.
     the device; a keypad-chord toggle is reported back via the attribute. The
     NVS value is the single source of truth; both UIs are editors of it.
   - **Motion lockout:** while uncalibrated, Position Unknown, or in calibration
-    mode, **all motion commands** (UpOpen/DownClose/Stop/GoToLift) are rejected
-    with a ZCL default response (failure). Lift reports unknown (0xFF) and the
+    mode, movement commands (UpOpen/DownClose/GoToLift) are rejected with a ZCL
+    default response (failure). **Stop is always accepted** — halting is safe
+    in every state, including a locked-out one. Lift reports unknown (0xFF) and the
     converter's `calibrated: false` flag shows why. Remote motion is a privilege
     calibration unlocks — an uncalibrated blind moves only via local
     hold-to-jog (deadman). Rationale: Zigbee has no key-release event, so a
@@ -238,7 +239,7 @@ mode has two automatic entry variants — no extra gestures to learn:
 
 **Full calibration** (entered while calibrated, or never calibrated):
 1. Jog to **fully open**, tap Fn → mark 1 (zero reference). LED goes 1 Hz →
-   4 Hz.
+   fast (~5 Hz).
 2. Jog to **fully closed**, tap Fn → mark 2. **Validation:** mark 2 must lie
    *below* mark 1 by a minimum sane travel (constant, ~¼ output rev). Invalid →
    five-flash error, mark rejected, mode stays waiting for mark 2. Valid →
@@ -250,6 +251,10 @@ mode has two automatic entry variants — no extra gestures to learn:
    device calibrated again. One mark instead of two.
 
 Abort either variant: second Fn long-press, or 5-minute timeout — no save.
+The span is untouched, but if the blind was **jogged** during the aborted
+session the stored position no longer matches reality: the device drops to
+Position Unknown (Re-home required) rather than trusting stale state. An
+abort with no jogging changes nothing.
 Bare Fn-taps outside calibration mode **never** set marks (idle taps are inert;
 taps while moving mean stop) — no accidental re-zeros.
 

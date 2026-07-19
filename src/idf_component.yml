@@ -1,0 +1,4 @@
+dependencies:
+  esp-zb-common:
+    git: https://github.com/linosteenkamp/esp-zb-common.git
+    version: v0.1.1
