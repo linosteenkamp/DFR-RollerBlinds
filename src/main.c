@@ -11,7 +11,7 @@
 static const char *TAG = "BLINDS";
 
 #define MANUF_NAME  "\x0B" "DFRobot-DIY"
-#define MODEL_ID    "\x0F" "DFR-RollerBlinds"
+#define MODEL_ID    "\x10" "DFR-RollerBlinds"
 
 static void build_clusters(esp_zb_cluster_list_t *clusters)
 {
