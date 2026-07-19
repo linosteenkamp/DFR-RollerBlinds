@@ -2,6 +2,7 @@ set(SRCS
     "main.c"
     "position.c"
     "ramp.c"
+    "keypad_logic.c"
 )
 
 idf_component_register(
