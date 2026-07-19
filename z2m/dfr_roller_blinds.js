@@ -43,7 +43,12 @@ const fzMotorReversed = {
 const tzMotorReversed = {
     key: ['motor_reversed'],
     convertSet: async (entity, key, value, meta) => {
-        const mode = value ? 0x01 : 0x00;
+        // ZBOSS (device-side stack) has an inverted-mask bug in its Mode
+        // value check: any write where (value & 0x1f) == 0 gets INVALID_VALUE,
+        // so a plain 0x00 is unwritable. Keep bit3 ("LEDs will display
+        // feedback" — true for this device) set so 'false' stays writable;
+        // the firmware reads only bit0 and reports back the canonical 0/1.
+        const mode = value ? 0x09 : 0x08;
         await entity.write('closuresWindowCovering', {windowCoveringMode: mode});
         return {state: {motor_reversed: value}};
     },
