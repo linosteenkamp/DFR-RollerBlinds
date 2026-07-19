@@ -17,6 +17,7 @@ typedef enum {
     APP_EVT_ZB_SET_REVERSED, /* .on: Mode attr bit0 written from z2m */
     APP_EVT_MOTION_DONE,     /* .steps final position, .completed reached target */
     APP_EVT_CAL_TIMEOUT,     /* 5-min calibration timeout */
+    APP_EVT_REPORT_TICK,     /* 1 s live-position reporting tick during moves */
 } app_event_type_t;
 
 typedef struct {

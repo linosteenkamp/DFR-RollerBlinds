@@ -53,6 +53,10 @@ static QueueHandle_t s_queue;
 static position_t    s_pos;
 static bool          s_reversed;
 static bool          s_cal_mode;      /* position.cal != NONE mirror for clarity */
+static bool          s_cal_moved;     /* blind was jogged inside calibration mode */
+static bool          s_cal_abort_pending; /* timeout hit mid-jog: abort on DONE */
+static bool          s_pending_valid; /* ZB target parked while a move decelerates */
+static uint8_t       s_pending_pct;
 static int32_t       s_raw;           /* raw step counter (valid in cal mode too) */
 static esp_timer_handle_t s_cal_timer;
 static esp_timer_handle_t s_report_timer;
@@ -79,8 +83,12 @@ static void refresh_outputs(void)
 
 static int32_t hard_cap(void)
 {
-    return s_pos.span_valid ? s_pos.closed_steps + HARD_CAP_MARGIN
-                            : JOG_UNBOUNDED + 1;
+    /* Watchdog cap applies to calibrated moves only. Every state where the
+     * operator jogs with a deadman hold (uncalibrated, Position Unknown,
+     * calibration mode) must be uncapped — matching jog()'s target choice —
+     * or Re-home/recal jogs would be refused while span_valid is still set. */
+    return position_calibrated(&s_pos) ? s_pos.closed_steps + HARD_CAP_MARGIN
+                                       : JOG_UNBOUNDED + 1;
 }
 
 static void start_move(int32_t target, const motion_profile_t *prof)
@@ -119,13 +127,24 @@ static void cal_timeout_cb(void *arg)
     xQueueSend(s_queue, &ev, 0);
 }
 
-static void report_tick_cb(void *arg)   /* esp_timer task = task context: OK */
+static void report_tick_cb(void *arg)
 {
+    /* esp_timer task: only post — s_pos is owned by the dispatcher task, so
+     * the live-position computation happens there (no cross-task reads). */
     (void)arg;
-    if (motion_is_moving() && position_calibrated(&s_pos)) {
-        position_t tmp = s_pos;
-        position_set_current(&tmp, motion_current_steps());
-        covering_report_lift(position_lift_pct(&tmp));
+    app_event_t ev = { .type = APP_EVT_REPORT_TICK };
+    xQueueSend(s_queue, &ev, 0);
+}
+
+/* Abort policy: the span stays untouched (spec §6), but if the blind was
+ * jogged while in the mode, the stored position no longer matches reality —
+ * drop to Position Unknown so a Re-home is demanded instead of trusting
+ * stale state. */
+static void cal_abort_position_policy(void)
+{
+    if (s_cal_moved && s_pos.span_valid) {
+        position_mark_unknown(&s_pos);
+        blind_store_save_position(false, 0);
     }
 }
 
@@ -136,9 +155,12 @@ static void enter_or_exit_cal(void)
         position_cal_abort(&s_pos);
         s_cal_mode = false;
         esp_timer_stop(s_cal_timer);
+        cal_abort_position_policy();
     } else {
         position_cal_enter(&s_pos);
         s_cal_mode = true;
+        s_cal_moved = false;
+        s_cal_abort_pending = false;
         s_raw = s_pos.pos_known ? s_pos.cur_steps : 0;   /* fresh raw frame */
         esp_timer_start_once(s_cal_timer, CAL_TIMEOUT_US);
     }
@@ -149,7 +171,9 @@ static void handle_mark(void)
 {
     if (motion_is_moving()) { motion_stop(); return; }   /* Fn tap = stop first */
     if (!s_cal_mode) return;                             /* idle taps inert */
-    pos_cal_state_t before = s_pos.cal;
+    /* NOTE: s_raw stays one continuous frame through the whole calibration —
+     * position_cal_mark stores mark 1's raw and computes the span as the
+     * difference at mark 2, so the caller must NOT re-anchor between marks. */
     if (position_cal_mark(&s_pos, s_raw, MIN_SPAN_STEPS)) {
         if (s_pos.cal == POS_CAL_NONE) {                 /* calibration finished */
             s_cal_mode = false;
@@ -157,9 +181,6 @@ static void handle_mark(void)
             blind_store_save_span(s_pos.span_valid, s_pos.closed_steps);
             blind_store_save_position(s_pos.pos_known, s_pos.cur_steps);
             s_raw = s_pos.cur_steps;                     /* re-anchor raw frame */
-        } else if (before == POS_CAL_WAIT_MARK1) {
-            /* mark 1 accepted: re-zero the raw frame at Open */
-            s_raw = 0;
         }
         status_led_flash(LED_ACK);
     } else {
@@ -185,10 +206,25 @@ static void toggle_reversed(void)
     refresh_outputs();
 }
 
+/* Spec §7: a command during a move preempts — decelerate to stop, then run
+ * the new target (last writer wins). The target is parked until MOTION_DONE. */
+static void zb_goto_request(uint8_t pct)
+{
+    if (!position_calibrated(&s_pos)) return;   /* lockout backstop */
+    if (motion_is_moving()) {
+        s_pending_pct   = pct;
+        s_pending_valid = true;
+        motion_stop();
+    } else {
+        goto_pct(pct);
+    }
+}
+
 /* ---------- event dispatch ---------- */
 
 static void handle_keypad(kp_event_t e)
 {
+    s_pending_valid = false;   /* any local input is the last writer (spec §7) */
     bool cal_dev = position_calibrated(&s_pos);
     switch (e.type) {
     case KP_EVT_TAP:
@@ -225,29 +261,59 @@ static void dispatcher_task(void *pv)
         case APP_EVT_KEYPAD:
             handle_keypad(ev.kp);
             break;
-        case APP_EVT_ZB_OPEN:   if (!motion_is_moving()) goto_pct(0);   break;
-        case APP_EVT_ZB_CLOSE:  if (!motion_is_moving()) goto_pct(100); break;
-        case APP_EVT_ZB_GOTO:   if (!motion_is_moving()) goto_pct(ev.pct); break;
-        case APP_EVT_ZB_STOP:   motion_stop(); break;
+        case APP_EVT_ZB_OPEN:   zb_goto_request(0);      break;
+        case APP_EVT_ZB_CLOSE:  zb_goto_request(100);    break;
+        case APP_EVT_ZB_GOTO:   zb_goto_request(ev.pct); break;
+        case APP_EVT_ZB_STOP:
+            s_pending_valid = false;
+            motion_stop();
+            break;
         case APP_EVT_ZB_SET_REVERSED:
             if (ev.on != s_reversed) toggle_reversed();
             break;
         case APP_EVT_MOTION_DONE:
             esp_timer_stop(s_report_timer);
             s_raw = ev.steps;
-            if (!s_cal_mode) {
+            if (s_cal_mode) {
+                s_cal_moved = true;
+                if (s_cal_abort_pending) {   /* timeout hit mid-jog */
+                    s_cal_abort_pending = false;
+                    position_cal_abort(&s_pos);
+                    s_cal_mode = false;
+                    esp_timer_stop(s_cal_timer);
+                    cal_abort_position_policy();
+                }
+            } else {
                 position_set_current(&s_pos, position_clamp(&s_pos, ev.steps));
                 blind_store_save_position(s_pos.pos_known, s_pos.cur_steps);
             }
             blind_store_set_move_flag(false);
+            if (s_pending_valid && !s_cal_mode && position_calibrated(&s_pos)) {
+                uint8_t pct = s_pending_pct;   /* ZB preemption: last writer */
+                s_pending_valid = false;
+                goto_pct(pct);
+            }
             refresh_outputs();
             break;
         case APP_EVT_CAL_TIMEOUT:
-            if (s_cal_mode) {
-                if (motion_is_moving()) motion_stop();
+            if (!s_cal_mode) break;
+            if (motion_is_moving()) {
+                s_cal_abort_pending = true;    /* finish stopping; abort on DONE
+                                                * so the DONE steps aren't written
+                                                * into position as trusted state */
+                motion_stop();
+            } else {
                 position_cal_abort(&s_pos);
                 s_cal_mode = false;
+                cal_abort_position_policy();
                 refresh_outputs();
+            }
+            break;
+        case APP_EVT_REPORT_TICK:
+            if (motion_is_moving() && position_calibrated(&s_pos)) {
+                position_t tmp = s_pos;        /* dispatcher owns s_pos: safe */
+                position_set_current(&tmp, motion_current_steps());
+                covering_report_lift(position_lift_pct(&tmp));
             }
             break;
         default:
@@ -295,7 +361,10 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_timer_create(&rep_t, &s_report_timer));
 
     covering_set_queue(s_queue);
-    covering_set_motion_allowed(false);   /* until refresh after join */
+    /* The lockout flag needs no Zigbee stack — set it truthfully NOW so a
+     * calibrated device that joins slowly doesn't reject remote motion in
+     * the meantime; attribute sync still happens after the join wait. */
+    covering_set_motion_allowed(position_calibrated(&s_pos));
 
     zb_core_cfg_t cfg = {
         .role              = ZB_CORE_ROLE_ROUTER,
