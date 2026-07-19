@@ -1,5 +1,6 @@
 set(SRCS
     "main.c"
+    "position.c"
 )
 
 idf_component_register(
