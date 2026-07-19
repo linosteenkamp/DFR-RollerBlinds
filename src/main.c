@@ -39,15 +39,16 @@ static const char *TAG = "BLINDS";
 #define PIN_LED_ONB  15
 
 /* ---- motion tuning (bench constants, spec §6) ---- */
-#define CRUISE_US       300      /* ~3.3 kHz at 1/8 µstep */
+#define CRUISE_US       100      /* 10 kHz at 1/8 µstep: ~2.4 s per output rev */
 #define START_US        500      /* ~2 kHz first/last step */
 #define ACCEL_STEPS     800
-#define JOG_CRUISE_US   600      /* jog slower for control */
+#define JOG_CRUISE_US   300      /* jog slower than travel but fast enough to
+                                  * cross a full 2.5 m span within the cal timeout */
 #define JOG_START_US    900      /* jog starts slower than its cruise */
 #define MIN_SPAN_STEPS  6000     /* ~1/4 output rev: min valid calibration */
 #define HARD_CAP_MARGIN 2400     /* watchdog: allowed overshoot of span */
 #define JOG_UNBOUNDED   2000000  /* "infinite" jog target while uncalibrated */
-#define CAL_TIMEOUT_US  (5LL * 60 * 1000000)
+#define CAL_TIMEOUT_US  (10LL * 60 * 1000000)  /* must exceed a full-span jog */
 #define REPORT_PERIOD_US (1LL * 1000000)
 
 static QueueHandle_t s_queue;
