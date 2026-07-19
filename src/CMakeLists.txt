@@ -4,6 +4,7 @@ set(SRCS
     "ramp.c"
     "keypad_logic.c"
     "blind_store.c"
+    "motion.c"
 )
 
 idf_component_register(
