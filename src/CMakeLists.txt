@@ -5,6 +5,7 @@ set(SRCS
     "keypad_logic.c"
     "blind_store.c"
     "motion.c"
+    "status_led.c"
 )
 
 idf_component_register(
