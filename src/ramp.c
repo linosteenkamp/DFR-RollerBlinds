@@ -14,6 +14,10 @@ void ramp_plan_init(ramp_plan_t *r, int32_t total_steps, uint32_t cruise_us,
     if (accel_steps < 1) accel_steps = 1;
     if (accel_steps > total_steps / 2) accel_steps = total_steps / 2;
     if (accel_steps < 1) accel_steps = 1;   /* total==1 edge */
+    if (cruise_us > start_us) {
+        start_us = cruise_us;   /* start may never be faster than cruise —
+                                 * unsigned frequency math would underflow */
+    }
     r->total       = total_steps;
     r->accel_steps = accel_steps;
     r->start_us    = start_us;

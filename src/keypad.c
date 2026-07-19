@@ -7,13 +7,17 @@
 #include "keypad_logic.h"
 #include "app_event.h"
 #include "debounce.h"
+#include "motion.h"
 
 #include "driver/gpio.h"
 #include "esp_timer.h"
+#include "esp_log.h"
 
 #define POLL_MS   20
 #define HOLD_MS   400
 #define LONG_MS   3000
+
+static const char *TAG = "KEYPAD";
 
 static int           s_gpio[KEY_COUNT];
 static debounce_t    s_db[KEY_COUNT];
@@ -24,7 +28,13 @@ static void post_kp(kp_event_t e)
 {
     if (e.type == KP_EVT_NONE) return;
     app_event_t ev = { .type = APP_EVT_KEYPAD, .kp = e };
-    xQueueSend(s_queue, &ev, 0);
+    if (xQueueSend(s_queue, &ev, 0) != pdTRUE) {
+        ESP_LOGE(TAG, "queue full, dropped kp event type=%d", e.type);
+        if (e.type == KP_EVT_HOLD_END || e.type == KP_EVT_TAP) {
+            /* a dropped stop-class event must not leave the motor running */
+            motion_stop();
+        }
+    }
 }
 
 static void poll_cb(void *arg)

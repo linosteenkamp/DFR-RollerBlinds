@@ -52,6 +52,13 @@ const tzMotorReversed = {
     },
 };
 
+const tzCalibrated = {
+    key: ['calibrated'],
+    convertGet: async (entity, key, meta) => {
+        await entity.read('closuresWindowCovering', ['configStatus']);
+    },
+};
+
 module.exports = [
     {
         zigbeeModel: ['DFR-RollerBlinds'],
@@ -62,7 +69,7 @@ module.exports = [
             m.windowCovering({controls: ['lift']}),
         ],
         fromZigbee: [fzCalibrated, fzMotorReversed],
-        toZigbee: [tzMotorReversed],
+        toZigbee: [tzMotorReversed, tzCalibrated],
         exposes: [
             e.binary('calibrated', ea.STATE_GET, true, false)
                 .withDescription('Travel limits calibrated; motion commands are rejected until true'),

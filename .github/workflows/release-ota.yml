@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.ref }}
           fetch-depth: 0
 
       - name: Check out esp-zb-common tools
@@ -37,6 +37,9 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME#v}"
           IFS=. read -r MA MI PA <<< "$TAG"
+          if [ "$MA" -gt 15 ] || [ "$MI" -gt 15 ]; then
+            echo "major/minor must be <= 15 (packed into single hex nibbles)"; exit 1
+          fi
           # Semver in the HIGH hex digits (must match OTA_PACK_VERSION in include/ota_ids.h)
           printf 'file_version=0x%X%X%02X0000\n' "$MA" "$MI" "$PA" >> "$GITHUB_OUTPUT"
           printf 'major=%s\nminor=%s\npatch=%s\n' "$MA" "$MI" "$PA" >> "$GITHUB_OUTPUT"
@@ -70,6 +73,7 @@ jobs:
 
       - name: Update ota/index.json on main
         run: |
+          git fetch origin main && git checkout -B main origin/main
           python3 esp-zb-common/tools/update_ota_index.py \
             --index ota/index.json \
             --model "$MODEL_ID" \

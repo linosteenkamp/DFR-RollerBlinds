@@ -71,7 +71,7 @@ pio run --target erase
 | `motion` | `src/motion.c` | GPTimer ISR step generation, DIR/EN, step counter, done-events to queue | — |
 | `status_led` | `src/status_led.c` | LED pattern player (external + onboard mirror) | — |
 | `covering` | `src/covering.c` | Window Covering cluster build/report + action-handler → queue | — |
-| `keypad` | `src/keypad.c` | GPIO + ISR + library debounce → feeds `keypad_logic`, events to queue | — |
+| `keypad` | `src/keypad.c` | 20 ms poller (no ISR) + library debounce → feeds `keypad_logic`, events to queue | — |
 | `main` | `src/main.c` | Wiring, GPIO map, constants, dispatcher task (gesture matrix + calibration flow) | — |
 | `app_event` | `include/app_event.h` | The one queue item type shared by keypad/covering/motion/main | — |
 | `ota_ids` / `fw_version` | `include/ota_ids.h`, `include/fw_version.h` | OTA identity (image type 0x0003) | — |

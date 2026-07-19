@@ -59,6 +59,17 @@ static void test_single_step_move(void)
     TEST_ASSERT_EQUAL_UINT32(START_US, ramp_interval_us(&r, 0));
 }
 
+static void test_cruise_slower_than_start_is_clamped(void)
+{
+    ramp_plan_t r;
+    ramp_plan_init(&r, 1000, 600, 500, 800);   /* cruise SLOWER than start */
+    TEST_ASSERT_EQUAL_UINT32(600, r.start_us); /* clamped */
+    for (int32_t i = 0; i < 1000; i += 13) {
+        uint32_t iv = ramp_interval_us(&r, i);
+        TEST_ASSERT_TRUE(iv >= 600);           /* never faster than cruise, never 0 */
+    }
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -67,5 +78,6 @@ int main(void)
     RUN_TEST(test_accel_intervals_monotonically_decrease);
     RUN_TEST(test_short_move_becomes_triangle_never_reaches_cruise);
     RUN_TEST(test_single_step_move);
+    RUN_TEST(test_cruise_slower_than_start_is_clamped);
     return UNITY_END();
 }

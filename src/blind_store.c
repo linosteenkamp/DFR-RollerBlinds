@@ -52,14 +52,16 @@ static esp_err_t commit2(esp_err_t a, esp_err_t b)
 
 esp_err_t blind_store_save_span(bool span_valid, int32_t closed_steps)
 {
-    return commit2(nvs_set_u8(s_nvs, "span_ok", span_valid ? 1 : 0),
-                   nvs_set_i32(s_nvs, "span", closed_steps));
+    /* value first, flag second: a torn pair (power loss mid-write) then
+     * fails toward the flag not being set, not toward a trusted stale value */
+    return commit2(nvs_set_i32(s_nvs, "span", closed_steps),
+                   nvs_set_u8(s_nvs, "span_ok", span_valid ? 1 : 0));
 }
 
 esp_err_t blind_store_save_position(bool pos_known, int32_t cur_steps)
 {
-    return commit2(nvs_set_u8(s_nvs, "pos_ok", pos_known ? 1 : 0),
-                   nvs_set_i32(s_nvs, "pos", cur_steps));
+    return commit2(nvs_set_i32(s_nvs, "pos", cur_steps),
+                   nvs_set_u8(s_nvs, "pos_ok", pos_known ? 1 : 0));
 }
 
 esp_err_t blind_store_save_motor_reversed(bool reversed)

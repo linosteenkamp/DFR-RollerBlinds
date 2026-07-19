@@ -52,6 +52,8 @@ void covering_build_clusters(esp_zb_cluster_list_t *clusters)
         ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
 }
 
+static void identify_notify_cb(uint8_t identify_on);
+
 void covering_post_register(void)
 {
     /* Device-side reporting on lift % so the stack pushes on-change reports
@@ -69,11 +71,28 @@ void covering_post_register(void)
                             .delta.u8 = 1 },
     };
     esp_zb_zcl_update_reporting_info(&rep);
+
+    esp_zb_zcl_reporting_info_t rep_cfg = rep;
+    rep_cfg.attr_id = ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CONFIG_STATUS_ID;
+    rep_cfg.u.send_info.delta.u8 = 1;
+    esp_zb_zcl_update_reporting_info(&rep_cfg);
+
+    esp_zb_zcl_reporting_info_t rep_mode = rep;
+    rep_mode.attr_id = ESP_ZB_ZCL_ATTR_WINDOW_COVERING_MODE_ID;
+    rep_mode.u.send_info.delta.u8 = 1;
+    esp_zb_zcl_update_reporting_info(&rep_mode);
+
+    esp_zb_identify_notify_handler_register(COVER_ENDPOINT, identify_notify_cb);
 }
 
 static void post(app_event_t ev)
 {
     if (s_queue) xQueueSend(s_queue, &ev, 0);
+}
+
+static void identify_notify_cb(uint8_t identify_on)
+{
+    post((app_event_t){ .type = APP_EVT_IDENTIFY, .on = identify_on != 0 });
 }
 
 esp_err_t covering_action_handler(esp_zb_core_action_callback_id_t cb_id,

@@ -37,7 +37,7 @@
 
 ## DRV8825 wiring
 
-All 7 GPIOs used by this project (`src/main.c`):
+All 8 GPIOs used by this project (`src/main.c`):
 
 | Signal | GPIO | Notes |
 |---|---|---|
@@ -48,6 +48,7 @@ All 7 GPIOs used by this project (`src/main.c`):
 | Keypad Down | GPIO 6 | Internal pull-up |
 | Keypad Fn | GPIO 7 | Internal pull-up |
 | External status LED | GPIO 14 | Through a series resistor to the LED, LED to GND |
+| Onboard LED (mirror) | GPIO 15 | FireBeetle's onboard LED; `status_led.c` drives it as a plain output alongside GPIO 14. GPIO15 is a strapping pin, but it's only ever driven as an output *after* boot strapping is latched, so sharing it here is fine. |
 
 `M0`, `M1`, `M2` are **hard-wired for 1/8 microstep** (not firmware-controlled
 — this saves 3 GPIOs and is bench-retunable only by rewiring the jumpers).
@@ -58,9 +59,11 @@ microsteps/motor-rev, 24 000 microsteps/output-rev.
 idle power-down is done purely via `EN̅` (driver disabled between moves, per
 the idle-behavior decision in the design spec §2).
 
-Keep all of `STEP`/`DIR`/`EN̅`/keypad/LED clear of the ESP32-C6 strapping pins
+Keep all of `STEP`/`DIR`/`EN̅`/keypad clear of the ESP32-C6 strapping pins
 (GPIO8/9/15), the USB-Serial-JTAG pins, and FireBeetle reserved pins — same
-rule as the sibling projects.
+rule as the sibling projects. The one deliberate exception is the onboard
+LED mirror on GPIO15 (strapping pin): it is only ever driven as a
+boot-after output, never read at reset, so it doesn't disturb strapping.
 
 ## Setting Vref (current limit)
 

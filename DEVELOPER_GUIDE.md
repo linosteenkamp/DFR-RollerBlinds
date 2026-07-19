@@ -82,11 +82,13 @@ trust in current position was lost, e.g. after a power cut mid-move):
    is calibrated again. LED returns to **off**, three-flash ack.
 
 **Abort**: a second **Fn long-press** (~3 s) inside the mode, or a **5-minute
-timeout** with no marks recorded, aborts with no save. The span is left
-untouched — but if the blind was **jogged** at all during the aborted
-session, the stored position no longer matches reality, so the device drops
-to **Position Unknown** instead of trusting stale state (LED: double-flash).
-An abort with no jogging changes nothing.
+timeout** since entering the mode, aborts with no save — the timeout fires
+regardless of whether a mark has already been recorded (e.g. mid-way through
+a full calibration, awaiting mark 2). The span is left untouched — but if
+the blind was **jogged** at all during the aborted session, the stored
+position no longer matches reality, so the device drops to **Position
+Unknown** instead of trusting stale state (LED: double-flash). An abort with
+no jogging changes nothing.
 
 ### LED patterns per state
 
@@ -137,6 +139,17 @@ permit-join.
 - [ ] Idle back-drive watch: leave the blind mid-travel overnight; if it creeps, revisit idle-hold (spec §2 fallback)
 - [ ] OTA round-trip: tag a release, z2m offers + installs it, device reboots into new version (confirm no rollback after a further power cycle), position survives
 - [ ] Router relay check with a downstream device
+- [ ] OTA download during an active move (IRAM validation + recovery path)
+- [ ] Calibration abort paths: no-jog abort (nothing changes), jogged abort (drops to Position Unknown), 5-minute timeout including mid-jog
+- [ ] ZB preemption mid-move; ZB Stop mid-move; hold-jog preempted by ZB then released
+- [ ] z2m lockout inside calibration mode (motion commands rejected while `s_cal_mode`)
+- [ ] Uncalibrated taps inert (hold-to-jog still works)
+- [ ] Zigbee-down keypad autonomy, then rejoin
+- [ ] Identify → LED (steady rapid blink while Identify is active)
+- [ ] ≥10 consecutive full-travel cycles, checking both physical marks each time (open-loop drift)
+- [ ] DRV8825 thermal soak in enclosure
+- [ ] Power-cycle during a jogged calibration session
+- [ ] z2m Mode write while moving is rejected and stays in sync
 
 ## OTA release flow
 
@@ -196,9 +209,9 @@ good", independent of Zigbee join. If the new image crashes before
 ### OTA during motion
 
 Downloads coexist with motion — the step ISR runs from IRAM, so flash writes
-during an OTA download never stall stepping. Applying the update (rebooting
-into the new image) is deferred until the device is idle where possible; if a
-reboot does land mid-move, the `move_in_progress` NVS flag catches it on the
+during an OTA download never stall stepping. The library reboots into the
+new image as soon as the download completes, with no idle wait — if that
+reboot lands mid-move, the `move_in_progress` NVS flag catches it on the
 next boot and the device drops to Position Unknown — recoverable with the
 same one-mark Re-home flow above, not a hazard.
 

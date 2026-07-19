@@ -43,6 +43,7 @@ static const char *TAG = "BLINDS";
 #define START_US        500      /* ~2 kHz first/last step */
 #define ACCEL_STEPS     800
 #define JOG_CRUISE_US   600      /* jog slower for control */
+#define JOG_START_US    900      /* jog starts slower than its cruise */
 #define MIN_SPAN_STEPS  6000     /* ~1/4 output rev: min valid calibration */
 #define HARD_CAP_MARGIN 2400     /* watchdog: allowed overshoot of span */
 #define JOG_UNBOUNDED   2000000  /* "infinite" jog target while uncalibrated */
@@ -53,6 +54,7 @@ static QueueHandle_t s_queue;
 static position_t    s_pos;
 static bool          s_reversed;
 static bool          s_cal_mode;      /* position.cal != NONE mirror for clarity */
+static bool          s_identifying;   /* Zigbee Identify in progress */
 static bool          s_cal_moved;     /* blind was jogged inside calibration mode */
 static bool          s_cal_abort_pending; /* timeout hit mid-jog: abort on DONE */
 static bool          s_pending_valid; /* ZB target parked while a move decelerates */
@@ -62,7 +64,7 @@ static esp_timer_handle_t s_cal_timer;
 static esp_timer_handle_t s_report_timer;
 
 static const motion_profile_t PROF_MOVE = { CRUISE_US, START_US, ACCEL_STEPS };
-static const motion_profile_t PROF_JOG  = { JOG_CRUISE_US, START_US, ACCEL_STEPS };
+static const motion_profile_t PROF_JOG  = { JOG_CRUISE_US, JOG_START_US, ACCEL_STEPS };
 
 /* ---------- helpers ---------- */
 
@@ -72,7 +74,9 @@ static void refresh_outputs(void)
     covering_set_motion_allowed(cal);
     covering_set_operational(cal);
     covering_report_lift(position_lift_pct(&s_pos));
-    if (s_pos.cal == POS_CAL_WAIT_MARK1 || s_pos.cal == POS_CAL_WAIT_REHOME) {
+    if (s_identifying) {
+        status_led_set(LED_IDENTIFY);
+    } else if (s_pos.cal == POS_CAL_WAIT_MARK1 || s_pos.cal == POS_CAL_WAIT_REHOME) {
         status_led_set(LED_CAL_MARK1);
     } else if (s_pos.cal == POS_CAL_WAIT_MARK2) {
         status_led_set(LED_CAL_MARK2);
@@ -93,6 +97,10 @@ static int32_t hard_cap(void)
 
 static void start_move(int32_t target, const motion_profile_t *prof)
 {
+    if (target == s_raw) {
+        refresh_outputs();   /* already there — keep reports honest, no NVS churn */
+        return;
+    }
     blind_store_set_move_flag(true);
     esp_err_t err = motion_start(s_raw, target, prof, hard_cap());
     if (err != ESP_OK) {
@@ -269,12 +277,22 @@ static void dispatcher_task(void *pv)
             motion_stop();
             break;
         case APP_EVT_ZB_SET_REVERSED:
-            if (ev.on != s_reversed) toggle_reversed();
+            if (motion_is_moving()) {
+                covering_report_mode(s_reversed);   /* reject: rewrite truth */
+            } else if (ev.on != s_reversed) {
+                toggle_reversed();
+            }
             break;
         case APP_EVT_MOTION_DONE:
             esp_timer_stop(s_report_timer);
             s_raw = ev.steps;
             if (s_cal_mode) {
+                if (!s_cal_moved) {
+                    /* first jog of this session: position on disk is now
+                     * stale — persist untrusted so a power blip can't boot
+                     * back into a confidently wrong Calibrated state */
+                    blind_store_save_position(false, 0);
+                }
                 s_cal_moved = true;
                 if (s_cal_abort_pending) {   /* timeout hit mid-jog */
                     s_cal_abort_pending = false;
@@ -283,11 +301,18 @@ static void dispatcher_task(void *pv)
                     esp_timer_stop(s_cal_timer);
                     cal_abort_position_policy();
                 }
+                blind_store_set_move_flag(false);
             } else {
                 position_set_current(&s_pos, position_clamp(&s_pos, ev.steps));
-                blind_store_save_position(s_pos.pos_known, s_pos.cur_steps);
+                esp_err_t perr = blind_store_save_position(s_pos.pos_known, s_pos.cur_steps);
+                if (perr == ESP_OK) {
+                    blind_store_set_move_flag(false);
+                } else {
+                    /* leaving the flag set forces a re-home next boot rather
+                     * than trusting a position that failed to persist */
+                    ESP_LOGE(TAG, "position save failed: %s", esp_err_to_name(perr));
+                }
             }
-            blind_store_set_move_flag(false);
             if (s_pending_valid && !s_cal_mode && position_calibrated(&s_pos)) {
                 uint8_t pct = s_pending_pct;   /* ZB preemption: last writer */
                 s_pending_valid = false;
@@ -315,6 +340,10 @@ static void dispatcher_task(void *pv)
                 position_set_current(&tmp, motion_current_steps());
                 covering_report_lift(position_lift_pct(&tmp));
             }
+            break;
+        case APP_EVT_IDENTIFY:
+            s_identifying = ev.on;
+            refresh_outputs();
             break;
         default:
             break;
@@ -389,6 +418,8 @@ void app_main(void)
 
     ESP_LOGI(TAG, "starting %s (calibrated=%d reversed=%d)",
              FW_VERSION_STR, position_calibrated(&s_pos), s_reversed);
+    /* the installer is watching the LED now; attribute sync follows the join */
+    status_led_set(position_calibrated(&s_pos) ? LED_OFF : LED_UNCAL);
     if (zb_core_wait_ready(60000)) {
         ESP_LOGI(TAG, "joined");
     }
