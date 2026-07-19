@@ -1,0 +1,19 @@
+# Base console-over-USB (mirrors sdkconfig.defaults)
+CONFIG_NVS_FLASH=y
+CONFIG_ESP_CONSOLE_UART_DEFAULT=n
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# Zigbee ROUTER on the native 802.15.4 radio.
+CONFIG_ZB_ENABLED=y
+CONFIG_ZB_ZCZR=y
+CONFIG_ZB_RADIO_NATIVE=y
+
+# Flash size (board is 4MB; explicit because this env's defaults replace the base).
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
+# Custom partition table (adds zb_storage / zb_fct + dual OTA).
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# OTA: roll back to the previous app if a freshly-flashed image fails its self-check.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y

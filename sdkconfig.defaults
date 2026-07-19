@@ -1,0 +1,4 @@
+CONFIG_NVS_FLASH=y
+# Route console output to the built-in USB-Serial-JTAG so logs appear over USB.
+CONFIG_ESP_CONSOLE_UART_DEFAULT=n
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
