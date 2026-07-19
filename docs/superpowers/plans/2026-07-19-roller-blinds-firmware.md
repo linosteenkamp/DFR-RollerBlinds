@@ -485,6 +485,16 @@ static void test_wipe_forces_full_recal_not_rehome(void)
     TEST_ASSERT_EQUAL(POS_CAL_WAIT_MARK1, p.cal); /* span wiped -> two marks */
 }
 
+static void test_zero_min_span_cannot_commit_empty_span(void)
+{
+    position_t p = fresh();
+    position_cal_enter(&p);
+    TEST_ASSERT_TRUE(position_cal_mark(&p, 5000, 0));
+    TEST_ASSERT_FALSE(position_cal_mark(&p, 5000, 0));  /* zero span rejected */
+    TEST_ASSERT_EQUAL(POS_CAL_WAIT_MARK2, p.cal);
+    TEST_ASSERT_FALSE(position_calibrated(&p));
+}
+
 static void test_mark_outside_calibration_is_inert(void)
 {
     position_t p = calibrated();
@@ -505,6 +515,7 @@ int main(void)
     RUN_TEST(test_rehome_entry_when_position_unknown);
     RUN_TEST(test_wipe_forces_full_recal_not_rehome);
     RUN_TEST(test_mark_outside_calibration_is_inert);
+    RUN_TEST(test_zero_min_span_cannot_commit_empty_span);
     return UNITY_END();
 }
 ```
@@ -587,18 +598,22 @@ bool position_cal_mark(position_t *p, int32_t raw, int32_t min_span)
         p->cal_mark1 = raw;
         p->cal = POS_CAL_WAIT_MARK2;
         return true;
-    case POS_CAL_WAIT_MARK2:
-        /* Closed must lie below Open by at least min_span (down = raw increase). */
-        if (raw - p->cal_mark1 < min_span) {
+    case POS_CAL_WAIT_MARK2: {
+        int32_t span = raw - p->cal_mark1;
+        /* Closed must lie below Open by at least min_span (down = raw
+         * increase); span must also be positive even if a caller ever passes
+         * min_span <= 0 — a zero span would make lift math divide by zero. */
+        if (span < min_span || span < 1) {
             return false;   /* rejected; stay in WAIT_MARK2 */
         }
         /* Atomic commit: span + position together, then exit the mode. */
-        p->closed_steps = raw - p->cal_mark1;
+        p->closed_steps = span;
         p->span_valid   = true;
         p->cur_steps    = p->closed_steps;   /* physically at Closed */
         p->pos_known    = true;
         p->cal          = POS_CAL_NONE;
         return true;
+    }
     case POS_CAL_WAIT_REHOME:
         p->cur_steps = 0;                    /* physically at Open */
         p->pos_known = true;
@@ -635,7 +650,7 @@ void position_mark_unknown(position_t *p)
 - [ ] **Step 6: Run to verify it passes**
 
 Run: `pio test -e native -f test_position`
-Expected: PASS — 9/9.
+Expected: PASS — 10/10.
 
 - [ ] **Step 7: Device build still green**
 
