@@ -6,6 +6,7 @@ set(SRCS
     "blind_store.c"
     "motion.c"
     "status_led.c"
+    "covering.c"
 )
 
 idf_component_register(
