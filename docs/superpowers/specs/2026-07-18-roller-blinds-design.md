@@ -104,7 +104,7 @@ on the enclosure face (a GPIO through a resistor); the onboard LED mirrors it.
 |---|---|
 | Off | Normal: calibrated, idle |
 | 1 Hz blink | Calibration mode, awaiting mark 1 (Open) |
-| 4 Hz blink | Calibration mode, awaiting mark 2 (Closed) |
+| Fast blink (~5 Hz) | Calibration mode, awaiting mark 2 (Closed) |
 | Double-flash every 3 s | Uncalibrated / Position Unknown (z2m motion locked) |
 | Three quick flashes | Ack: mark accepted / direction toggled |
 | Five rapid flashes | Error: mark rejected (§6 validation) |
@@ -238,7 +238,7 @@ mode has two automatic entry variants — no extra gestures to learn:
 
 **Full calibration** (entered while calibrated, or never calibrated):
 1. Jog to **fully open**, tap Fn → mark 1 (zero reference). LED goes 1 Hz →
-   4 Hz.
+   fast (~5 Hz).
 2. Jog to **fully closed**, tap Fn → mark 2. **Validation:** mark 2 must lie
    *below* mark 1 by a minimum sane travel (constant, ~¼ output rev). Invalid →
    five-flash error, mark rejected, mode stays waiting for mark 2. Valid →
