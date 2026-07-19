@@ -999,6 +999,39 @@ static void test_two_keys_without_long_hold_are_independent(void)
     TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_DOWN, false, 200).type);
 }
 
+static void test_chord_during_jog_ends_hold(void)
+{
+    init();
+    kp_on_change(&s, KEY_UP, true, 0);
+    TEST_ASSERT_EQUAL(KP_EVT_HOLD_START, kp_on_tick(&s, HOLD + 10).type);
+    kp_event_t e = kp_on_change(&s, KEY_DOWN, true, HOLD + 100);  /* chord latch */
+    TEST_ASSERT_EQUAL(KP_EVT_HOLD_END, e.type);   /* jog is closed, not orphaned */
+    TEST_ASSERT_EQUAL(KEY_UP, e.key);
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_UP, false, HOLD + 200).type);
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_DOWN, false, HOLD + 300).type);
+}
+
+static void test_fn_press_does_not_rearm_chord(void)
+{
+    init();
+    kp_on_change(&s, KEY_UP, true, 0);
+    kp_on_change(&s, KEY_DOWN, true, 100);
+    TEST_ASSERT_EQUAL(KP_EVT_CHORD_REVERSE, kp_on_tick(&s, 100 + LONG).type);
+    kp_on_change(&s, KEY_FN, true, 100 + LONG + 100);
+    kp_event_t e = kp_on_tick(&s, 100 + LONG + 100 + LONG + 100);
+    TEST_ASSERT_TRUE(e.type != KP_EVT_CHORD_REVERSE);   /* no duplicate toggle */
+}
+
+static void test_fn_long_fires_during_chord(void)
+{
+    init();
+    kp_on_change(&s, KEY_FN, true, 0);
+    kp_on_change(&s, KEY_UP, true, 100);
+    kp_on_change(&s, KEY_DOWN, true, 200);   /* chord latch at 200 */
+    TEST_ASSERT_EQUAL(KP_EVT_FN_LONG, kp_on_tick(&s, LONG + 10).type);
+    TEST_ASSERT_EQUAL(KP_EVT_CHORD_REVERSE, kp_on_tick(&s, 200 + LONG + 10).type);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -1008,6 +1041,9 @@ int main(void)
     RUN_TEST(test_fn_short_press_is_tap);
     RUN_TEST(test_chord_fires_once_and_suppresses_up_down_events);
     RUN_TEST(test_two_keys_without_long_hold_are_independent);
+    RUN_TEST(test_chord_during_jog_ends_hold);
+    RUN_TEST(test_fn_press_does_not_rearm_chord);
+    RUN_TEST(test_fn_long_fires_during_chord);
     return UNITY_END();
 }
 ```
@@ -1051,11 +1087,19 @@ kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_
         s->t_press[key] = now_ms;
         s->holding[key] = false;
         if (key == KEY_FN) s->long_fired = false;
-        if (s->down[KEY_UP] && s->down[KEY_DOWN]) {
+        if ((key == KEY_UP || key == KEY_DOWN) &&
+            s->down[KEY_UP] && s->down[KEY_DOWN] && !s->in_chord) {
             s->in_chord    = true;   /* latch: suppress both keys until released */
             s->chord_fired = false;
             /* chord timing restarts from this (second) press */
             s->t_press[KEY_UP] = s->t_press[KEY_DOWN] = now_ms;
+            /* if the other key was mid-jog, close that hold before suppressing
+             * it — otherwise the consumer never gets the jog-stop signal */
+            key_id_t other = (key == KEY_UP) ? KEY_DOWN : KEY_UP;
+            if (s->holding[other]) {
+                s->holding[other] = false;
+                return evt(KP_EVT_HOLD_END, other);
+            }
         }
         return evt(KP_EVT_NONE, key);
     }
@@ -1088,7 +1132,15 @@ kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_
 
 kp_event_t kp_on_tick(kp_state_t *s, uint32_t now_ms)
 {
-    /* chord first: highest priority, suppresses everything else */
+    /* Fn is independent of the Up/Down chord — checked first so a chord
+     * attempt can never starve FN_LONG */
+    if (s->down[KEY_FN] && !s->long_fired &&
+        now_ms - s->t_press[KEY_FN] >= s->long_ms) {
+        s->long_fired = true;
+        return evt(KP_EVT_FN_LONG, KEY_FN);
+    }
+
+    /* chord: suppresses Up/Down hold processing */
     if (s->in_chord && !s->chord_fired &&
         s->down[KEY_UP] && s->down[KEY_DOWN] &&
         now_ms - s->t_press[KEY_UP] >= s->long_ms) {
@@ -1096,13 +1148,6 @@ kp_event_t kp_on_tick(kp_state_t *s, uint32_t now_ms)
         return evt(KP_EVT_CHORD_REVERSE, KEY_UP);
     }
     if (s->in_chord) return evt(KP_EVT_NONE, KEY_UP);
-
-    /* Fn long-press */
-    if (s->down[KEY_FN] && !s->long_fired &&
-        now_ms - s->t_press[KEY_FN] >= s->long_ms) {
-        s->long_fired = true;
-        return evt(KP_EVT_FN_LONG, KEY_FN);
-    }
 
     /* Up/Down hold -> jog (Fn never jogs) */
     for (key_id_t k = KEY_UP; k <= KEY_DOWN; k++) {
@@ -2373,7 +2418,7 @@ void app_main(void)
 - [ ] **Step 4: Add `"keypad.c"` to `src/CMakeLists.txt` `SRCS`; build + host tests**
 
 Run: `pio run && pio test -e native`
-Expected: build SUCCESS; all host suites still green (20/20 across the three).
+Expected: build SUCCESS; all host suites still green (24 cases across the three).
 
 - [ ] **Step 5: Commit**
 
