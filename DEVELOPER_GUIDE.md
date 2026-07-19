@@ -221,3 +221,13 @@ same one-mark Re-home flow above, not a hazard.
 - [PARTITIONS.md](PARTITIONS.md) — flash partition layout.
 - [CLAUDE.md](CLAUDE.md) — architecture, module table, concurrency rule.
 - [docs/superpowers/specs/2026-07-18-roller-blinds-design.md](docs/superpowers/specs/2026-07-18-roller-blinds-design.md) — full design spec.
+
+## Bench log
+
+**2026-07-20** — first bench session complete: keypad verified (▲→5 ▼→6 Fn→7),
+DRV8825 drive chain fixed (SLP̅+RST̅ → 3V3, Vref 0.6 V), joined z2m, calibrated,
+remote position control verified (moved to 50 % via MQTT), motor_reversed
+two-way sync working. Remaining: checklist items from "Bench verification"
+above not yet ticked — taps/full-travel, wrong-mark error, power-cut re-home,
+clean-cycle persistence, back-drive watch, OTA round-trip, drift cycles,
+thermal soak, Identify LED.
