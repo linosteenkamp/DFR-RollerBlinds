@@ -283,15 +283,16 @@ static void dispatcher_task(void *pv)
                 toggle_reversed();
             }
             break;
-        case APP_EVT_MOTION_DONE:
+        case APP_EVT_MOTION_DONE: {
             esp_timer_stop(s_report_timer);
             s_raw = ev.steps;
+            esp_err_t perr = ESP_OK;
             if (s_cal_mode) {
                 if (!s_cal_moved) {
                     /* first jog of this session: position on disk is now
                      * stale — persist untrusted so a power blip can't boot
                      * back into a confidently wrong Calibrated state */
-                    blind_store_save_position(false, 0);
+                    perr = blind_store_save_position(false, 0);
                 }
                 s_cal_moved = true;
                 if (s_cal_abort_pending) {   /* timeout hit mid-jog */
@@ -301,17 +302,17 @@ static void dispatcher_task(void *pv)
                     esp_timer_stop(s_cal_timer);
                     cal_abort_position_policy();
                 }
-                blind_store_set_move_flag(false);
             } else {
                 position_set_current(&s_pos, position_clamp(&s_pos, ev.steps));
-                esp_err_t perr = blind_store_save_position(s_pos.pos_known, s_pos.cur_steps);
-                if (perr == ESP_OK) {
-                    blind_store_set_move_flag(false);
-                } else {
-                    /* leaving the flag set forces a re-home next boot rather
-                     * than trusting a position that failed to persist */
-                    ESP_LOGE(TAG, "position save failed: %s", esp_err_to_name(perr));
-                }
+                perr = blind_store_save_position(s_pos.pos_known, s_pos.cur_steps);
+            }
+            if (perr == ESP_OK) {
+                blind_store_set_move_flag(false);
+            } else {
+                /* leaving the flag set forces a re-home next boot rather
+                 * than trusting a position that failed to persist */
+                ESP_LOGE(TAG, "position save failed (%s) — move flag left set, re-home on next boot",
+                         esp_err_to_name(perr));
             }
             if (s_pending_valid && !s_cal_mode && position_calibrated(&s_pos)) {
                 uint8_t pct = s_pending_pct;   /* ZB preemption: last writer */
@@ -320,6 +321,7 @@ static void dispatcher_task(void *pv)
             }
             refresh_outputs();
             break;
+        }
         case APP_EVT_CAL_TIMEOUT:
             if (!s_cal_mode) break;
             if (motion_is_moving()) {
