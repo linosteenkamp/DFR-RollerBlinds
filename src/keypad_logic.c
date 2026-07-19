@@ -29,11 +29,19 @@ kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_
         s->t_press[key] = now_ms;
         s->holding[key] = false;
         if (key == KEY_FN) s->long_fired = false;
-        if (s->down[KEY_UP] && s->down[KEY_DOWN]) {
+        if ((key == KEY_UP || key == KEY_DOWN) &&
+            s->down[KEY_UP] && s->down[KEY_DOWN] && !s->in_chord) {
             s->in_chord    = true;   /* latch: suppress both keys until released */
             s->chord_fired = false;
             /* chord timing restarts from this (second) press */
             s->t_press[KEY_UP] = s->t_press[KEY_DOWN] = now_ms;
+            /* if the other key was mid-jog, close that hold before suppressing
+             * it — otherwise the consumer never gets the jog-stop signal */
+            key_id_t other = (key == KEY_UP) ? KEY_DOWN : KEY_UP;
+            if (s->holding[other]) {
+                s->holding[other] = false;
+                return evt(KP_EVT_HOLD_END, other);
+            }
         }
         return evt(KP_EVT_NONE, key);
     }
@@ -66,7 +74,15 @@ kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_
 
 kp_event_t kp_on_tick(kp_state_t *s, uint32_t now_ms)
 {
-    /* chord first: highest priority, suppresses everything else */
+    /* Fn is independent of the Up/Down chord — checked first so a chord
+     * attempt can never starve FN_LONG */
+    if (s->down[KEY_FN] && !s->long_fired &&
+        now_ms - s->t_press[KEY_FN] >= s->long_ms) {
+        s->long_fired = true;
+        return evt(KP_EVT_FN_LONG, KEY_FN);
+    }
+
+    /* chord: suppresses Up/Down hold processing */
     if (s->in_chord && !s->chord_fired &&
         s->down[KEY_UP] && s->down[KEY_DOWN] &&
         now_ms - s->t_press[KEY_UP] >= s->long_ms) {
@@ -74,13 +90,6 @@ kp_event_t kp_on_tick(kp_state_t *s, uint32_t now_ms)
         return evt(KP_EVT_CHORD_REVERSE, KEY_UP);
     }
     if (s->in_chord) return evt(KP_EVT_NONE, KEY_UP);
-
-    /* Fn long-press */
-    if (s->down[KEY_FN] && !s->long_fired &&
-        now_ms - s->t_press[KEY_FN] >= s->long_ms) {
-        s->long_fired = true;
-        return evt(KP_EVT_FN_LONG, KEY_FN);
-    }
 
     /* Up/Down hold -> jog (Fn never jogs) */
     for (key_id_t k = KEY_UP; k <= KEY_DOWN; k++) {

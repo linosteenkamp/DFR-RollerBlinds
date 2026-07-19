@@ -84,6 +84,39 @@ static void test_two_keys_without_long_hold_are_independent(void)
     TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_DOWN, false, 200).type);
 }
 
+static void test_chord_during_jog_ends_hold(void)
+{
+    init();
+    kp_on_change(&s, KEY_UP, true, 0);
+    TEST_ASSERT_EQUAL(KP_EVT_HOLD_START, kp_on_tick(&s, HOLD + 10).type);
+    kp_event_t e = kp_on_change(&s, KEY_DOWN, true, HOLD + 100);  /* chord latch */
+    TEST_ASSERT_EQUAL(KP_EVT_HOLD_END, e.type);   /* jog is closed, not orphaned */
+    TEST_ASSERT_EQUAL(KEY_UP, e.key);
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_UP, false, HOLD + 200).type);
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_DOWN, false, HOLD + 300).type);
+}
+
+static void test_fn_press_does_not_rearm_chord(void)
+{
+    init();
+    kp_on_change(&s, KEY_UP, true, 0);
+    kp_on_change(&s, KEY_DOWN, true, 100);
+    TEST_ASSERT_EQUAL(KP_EVT_CHORD_REVERSE, kp_on_tick(&s, 100 + LONG).type);
+    kp_on_change(&s, KEY_FN, true, 100 + LONG + 100);
+    kp_event_t e = kp_on_tick(&s, 100 + LONG + 100 + LONG + 100);
+    TEST_ASSERT_TRUE(e.type != KP_EVT_CHORD_REVERSE);   /* no duplicate toggle */
+}
+
+static void test_fn_long_fires_during_chord(void)
+{
+    init();
+    kp_on_change(&s, KEY_FN, true, 0);
+    kp_on_change(&s, KEY_UP, true, 100);
+    kp_on_change(&s, KEY_DOWN, true, 200);   /* chord latch at 200 */
+    TEST_ASSERT_EQUAL(KP_EVT_FN_LONG, kp_on_tick(&s, LONG + 10).type);
+    TEST_ASSERT_EQUAL(KP_EVT_CHORD_REVERSE, kp_on_tick(&s, 200 + LONG + 10).type);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -93,5 +126,8 @@ int main(void)
     RUN_TEST(test_fn_short_press_is_tap);
     RUN_TEST(test_chord_fires_once_and_suppresses_up_down_events);
     RUN_TEST(test_two_keys_without_long_hold_are_independent);
+    RUN_TEST(test_chord_during_jog_ends_hold);
+    RUN_TEST(test_fn_press_does_not_rearm_chord);
+    RUN_TEST(test_fn_long_fires_during_chord);
     return UNITY_END();
 }
