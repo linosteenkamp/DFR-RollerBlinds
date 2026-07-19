@@ -16,6 +16,8 @@
 #include "zcl/esp_zigbee_zcl_window_covering.h"
 #include "zcl/esp_zigbee_zcl_command.h"
 #include "zcl/esp_zigbee_zcl_core.h"
+#include "aps/esp_zigbee_aps.h"        /* ESP_ZB_APS_ADDR_MODE_16_ENDP_PRESENT */
+#include "zb_core.h"                   /* zb_core_is_joined */
 #include "esp_log.h"
 
 static const char *TAG = "COVER";
@@ -27,7 +29,13 @@ static volatile bool  s_motion_allowed = false;
 
 /* Attribute storage — the ZCL table keeps pointers; must live forever. */
 static uint8_t s_lift_pct   = POSITION_LIFT_UNKNOWN;
-static uint8_t s_mode       = 0;   /* bit0 = motor reversed */
+/* Mode: bit0 = motor reversed; bit3 ("LEDs will display feedback" — true for
+ * this device) is kept permanently set because the ZBOSS stack's value check
+ * rejects Mode==0x00 outright (inverted reserved-bits mask), for local sets
+ * as well as remote writes. The canonical device values are 0x08 / 0x09. */
+#define COVER_MODE_BASE ESP_ZB_ZCL_ATTR_WINDOW_COVERING_TYPE_LEDS_WILL_DISPLAY_FEEDBACK
+static uint8_t s_cover_type = ESP_ZB_ZCL_ATTR_WINDOW_COVERING_TYPE_ROLLERSHADE;
+static uint8_t s_mode       = COVER_MODE_BASE;
 static uint8_t s_cfg_status = ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CONFIG_ONLINE; /* not yet operational */
 
 void covering_set_queue(QueueHandle_t q) { s_queue = q; }
@@ -35,14 +43,33 @@ void covering_set_motion_allowed(bool allowed) { s_motion_allowed = allowed; }
 
 void covering_build_clusters(esp_zb_cluster_list_t *clusters)
 {
-    esp_zb_window_covering_cluster_cfg_t cfg = {
-        .covering_type   = ESP_ZB_ZCL_ATTR_WINDOW_COVERING_TYPE_ROLLERSHADE,
-        .covering_status = s_cfg_status,
-        .covering_mode   = s_mode,
-    };
-    esp_zb_attribute_list_t *attrs = esp_zb_window_covering_cluster_create(&cfg);
-    /* Lift percentage is not among the create()-mandatory attrs — add it
-     * (u8, read+report). 0xFF = unknown until calibrated. */
+    /* All attributes are added manually rather than via
+     * esp_zb_window_covering_cluster_create() so each one's access flags are
+     * under our control (create() would also skip the lift attribute). */
+    esp_zb_attribute_list_t *attrs =
+        esp_zb_zcl_attr_list_create(ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING);
+    esp_zb_cluster_add_attr(attrs, ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_WINDOW_COVERING_TYPE_ID,
+        ESP_ZB_ZCL_ATTR_TYPE_8BIT_ENUM,
+        ESP_ZB_ZCL_ATTR_ACCESS_READ_ONLY,
+        &s_cover_type);
+    /* NOTE: ConfigStatus and Mode must NOT carry the REPORTING access flag —
+     * the prebuilt stack's reporting engine asserts (crash loop) when it
+     * tries to send reports for these attributes; only lift reports work.
+     * Without the flag, a remote ConfigureReporting is cleanly rejected.
+     * Device->z2m sync: calibrated is derived from lift (0xFF = uncalibrated)
+     * in the converter; Mode is read on demand. */
+    esp_zb_cluster_add_attr(attrs, ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CONFIG_STATUS_ID,
+        ESP_ZB_ZCL_ATTR_TYPE_8BITMAP,
+        ESP_ZB_ZCL_ATTR_ACCESS_READ_ONLY,
+        &s_cfg_status);
+    esp_zb_cluster_add_attr(attrs, ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_MODE_ID,
+        ESP_ZB_ZCL_ATTR_TYPE_8BITMAP,
+        ESP_ZB_ZCL_ATTR_ACCESS_READ_WRITE,
+        &s_mode);
+    /* Lift percentage: u8, read+report. 0xFF = unknown until calibrated. */
     esp_zb_cluster_add_attr(attrs, ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
         ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CURRENT_POSITION_LIFT_PERCENTAGE_ID,
         ESP_ZB_ZCL_ATTR_TYPE_U8,
@@ -66,22 +93,16 @@ void covering_post_register(void)
         .attr_id        = ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CURRENT_POSITION_LIFT_PERCENTAGE_ID,
         .manuf_code     = ESP_ZB_ZCL_ATTR_NON_MANUFACTURER_SPECIFIC,
         .dst.profile_id = ESP_ZB_AF_HA_PROFILE_ID,
-        .u.send_info    = { .min_interval = 0, .max_interval = 0,
-                            .def_min_interval = 0, .def_max_interval = 0,
+        /* Real intervals are required — 0/0 entries are treated as disabled
+         * by the stack (MoistureTracker's working reports use the same shape). */
+        .u.send_info    = { .min_interval = 1, .max_interval = 3600,
+                            .def_min_interval = 1, .def_max_interval = 3600,
                             .delta.u8 = 1 },
     };
     esp_zb_zcl_update_reporting_info(&rep);
 
-    esp_zb_zcl_reporting_info_t rep_cfg = rep;
-    rep_cfg.attr_id = ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CONFIG_STATUS_ID;
-    rep_cfg.u.send_info.delta.u8 = 1;
-    esp_zb_zcl_update_reporting_info(&rep_cfg);
-
-    esp_zb_zcl_reporting_info_t rep_mode = rep;
-    rep_mode.attr_id = ESP_ZB_ZCL_ATTR_WINDOW_COVERING_MODE_ID;
-    rep_mode.u.send_info.delta.u8 = 1;
-    esp_zb_zcl_update_reporting_info(&rep_mode);
-
+    /* Only lift: the stack cannot report ConfigStatus/Mode (see
+     * covering_build_clusters). */
     esp_zb_identify_notify_handler_register(COVER_ENDPOINT, identify_notify_cb);
 }
 
@@ -149,6 +170,11 @@ static void set_attr(uint16_t attr_id, void *val)
     esp_zb_zcl_set_attribute_val(COVER_ENDPOINT,
         ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING, ESP_ZB_ZCL_CLUSTER_SERVER_ROLE,
         attr_id, val, false);
+    /* NOTE: do NOT use esp_zb_zcl_report_attr_cmd_req here — it asserts inside
+     * the prebuilt stack (zcl_general_commands.c:612), the same landmine
+     * DoorSensor hit. Device->z2m sync rides the reporting table configured in
+     * covering_post_register (attributes carry the REPORTING access flag and
+     * the entries use real intervals — both are required or nothing is sent). */
     esp_zb_lock_release();
 }
 
@@ -168,7 +194,10 @@ void covering_set_operational(bool calibrated)
 
 void covering_report_mode(bool reversed)
 {
-    s_mode = reversed ? ESP_ZB_ZCL_ATTR_WINDOW_COVERING_TYPE_REVERSED_MOTOR_DIRECTION : 0;
+    /* COVER_MODE_BASE keeps the value nonzero — Mode==0x00 is rejected by the
+     * stack's value check even for local sets (see COVER_MODE_BASE comment). */
+    s_mode = COVER_MODE_BASE |
+             (reversed ? ESP_ZB_ZCL_ATTR_WINDOW_COVERING_TYPE_REVERSED_MOTOR_DIRECTION : 0);
     set_attr(ESP_ZB_ZCL_ATTR_WINDOW_COVERING_MODE_ID, &s_mode);
 }
 #endif /* USE_ZIGBEE */

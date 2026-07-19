@@ -24,6 +24,12 @@ const fzCalibrated = {
     cluster: 'closuresWindowCovering',
     type: ['attributeReport', 'readResponse'],
     convert: (model, msg) => {
+        // Two sources, one truth. configStatus bit0 (Operational) arrives on
+        // reads; the lift report (which the device CAN push) encodes the same
+        // fact continuously: 0xFF lift = uncalibrated, 0..100 = calibrated.
+        if (msg.data.currentPositionLiftPercentage !== undefined) {
+            return {calibrated: msg.data.currentPositionLiftPercentage <= 100};
+        }
         if (msg.data.configStatus !== undefined) {
             return {calibrated: (msg.data.configStatus & 0x01) === 0x01};
         }
@@ -83,6 +89,12 @@ module.exports = [
         ],
         configure: async (device, coordinatorEndpoint) => {
             const ep = device.getEndpoint(1);
+            // Do NOT configureReporting for configStatus/windowCoveringMode:
+            // the device stack's reporting engine crashes trying to send
+            // reports for them (only lift is reportable, which the
+            // windowCovering extend already configures). calibrated is
+            // derived from the lift report instead (0xFF = uncalibrated);
+            // motor_reversed is read on demand via its refresh arrow.
             await ep.read('closuresWindowCovering',
                 ['configStatus', 'windowCoveringMode', 'currentPositionLiftPercentage']);
         },
