@@ -1,0 +1,85 @@
+name: Release OTA
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  OTA_MANUFACTURER_CODE: "0xFEFE"
+  OTA_IMAGE_TYPE: "0x0003"
+  MODEL_ID: "DFR-RollerBlinds"
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Check out esp-zb-common tools
+        uses: actions/checkout@v4
+        with:
+          repository: linosteenkamp/esp-zb-common
+          ref: v0.1.1
+          token: ${{ secrets.ZB_COMMON_PAT }}
+          path: esp-zb-common
+
+      - name: Authorize component-manager clone of esp-zb-common
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.ZB_COMMON_PAT }}@github.com/linosteenkamp/".insteadOf "https://github.com/linosteenkamp/"
+
+      - name: Derive version from tag
+        id: ver
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          IFS=. read -r MA MI PA <<< "$TAG"
+          # Semver in the HIGH hex digits (must match OTA_PACK_VERSION in include/ota_ids.h)
+          printf 'file_version=0x%X%X%02X0000\n' "$MA" "$MI" "$PA" >> "$GITHUB_OUTPUT"
+          printf 'major=%s\nminor=%s\npatch=%s\n' "$MA" "$MI" "$PA" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build firmware with version flags
+        run: |
+          PLATFORMIO_BUILD_FLAGS="-DUSE_ZIGBEE -DFW_VER_MAJOR=${{ steps.ver.outputs.major }} -DFW_VER_MINOR=${{ steps.ver.outputs.minor }} -DFW_VER_PATCH=${{ steps.ver.outputs.patch }}" \
+            pio run -e dfrobot_firebeetle2_esp32c6_zigbee
+
+      - name: Wrap as Zigbee OTA image
+        run: |
+          python3 esp-zb-common/tools/make_ota_image.py \
+            --in .pio/build/dfrobot_firebeetle2_esp32c6_zigbee/firmware.bin \
+            --out "DFR-RollerBlinds-${GITHUB_REF_NAME}.ota" \
+            --manufacturer "$OTA_MANUFACTURER_CODE" \
+            --image-type "$OTA_IMAGE_TYPE" \
+            --file-version "${{ steps.ver.outputs.file_version }}" \
+            --header-string "DFR-RollerBlinds OTA"
+
+      - name: Create GitHub release with the .ota asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: DFR-RollerBlinds-*.ota
+
+      - name: Update ota/index.json on main
+        run: |
+          python3 esp-zb-common/tools/update_ota_index.py \
+            --index ota/index.json \
+            --model "$MODEL_ID" \
+            --manufacturer "$OTA_MANUFACTURER_CODE" \
+            --image-type "$OTA_IMAGE_TYPE" \
+            --file-version "${{ steps.ver.outputs.file_version }}" \
+            --url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/DFR-RollerBlinds-${GITHUB_REF_NAME}.ota" \
+            --image "DFR-RollerBlinds-${GITHUB_REF_NAME}.ota"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ota/index.json
+          git commit -m "OTA index: ${GITHUB_REF_NAME}"
+          git push origin main
