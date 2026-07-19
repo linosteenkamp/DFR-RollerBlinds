@@ -250,6 +250,10 @@ mode has two automatic entry variants — no extra gestures to learn:
    device calibrated again. One mark instead of two.
 
 Abort either variant: second Fn long-press, or 5-minute timeout — no save.
+The span is untouched, but if the blind was **jogged** during the aborted
+session the stored position no longer matches reality: the device drops to
+Position Unknown (Re-home required) rather than trusting stale state. An
+abort with no jogging changes nothing.
 Bare Fn-taps outside calibration mode **never** set marks (idle taps are inert;
 taps while moving mean stop) — no accidental re-zeros.
 
