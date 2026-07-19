@@ -68,18 +68,22 @@ bool position_cal_mark(position_t *p, int32_t raw, int32_t min_span)
         p->cal_mark1 = raw;
         p->cal = POS_CAL_WAIT_MARK2;
         return true;
-    case POS_CAL_WAIT_MARK2:
-        /* Closed must lie below Open by at least min_span (down = raw increase). */
-        if (raw - p->cal_mark1 < min_span) {
+    case POS_CAL_WAIT_MARK2: {
+        int32_t span = raw - p->cal_mark1;
+        /* Closed must lie below Open by at least min_span (down = raw
+         * increase); span must also be positive even if a caller ever passes
+         * min_span <= 0 — a zero span would make lift math divide by zero. */
+        if (span < min_span || span < 1) {
             return false;   /* rejected; stay in WAIT_MARK2 */
         }
         /* Atomic commit: span + position together, then exit the mode. */
-        p->closed_steps = raw - p->cal_mark1;
+        p->closed_steps = span;
         p->span_valid   = true;
         p->cur_steps    = p->closed_steps;   /* physically at Closed */
         p->pos_known    = true;
         p->cal          = POS_CAL_NONE;
         return true;
+    }
     case POS_CAL_WAIT_REHOME:
         p->cur_steps = 0;                    /* physically at Open */
         p->pos_known = true;

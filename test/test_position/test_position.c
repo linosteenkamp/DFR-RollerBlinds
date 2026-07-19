@@ -113,6 +113,16 @@ static void test_wipe_forces_full_recal_not_rehome(void)
     TEST_ASSERT_EQUAL(POS_CAL_WAIT_MARK1, p.cal); /* span wiped -> two marks */
 }
 
+static void test_zero_min_span_cannot_commit_empty_span(void)
+{
+    position_t p = fresh();
+    position_cal_enter(&p);
+    TEST_ASSERT_TRUE(position_cal_mark(&p, 5000, 0));
+    TEST_ASSERT_FALSE(position_cal_mark(&p, 5000, 0));  /* zero span rejected */
+    TEST_ASSERT_EQUAL(POS_CAL_WAIT_MARK2, p.cal);
+    TEST_ASSERT_FALSE(position_calibrated(&p));
+}
+
 static void test_mark_outside_calibration_is_inert(void)
 {
     position_t p = calibrated();
@@ -133,5 +143,6 @@ int main(void)
     RUN_TEST(test_rehome_entry_when_position_unknown);
     RUN_TEST(test_wipe_forces_full_recal_not_rehome);
     RUN_TEST(test_mark_outside_calibration_is_inert);
+    RUN_TEST(test_zero_min_span_cannot_commit_empty_span);
     return UNITY_END();
 }
