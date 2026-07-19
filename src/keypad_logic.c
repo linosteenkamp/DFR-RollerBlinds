@@ -64,6 +64,13 @@ kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_
         s->holding[key] = false;
         return evt(KP_EVT_HOLD_END, key);
     }
+    if (key == KEY_FN) {
+        /* Fn has no jog role: any release before long_ms is a tap (the
+         * long-press case already returned above via long_fired). Without
+         * this, presses between hold_ms and long_ms fall into a dead zone
+         * and calibration marks silently vanish. */
+        return evt(KP_EVT_TAP, key);
+    }
     if (now_ms - s->t_press[key] < s->hold_ms) {
         return evt(KP_EVT_TAP, key);
     }

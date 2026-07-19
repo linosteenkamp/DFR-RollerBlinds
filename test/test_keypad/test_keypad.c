@@ -46,6 +46,18 @@ static void test_fn_long_press_fires_once_no_hold_events(void)
     TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_FN, false, LONG + 900).type);
 }
 
+static void test_fn_medium_press_is_still_tap(void)
+{
+    /* Fn has no jog role: any release before long_ms is a tap. A natural
+     * ~1 s press must NOT fall into a dead zone between hold_ms and long_ms. */
+    init();
+    kp_on_change(&s, KEY_FN, true, 100);
+    kp_on_tick(&s, 100 + HOLD + 200);                 /* past hold_ms: no event */
+    kp_event_t e = kp_on_change(&s, KEY_FN, false, 100 + 1000);
+    TEST_ASSERT_EQUAL(KP_EVT_TAP, e.type);
+    TEST_ASSERT_EQUAL(KEY_FN, e.key);
+}
+
 static void test_fn_short_press_is_tap(void)
 {
     init();
@@ -124,6 +136,7 @@ int main(void)
     RUN_TEST(test_hold_emits_start_then_end_not_tap);
     RUN_TEST(test_fn_long_press_fires_once_no_hold_events);
     RUN_TEST(test_fn_short_press_is_tap);
+    RUN_TEST(test_fn_medium_press_is_still_tap);
     RUN_TEST(test_chord_fires_once_and_suppresses_up_down_events);
     RUN_TEST(test_two_keys_without_long_hold_are_independent);
     RUN_TEST(test_chord_during_jog_ends_hold);
