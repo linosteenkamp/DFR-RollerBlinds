@@ -14,7 +14,7 @@
 - Platform pin: `platform = https://github.com/pioarduino/platform-espressif32/releases/download/55.03.31-2/platform-espressif32.zip`; board `dfrobot_firebeetle2_esp32c6`; `framework = espidf`; `build_flags = -DUSE_ZIGBEE`
 - Library dependency: `esp-zb-common` (hyphenated key) pinned to **git tag `v0.1.1`** — never v0.1.0 (it predates the OTA-rollback doc fixes)
 - Consumer obligations from the library's final review: call `ota_client_mark_valid()` after successful boot; **all `action_handler` work defers to the app queue** (it runs in stack context with the Zigbee lock held); OTA CI must pass `--header-string` explicitly
-- Zigbee identity: manufacturer `"\x0B" "DFRobot-DIY"`, model `"\x0F" "DFR-RollerBlinds"` (ZCL length-prefixed; 11 and 15 chars). OTA identity: manufacturer code `0xFEFE`, image type **`0x0003`** (soil=0x0001, door=0x0002)
+- Zigbee identity: manufacturer `"\x0B" "DFRobot-DIY"`, model `"\x10" "DFR-RollerBlinds"` (ZCL length-prefixed; 11 and 16 chars). OTA identity: manufacturer code `0xFEFE`, image type **`0x0003`** (soil=0x0001, door=0x0002)
 - ZCL Window Covering facts (verified against esp-zigbee-lib 1.6.8 headers): device id `ESP_ZB_HA_WINDOW_COVERING_DEVICE_ID` (0x0202); attrs `CURRENT_POSITION_LIFT_PERCENTAGE` 0x0008 (u8, 0=open, 100=closed, 0xFF=unknown), `CONFIG_STATUS` 0x0007 (bit0 = Operational → our Calibrated flag), `MODE` 0x0017 (bit0 = motor direction reversed, writable); movement commands arrive via core action `ESP_ZB_CORE_WINDOW_COVERING_MOVEMENT_CB_ID` (`esp_zb_zcl_window_covering_movement_message_t`: `.command` per `esp_zb_zcl_window_covering_cmd_t`, `.payload.percentage_lift_value`); Mode writes arrive via `ESP_ZB_CORE_SET_ATTR_VALUE_CB_ID` (`esp_zb_zcl_set_attr_value_message_t`)
 - Motion facts: 1/8 microstep hard-wired → 1600 µsteps/motor-rev, 24 000 µsteps/output-rev (1:15). Steps counted signed from Open=0, increasing toward Closed. DRV8825 `EN̅` is active-low enable (GPIO high = driver disabled). Step ISR + its data in IRAM
 - Default GPIO map (single source of truth in `src/main.c`; bench-verifiable, avoid strapping 8/9/15 as inputs and USB-JTAG 12/13): `STEP=2, DIR=3, EN=4, BTN_UP=5, BTN_DOWN=6, BTN_FN=7, LED_EXT=14, LED_ONBOARD=15` (onboard LED output on a strapping pin is fine post-boot)
@@ -220,7 +220,7 @@ dependencies:
 static const char *TAG = "BLINDS";
 
 #define MANUF_NAME  "\x0B" "DFRobot-DIY"
-#define MODEL_ID    "\x0F" "DFR-RollerBlinds"
+#define MODEL_ID    "\x10" "DFR-RollerBlinds"
 
 static void build_clusters(esp_zb_cluster_list_t *clusters)
 {
@@ -2048,7 +2048,7 @@ static const char *TAG = "BLINDS";
 
 /* ---- identity ---- */
 #define MANUF_NAME  "\x0B" "DFRobot-DIY"
-#define MODEL_ID    "\x0F" "DFR-RollerBlinds"
+#define MODEL_ID    "\x10" "DFR-RollerBlinds"
 #define APP_ENDPOINT 1
 
 /* ---- GPIO map (bench-verify; see HARDWARE.md) ---- */
