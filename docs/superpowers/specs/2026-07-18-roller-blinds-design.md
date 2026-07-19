@@ -197,8 +197,9 @@ never stall stepping mid-move.
     the device; a keypad-chord toggle is reported back via the attribute. The
     NVS value is the single source of truth; both UIs are editors of it.
   - **Motion lockout:** while uncalibrated, Position Unknown, or in calibration
-    mode, **all motion commands** (UpOpen/DownClose/Stop/GoToLift) are rejected
-    with a ZCL default response (failure). Lift reports unknown (0xFF) and the
+    mode, movement commands (UpOpen/DownClose/GoToLift) are rejected with a ZCL
+    default response (failure). **Stop is always accepted** — halting is safe
+    in every state, including a locked-out one. Lift reports unknown (0xFF) and the
     converter's `calibrated: false` flag shows why. Remote motion is a privilege
     calibration unlocks — an uncalibrated blind moves only via local
     hold-to-jog (deadman). Rationale: Zigbee has no key-release event, so a
