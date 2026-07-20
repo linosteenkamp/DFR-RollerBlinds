@@ -166,11 +166,11 @@ Namespace **`blind`** (`blind_store.c`), keys:
 Identity (`include/ota_ids.h`): `OTA_MANUFACTURER_CODE = 0xFEFE`,
 `OTA_IMAGE_TYPE = 0x0003` (soil tracker = 0x0001, door sensor = 0x0002),
 `OTA_MODEL_ID = "DFR-RollerBlinds"`. `.github/workflows/release-ota.yml`
-builds and publishes on a `v*` tag; it checks out the private
-`linosteenkamp/esp-zb-common` repo twice (component fetch during `pio run`,
-and the `tools/` checkout for image packaging) using the `ZB_COMMON_PAT`
-repo secret — a fine-grained PAT with read access to that repo. Without it
-CI fails at the component-manager clone step.
+builds and publishes on a `v*` tag; it checks out `linosteenkamp/esp-zb-common`
+(now public) for its `tools/`. No secret/PAT is required — a fine-grained
+`ZB_COMMON_PAT` was used while that repo was private, but it kept 403-ing in
+practice (expiry/scope), so the repo was made public instead and the auth
+steps were dropped from the workflow.
 
 See [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) for the full pairing, calibration
 walkthrough, bench checklist, and release flow, and

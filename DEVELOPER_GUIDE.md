@@ -168,13 +168,14 @@ git push origin v1.0.0
 
 The workflow then:
 
-1. Checks out this repo (`ref: main`) and the private
-   `linosteenkamp/esp-zb-common` repo at `v0.1.1` (for its `tools/`), using
-   the **`ZB_COMMON_PAT`** secret (a fine-grained PAT with read access to
-   `esp-zb-common`) for both the tools checkout and the component-manager
-   clone during `pio run` — the library dependency itself is a private git
-   repo, so the build step needs that same token configured via
-   `git config --global url.insteadOf` for `pio run` to fetch it.
+1. Checks out this repo (`ref: main`) and `linosteenkamp/esp-zb-common` at
+   `v0.1.1` (for its `tools/`). `esp-zb-common` is **public**, so no token
+   is needed for this checkout or for the component-manager clone `pio run`
+   does during the build. (Earlier revisions used a `ZB_COMMON_PAT`
+   fine-grained PAT while that repo was private; it repeatedly failed with
+   403s during the first real release test — 2026-07-20 — so the repo was
+   made public and the auth steps were removed rather than debugging PAT
+   expiry/scope. Revisit if `esp-zb-common` ever needs to go private again.)
 2. Derives `major`/`minor`/`patch` from the tag and packs
    `file_version = 0x%X%X%02X0000` (must match `OTA_PACK_VERSION` in
    `include/ota_ids.h`).

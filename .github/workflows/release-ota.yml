@@ -25,12 +25,7 @@ jobs:
         with:
           repository: linosteenkamp/esp-zb-common
           ref: v0.1.1
-          token: ${{ secrets.ZB_COMMON_PAT }}
           path: esp-zb-common
-
-      - name: Authorize component-manager clone of esp-zb-common
-        run: |
-          git config --global url."https://x-access-token:${{ secrets.ZB_COMMON_PAT }}@github.com/linosteenkamp/".insteadOf "https://github.com/linosteenkamp/"
 
       - name: Derive version from tag
         id: ver
