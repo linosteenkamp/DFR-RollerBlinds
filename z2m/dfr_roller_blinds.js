@@ -76,6 +76,9 @@ module.exports = [
         model: 'DFR-RollerBlinds',
         vendor: 'DFRobot-DIY',
         description: 'ESP32-C6 Zigbee-router roller blind controller (DIY)',
+        // Bespoke line icon (roller shade, teal #0e9aa7) embedded as a data-URI so
+        // it ships with the definition. Source SVG: z2m/dfr_roller_blinds.svg.
+        icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMGU5YWE3IiBzdHJva2Utd2lkdGg9IjEuNyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KICA8cGF0aCBkPSJNMy41IDRoMTciLz4KICA8cGF0aCBkPSJNNS41IDR2MTEuNSIvPgogIDxwYXRoIGQ9Ik0xOC41IDR2MTEuNSIvPgogIDxwYXRoIGQ9Ik00LjUgMTUuNWgxNSIvPgo8L3N2Zz4K',
         extend: [
             m.windowCovering({controls: ['lift']}),
         ],
