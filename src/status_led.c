@@ -29,7 +29,12 @@ static bool pattern_level(led_pattern_t p, int t)
     case LED_UNCAL:     return t == 0 || t == 1 || t == 4 || t == 5; /* dbl flash / 3 s */
     case LED_IDENTIFY:  return t % 2 == 0;                 /* rapid 10 Hz */
     case LED_ACK:       return t < 12 && (t / 2) % 2 == 0; /* 3 flashes */
-    case LED_ERROR:     return t < 20 && (t / 2) % 2 == 0; /* 5 flashes */
+    case LED_ERROR:                                        /* gap, then 5 fast flashes:
+                                                             * must NOT share MARK2's rate —
+                                                             * a same-rate error is invisible
+                                                             * against an already-blinking LED */
+        return t >= 4 && t < 14 && (t % 2) == 0;
+
     case LED_OFF:
     default:            return false;
     }
@@ -42,9 +47,9 @@ static void tick_cb(void *arg)
     if (s_trans != LED_OFF) {
         lvl = pattern_level(s_trans, s_trans_tick);
         s_trans_tick++;
-        /* transient ends after its flash train (ACK 12, ERROR 20 ticks) */
+        /* transient ends after its flash train (ACK 12, ERROR 14 ticks) */
         if ((s_trans == LED_ACK && s_trans_tick >= 12) ||
-            (s_trans == LED_ERROR && s_trans_tick >= 20)) {
+            (s_trans == LED_ERROR && s_trans_tick >= 14)) {
             s_trans = LED_OFF;
         }
     } else {
