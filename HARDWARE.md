@@ -14,7 +14,7 @@ section at the end built directly from that session.
 | 2HS60-1504JA05-020-03 bipolar stepper | Drive motor — 1.8°/step (200 full steps/rev), 1.5 A/phase class, 4-wire (2 coils) |
 | DRV8825 breakout (Pololu-style) | Stepper driver, 1/8 microstep (hard-wired) |
 | 3D-printed geartrain (`Blinds 2.step`) | 1:15 reduction to the roller tube |
-| Mean Well 24 V DC PSU — **recommend LRS-50-24** (LRS-35-24 acceptable) | System supply |
+| Mean Well 24 V DC PSU — **recommend LRS-50-24** (LRS-35-24 acceptable) for a single unit | System supply. See [Multi-unit installations](#multi-unit-installations-shared-psu) for sharing one PSU across several controllers. |
 | Step-down regulator 5 V / 3.2 A (VIN 5.3–50 V) | 24 V → 5 V for the FireBeetle |
 | Membrane keypad: 2 arrow keys + function key | Local controls + calibration UX |
 | External status LED (enclosure face) | State annunciator; onboard LED mirrors it |
@@ -65,6 +65,92 @@ each stage is independently testable before moving to the next:
 - **Never plug or unplug the motor connector while VMOT is powered.** The
   resulting inductive spike is one of the most common ways to kill a
   DRV8825. Power down VMOT (or the whole 24 V rail) first.
+
+## Multi-unit installations (shared PSU)
+
+Several controllers can share one larger 24 V supply instead of one PSU per
+blind. This section covers sizing, distribution wiring, and protection for
+that case — everything else in this document (per-unit DRV8825 wiring, Vref,
+keypad, LED) is unchanged and applies identically to each unit.
+
+### Sizing the shared PSU
+
+Anchor point: the single-unit recommendation (LRS-50-24, 35–50 W) already
+has generous margin for one axis's real draw. Two things dominate that
+draw, and both stay small:
+
+- **Idle:** the DRV8825 is disabled (`EN̅` high) between moves, so idle draw
+  per axis is near-zero — just ESP32-C6 + driver quiescent current.
+- **Moving:** the DRV8825's current limit caps the motor at ~1.2 A/phase,
+  but because the driver chops the 24 V bus down to whatever the coil
+  actually needs, the **bus-side** current at our modest cruise speed
+  (~6 rev/s motor shaft) is meaningfully lower than the coil current — a
+  few watts per axis, not the 24 V × 1.2 A a naive calculation would
+  suggest.
+
+For **3 units**, a **Mean Well LRS-150-24** (24 V, 6.5 A, ~156 W actual max)
+is comfortably sized — even a deliberately pessimistic estimate (all three
+moving simultaneously, well above expected per-axis draw) lands nowhere
+near the supply's rating. You'd need all three motors **stalled**
+simultaneously near their current limit to seriously load this supply, and
+there's still headroom even then (Mean Well's LRS series also tolerates
+short overload peaks above the rated figure).
+
+**Don't just trust the estimate — measure it.** With one unit already
+running, put a multimeter (or better, a clamp meter) on the 24 V feed while
+it moves, and again while deliberately stalling the motor against a hard
+limit. Thirty seconds of measurement turns "should be fine" into "measured
+fine," and gives you the real number if you ever scale beyond 3 units.
+
+### Distribution wiring
+
+Star topology from the shared PSU — each unit gets its own pair of feeder
+wires back to the supply, not a daisy-chain from one unit to the next
+(daisy-chaining means a downstream unit's current also flows through the
+upstream unit's wiring and connectors, which complicates both voltage-drop
+and fusing calculations for no benefit):
+
+```
+                    ┌─── (fuse) ──── Blind 1 (VMOT / GND)
+Mean Well LRS-150-24 ├─── (fuse) ──── Blind 2 (VMOT / GND)
+   24 V / 6.5 A       └─── (fuse) ──── Blind 3 (VMOT / GND)
+```
+
+- **Per-branch fuse (~2 A fast-blow)** on each branch. With one supply
+  feeding several installations, a wiring fault or locked rotor on one
+  blind shouldn't be able to brown out or damage the other branches — this
+  wasn't a concern in the single-unit design (nothing else to protect) but
+  matters once several units share a source.
+- Each unit's own **≥100 µF electrolytic across VMOT/GND at the driver**
+  (see [Power chain](#power-chain)) is still required regardless of shared
+  supply — that's a per-driver spike-protection requirement, not something
+  the shared PSU's own bulk capacitance substitutes for.
+- **Logic ground stays local to each unit.** The three controllers are
+  independent Zigbee nodes with no wired link between them — only the 24 V
+  return and that *same unit's* FireBeetle/DRV8825 grounds need to be
+  common (per [Power chain](#power-chain)). There's no need to run a
+  shared logic-ground bus between units.
+
+### Wire gauge (voltage drop)
+
+Sized for **5 m** one-way runs (10 m round trip, since current returns via
+GND too) using `Vdrop = I × ρ × (2×L) / A` with `ρ ≈ 0.0175 Ω·mm²/m`
+(copper). Typical guidance is to stay under ~3–5 % drop; the DRV8825 itself
+doesn't care about a few hundred millivolts off 24 V (it's happy down to
+~8 V):
+
+| Conductor | Drop @ 1.5 A (motor's rated current — a safe sizing figure) | Drop @ 2.5 A (pessimistic worst case) |
+|---|---|---|
+| 0.5 mm² (~AWG 20) | 0.53 V (2.2 %) | 0.88 V (3.6 %) |
+| **0.75 mm² (~AWG 18) — recommended** | 0.35 V (1.5 %) | 0.58 V (2.4 %) |
+| 1.0 mm² (~AWG 17) | 0.26 V (1.1 %) | 0.44 V (1.8 %) |
+| 1.5 mm² (~AWG 16) | 0.18 V (0.7 %) | 0.29 V (1.2 %) |
+
+**0.75 mm² (18 AWG) or thicker** per branch: comfortably under 2.5 % drop
+even at the pessimistic current figure, and its ampacity covers the ~2 A
+branch fuse with margin. At 5 m, wire gauge is really about mechanical
+robustness (thin wire is fragile at connectors) rather than electrical
+necessity — recompute the table above if your actual runs are much longer.
 
 ## DRV8825 complete pin-by-pin wiring
 
