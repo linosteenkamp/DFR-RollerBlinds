@@ -15,7 +15,7 @@ the shared `esp-zb-common` library (deferred in the DoorSensor spec).
 ESP32-C6 firmware (C / ESP-IDF via PlatformIO) for a stepper-driven roller blind
 controller that joins the Zigbee mesh as a **Router** (permanently mains-powered)
 and presents a standard **Window Covering (0x0102)** device to Zigbee2MQTT /
-Home Assistant. Motion is a DRV8825-driven bipolar stepper through a 3D-printed
+Home Assistant. Motion is a TMC2209-driven bipolar stepper through a 3D-printed
 **1:15 reduction** (`Blinds 2.step`). Position is open-loop step counting against
 one-time calibrated soft limits stored in NVS. A 3-key membrane keypad
 (Up / Down / Fn) gives full local control and hosts the calibration UX.
@@ -35,35 +35,53 @@ scope** (separate later effort — no risk to deployed devices).
 
 | Part | Role |
 |---|---|
-| DFRobot FireBeetle 2 ESP32-C6 (`dfrobot_firebeetle2_esp32c6`) | Controller (fallback: Seeed XIAO ESP32-C6 if it doesn't fit the enclosure — design keeps GPIO budget to 7 pins so fallback is a pin remap, not a redesign) |
+| Seeed XIAO ESP32C6 (`seeed_xiao_esp32c6`) | Controller. Only 11 GPIOs are broken out on this board's header — design keeps the GPIO budget to 7 used + 1 reserved (down from an original 8-pin FireBeetle-era budget, since the onboard-LED mirror is dropped in this revision — external LED is the sole indicator). |
 | 2HS60-1504JA05-020-03 bipolar stepper | Drive motor — 1.8°/step (200 full steps/rev), 1.5 A/phase class |
-| DRV8825 breakout | Stepper driver, 1/8 microstep (hard-wired) |
+| BIGTREETECH TMC2209 V1.3 breakout | Stepper driver, StealthChop2 silent chopping (the reason for this driver swap), 1/8 microstep via `MS1`/`MS2` pin-strapping |
 | 3D-printed geartrain (`Blinds 2.step`) | 1:15 reduction to the roller tube |
 | Mean Well 24 V DC PSU — **recommend LRS-50-24** (LRS-35-24 acceptable) | System supply |
-| Step-down regulator 5 V / 3.2 A (VIN 5.3–50 V) | 24 V → 5 V for the FireBeetle |
+| Step-down regulator 5 V / 3.2 A (VIN 5.3–50 V) | 24 V → 5 V for the XIAO |
 | Membrane keypad: 2 arrow keys + function key (in stock) | Local controls + calibration UX |
-| External status LED (enclosure face) | State annunciator (§2 Keypad & LED); onboard LED mirrors it |
+| External status LED (enclosure face) | State annunciator (§2 Keypad & LED) — sole status indicator this revision, no onboard-LED mirror |
 
 ### Power chain
 
-- 24 V → **DRV8825 VMOT**, with the mandatory **≥100 µF electrolytic across
-  VMOT/GND close to the driver** (spike protection — non-negotiable).
-- 24 V → step-down regulator → 5 V → FireBeetle 5V/VCC pin. ESP32-C6 peak draw is
+- 24 V → **TMC2209 VM**, with the mandatory **≥100 µF electrolytic across
+  VM/GND close to the driver** (spike protection — non-negotiable).
+- 24 V → step-down regulator → 5 V → XIAO 5V pin. ESP32-C6 peak draw is
   well under 1 A; large margin.
 
-### DRV8825 wiring & setup
+### TMC2209 wiring & setup
 
-- `STEP`, `DIR`, `EN̅` → three GPIOs. Exact pins chosen at implementation time,
-  avoiding ESP32-C6 strapping pins (GPIO8/9/15), USB-JTAG pins, and FireBeetle
-  reserved pins (same rule as siblings).
-- `M0/M1/M2` **hard-wired for 1/8 microstep** (not firmware-controlled; saves 3
-  GPIOs; bench-retunable by rewiring). → **1600 microsteps/motor-rev**,
-  **24 000 microsteps/output-rev** through the 1:15 reduction.
-- `SLEEP̅` tied high (to `RESET̅`); idle power-down is done via `EN̅`.
-- Current limit via Vref pot: **~1.2 A/phase** (80 % of rating). Procedure
-  documented in `HARDWARE.md`.
-- **Thermal:** at 1.2 A/phase the DRV8825 needs its **heatsink fitted** and the
-  enclosure design must provide airflow/venting around the driver.
+- `STEP`, `DIR`, `EN̅` → three GPIOs. Exact pins chosen at implementation time
+  — the XIAO only exposes 11 GPIOs total (`D0`–`D10`), none of which are
+  ESP32-C6 strapping pins, so there's no strapping-pin avoidance concern this
+  revision (unlike the FireBeetle, whose onboard-LED mirror deliberately
+  shared one).
+- `MS1`/`MS2` **tied to GND for 1/8 microstep** (not firmware-controlled;
+  matches the prior DRV8825 setting exactly). → **1600 microsteps/motor-rev**,
+  **24 000 microsteps/output-rev** through the 1:15 reduction — unchanged
+  from the DRV8825-era math.
+- StealthChop2 (quiet) selection has **no external header pin** — it's an
+  internal PCB solder-pad (`SPRE`) that ships bridged to StealthChop2 by
+  default (confirmed via BTT's own TMC2209 manual). Nothing to wire.
+- **`VCC_IO` → XIAO 3V3 is required** — the DRV8825 self-derived its logic
+  reference from VMOT and had no equivalent pin; the TMC2209's digital core
+  won't respond to `STEP`/`DIR`/`EN` without a separate 3–5 V logic supply
+  here. This is the one genuinely new wiring requirement of the swap.
+- `PDN` (UART) left at board default (not using UART this revision — plain
+  STEP/DIR standalone mode, same control model as the DRV8825 it replaces).
+  One GPIO is reserved-but-unwired for a future UART upgrade.
+- Current limit via Vref pot: **~1.2 A/phase** (80 % of rating), same target
+  current as before — but the Vref **value** differs from the DRV8825
+  (different sense-resistor formula: `Vref ≈ Irms × 1.41` for this board's
+  0.11 Ω sense resistors, ≈1.69 V rather than the DRV8825's 0.6 V).
+  Procedure documented in `HARDWARE.md`.
+- **Thermal:** at 1.2 A/phase, fit the TMC2209's heatsink and ensure the
+  enclosure design provides airflow/venting around the driver. TMC2209 adds
+  built-in thermal shutdown (the DRV8825 had none), so a thermal problem
+  here throttles/cuts out rather than damaging the driver — still worth
+  avoiding via a bench thermal-soak check.
 - **Motor direction is per-unit runtime config**, not wiring/compile-time:
   front-roll vs back-roll and motor orientation differ per window. NVS flag
   `motor_reversed` (default off), applied in `motion_init()` before any position
@@ -81,7 +99,9 @@ supports it since `EN̅` is firmware-controlled).
 
 Membrane keypad common → GND; **Up / Down / Fn** → three GPIOs with internal
 pull-ups, firmware debounce (library `debounce` module). One external status LED
-on the enclosure face (a GPIO through a resistor); the onboard LED mirrors it.
+on the enclosure face (a GPIO through a resistor) — the sole status indicator
+this revision; no onboard-LED mirror (dropped along with the FireBeetle, whose
+onboard LED this feature was built around).
 
 **Gesture model — Calibrated, idle:**
 - **Tap Up / Down** — full open / full close (clamped, position tracked).
@@ -110,7 +130,9 @@ on the enclosure face (a GPIO through a resistor); the onboard LED mirrors it.
 | Five rapid flashes | Error: mark rejected (§6 validation) |
 | Steady rapid blink | Zigbee Identify (0x0003) active |
 
-GPIO budget: 7 (STEP, DIR, EN, BTN_UP, BTN_DOWN, BTN_FN, LED).
+GPIO budget: 7 used (STEP, DIR, EN, BTN_UP, BTN_DOWN, BTN_FN, LED) + 1
+reserved-but-unwired (TMC2209 `PDN_UART`, for a possible future UART
+upgrade) of the XIAO's 11 available GPIOs.
 
 ## 3. `esp-zb-common` Library (Deliverable 1)
 
@@ -283,7 +305,8 @@ re-flipping costs a 2-minute recalibration.
 - All targets clamp to [0, `closed_steps`].
 - Motion refuses to start when uncalibrated (except jog).
 - Runaway watchdog: any move exceeding `closed_steps` + margin is aborted
-  (software backstop for logic bugs — DRV8825 breakouts expose no fault pin).
+  (software backstop for logic bugs; the TMC2209's `DIAG` fault output is
+  not wired in this design — no closed-loop features, §11).
 
 ## 7. Error Handling
 

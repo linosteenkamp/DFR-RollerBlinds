@@ -1,77 +1,98 @@
 # Hardware & Wiring — DFR-RollerBlinds
 
-This is the complete wiring reference, written up after the first bench
-bring-up (2026-07-19/20) where most of the debugging time went into two
-things: a keypad wired to the wrong pins, and a DRV8825 that looked dead but
-was simply asleep. Both are covered explicitly below, with a troubleshooting
-section at the end built directly from that session.
+**Revision 2 hardware** (2026-07-25): Seeed XIAO ESP32C6 controller +
+BIGTREETECH TMC2209 V1.3 stepper driver, replacing the original DFRobot
+FireBeetle 2 ESP32-C6 + DRV8825 combo. The driver swap is specifically for
+TMC2209's StealthChop2 silent-chopping mode, which — per the vendor's own
+manual (bigtreetech/BIGTREETECH-TMC2209-V1.2 on GitHub, the module this
+board shares its design with) — **ships as the factory default**, no
+wiring required. See [Setting Vref (current limit)](#setting-vref-current-limit)
+below for the one setting that *does* need attention. The original
+FireBeetle/DRV8825 bring-up notes (breadboard debugging, the `SLEEP̅`/`RESET̅`
+trap) are no longer applicable and live in git history if ever needed.
+
+This is the complete wiring reference for the current hardware, cross-checked
+against BTT's own TMC2209 pin-designation manual (their V1.2/V1.3 modules
+share the same 16-pin header layout). Numbers not yet confirmed on the bench
+(motion speed under real load, whether the XIAO's D-number → GPIO mapping
+matches your specific board) are flagged explicitly below — don't treat them
+as settled until measured.
 
 ## Bill of materials
 
 | Part | Role |
 |---|---|
-| DFRobot FireBeetle 2 ESP32-C6 (`dfrobot_firebeetle2_esp32c6`) | Controller (fallback: Seeed XIAO ESP32-C6 if it doesn't fit the enclosure — the design keeps the GPIO budget to 8 pins so a fallback is a pin remap, not a redesign) |
+| Seeed XIAO ESP32C6 (`seeed_xiao_esp32c6`) | Controller. Only 11 GPIOs are broken out (D0–D10) — the design keeps the GPIO budget to 7 used + 1 reserved (see [GPIO summary](#gpio-summary-srcmainc)), leaving 3 spare. |
 | 2HS60-1504JA05-020-03 bipolar stepper | Drive motor — 1.8°/step (200 full steps/rev), 1.5 A/phase class, 4-wire (2 coils) |
-| DRV8825 breakout (Pololu-style) | Stepper driver, 1/8 microstep (hard-wired) |
+| BIGTREETECH TMC2209 V1.3 breakout | Stepper driver, StealthChop2 silent chopping — ships factory-default (no wiring needed for it). 1/8 microstep via `MS1`/`MS2` pin-strapping (same resolution as before — preserves all step-count math). Needs its own logic-supply pin (`VCC_IO`), which the DRV8825 never had — see the pin table below. |
 | 3D-printed geartrain (`Blinds 2.step`) | 1:15 reduction to the roller tube |
 | Mean Well 24 V DC PSU — **recommend LRS-50-24** (LRS-35-24 acceptable) for a single unit | System supply. See [Multi-unit installations](#multi-unit-installations-shared-psu) for sharing one PSU across several controllers. |
-| Step-down regulator 5 V / 3.2 A (VIN 5.3–50 V) | 24 V → 5 V for the FireBeetle |
+| Mean Well **LRS-150-24** (24 V, 6.5 A, ~156 W) — *optional, in place of the LRS-50-24 above* | Single shared supply for **3 blind controllers** on one PSU instead of one PSU per unit. See [Multi-unit installations](#multi-unit-installations-shared-psu) for sizing rationale and distribution wiring. |
+| Step-down regulator 5 V / 3.2 A (VIN 5.3–50 V) | 24 V → 5 V for the XIAO |
 | Membrane keypad: 2 arrow keys + function key | Local controls + calibration UX |
-| External status LED (enclosure face) | State annunciator; onboard LED mirrors it |
+| External status LED (enclosure face) | State annunciator. This revision drops the onboard-LED mirror entirely — the external LED is the only status indicator (frees a GPIO on the XIAO's smaller header; see [GPIO summary](#gpio-summary-srcmainc)). |
 | Multimeter | Required — for Vref, VMOT, and 3V3-rail checks below. Don't skip these. |
 
 ## Recommended bring-up order
 
-Wiring everything at once and then debugging blind is how last session's
-issues turned into a long back-and-forth. Do it in this order instead —
-each stage is independently testable before moving to the next:
+Wiring everything at once and then debugging blind turned a routine bring-up
+into a long back-and-forth last time. Do it in this order instead — each
+stage is independently testable before moving to the next:
 
-1. **FireBeetle alone.** Flash firmware, confirm serial boot log (see
+1. **XIAO alone.** Flash firmware, confirm serial boot log (see
    `DEVELOPER_GUIDE.md`). No other hardware connected yet.
 2. **Keypad.** Wire and verify all three keys (procedure below) before
    touching the motor driver.
-3. **DRV8825 logic pins only** (no motor, no VMOT yet). Verify `SLEEP̅`/`RESET̅`
-   read 3.3 V and `EN̅` toggles per firmware.
-4. **DRV8825 power + Vref**, motor still disconnected. Set current limit.
-5. **Motor.** Connect coils last, VMOT already at the correct voltage.
-6. **Full power chain** (24 V PSU + step-down to FireBeetle) together.
+3. **TMC2209 logic pins only** (no motor, no VM yet). Wire `STEP`/`DIR`/`EN̅`,
+   the mode-select pins (`MS1`/`MS2`, both to GND per the table below), and
+   **`VCC_IO` to XIAO 3V3** — don't skip this one, the driver's digital core
+   won't run without it. Verify `EN̅` toggles per firmware.
+4. **TMC2209 power + Vref**, motor still disconnected. Set current limit
+   (new formula below — **do not reuse the old DRV8825 Vref value**).
+5. **Motor.** Connect coils last, VM already at the correct voltage.
+6. **Full power chain** (24 V PSU + step-down to XIAO) together.
 
 ## Power chain
 
 ```
-24 V PSU (LRS-50-24) ──┬─── DRV8825 VMOT  (+ ≥100 µF electrolytic across VMOT/GND,
-                        │                    close to the driver — non-negotiable
-                        │                    spike protection)
+24 V PSU (LRS-50-24) ──┬─── TMC2209 VM  (+ ≥100 µF electrolytic across VM/GND,
+                        │                  close to the driver — non-negotiable
+                        │                  spike protection)
                         │
                         └─── Step-down regulator (5 V / 3.2 A, VIN 5.3–50 V)
                                      │
-                                     └─── FireBeetle 2 5V/VCC pin
+                                     └─── XIAO ESP32C6 5V pin
 ```
 
-- 24 V feeds the DRV8825's **VMOT** pin directly. The **≥100 µF electrolytic
-  capacitor across VMOT/GND**, mounted close to the driver, is mandatory —
-  without it, motor-current transients can spike VMOT high enough to damage
-  the driver.
-- The same 24 V rail feeds a step-down regulator to 5 V for the FireBeetle's
-  5V/VCC pin. ESP32-C6 peak draw is well under 1 A, so there is large margin.
-- **One common ground.** PSU −, both DRV8825 GND pins (there are usually two —
-  one on the power side, one on the logic side), the step-down regulator's
-  ground, and the FireBeetle GND must all tie together. If they don't, logic
-  signals have no reliable 0 V reference and behavior gets erratic in ways
-  that are hard to diagnose.
-- At the driver's ~1.2 A/phase current limit (see [Vref](#setting-vref---current-limit)
-  below) the **DRV8825 needs its heatsink fitted**, and the enclosure must
-  provide airflow/venting around the driver — it runs hot at that current.
-- **Never plug or unplug the motor connector while VMOT is powered.** The
+- 24 V feeds the TMC2209's **VM** pin directly. The **≥100 µF electrolytic
+  capacitor across VM/GND**, mounted close to the driver, is mandatory —
+  without it, motor-current transients can spike VM high enough to damage
+  the driver. (BTT's V1.3 module accepts 4.75–28 V on VM, so 24 V has
+  plenty of headroom either direction.)
+- The same 24 V rail feeds a step-down regulator to 5 V for the XIAO's 5V
+  pin. ESP32-C6 peak draw is well under 1 A, so there is large margin.
+- **One common ground.** PSU −, both TMC2209 GND pins (there are usually
+  two — one on the power side, one on the logic side), the step-down
+  regulator's ground, and the XIAO GND must all tie together. If they
+  don't, logic signals have no reliable 0 V reference and behavior gets
+  erratic in ways that are hard to diagnose.
+- At the driver's ~1.2 A/phase current limit (see
+  [Vref](#setting-vref-current-limit) below), fit the TMC2209's heatsink and
+  make sure the enclosure provides airflow around the driver. TMC2209 has
+  built-in thermal shutdown (unlike the DRV8825, which had none), so a
+  thermal problem here means throttling/cutout rather than damage — but
+  still worth avoiding, and still worth a bench thermal-soak check (see
+  `DEVELOPER_GUIDE.md`).
+- **Never plug or unplug the motor connector while VM is powered.** The
   resulting inductive spike is one of the most common ways to kill a
-  DRV8825. Power down VMOT (or the whole 24 V rail) first.
+  stepper driver. Power down VM (or the whole 24 V rail) first.
 
 ## Multi-unit installations (shared PSU)
 
 Several controllers can share one larger 24 V supply instead of one PSU per
 blind. This section covers sizing, distribution wiring, and protection for
-that case — everything else in this document (per-unit DRV8825 wiring, Vref,
-keypad, LED) is unchanged and applies identically to each unit.
+that case — everything else in this document (per-unit TMC2209 wiring,
+Vref, keypad, LED) is unchanged and applies identically to each unit.
 
 ### Sizing the shared PSU
 
@@ -79,9 +100,9 @@ Anchor point: the single-unit recommendation (LRS-50-24, 35–50 W) already
 has generous margin for one axis's real draw. Two things dominate that
 draw, and both stay small:
 
-- **Idle:** the DRV8825 is disabled (`EN̅` high) between moves, so idle draw
+- **Idle:** the TMC2209 is disabled (`EN̅` high) between moves, so idle draw
   per axis is near-zero — just ESP32-C6 + driver quiescent current.
-- **Moving:** the DRV8825's current limit caps the motor at ~1.2 A/phase,
+- **Moving:** the TMC2209's current limit caps the motor at ~1.2 A/phase,
   but because the driver chops the 24 V bus down to whatever the coil
   actually needs, the **bus-side** current at our modest cruise speed
   (~6 rev/s motor shaft) is meaningfully lower than the coil current — a
@@ -111,9 +132,9 @@ upstream unit's wiring and connectors, which complicates both voltage-drop
 and fusing calculations for no benefit):
 
 ```
-                    ┌─── (fuse) ──── Blind 1 (VMOT / GND)
-Mean Well LRS-150-24 ├─── (fuse) ──── Blind 2 (VMOT / GND)
-   24 V / 6.5 A       └─── (fuse) ──── Blind 3 (VMOT / GND)
+                    ┌─── (fuse) ──── Blind 1 (VM / GND)
+Mean Well LRS-150-24 ├─── (fuse) ──── Blind 2 (VM / GND)
+   24 V / 6.5 A       └─── (fuse) ──── Blind 3 (VM / GND)
 ```
 
 - **Per-branch fuse (~2 A fast-blow)** on each branch. With one supply
@@ -121,23 +142,22 @@ Mean Well LRS-150-24 ├─── (fuse) ──── Blind 2 (VMOT / GND)
   blind shouldn't be able to brown out or damage the other branches — this
   wasn't a concern in the single-unit design (nothing else to protect) but
   matters once several units share a source.
-- Each unit's own **≥100 µF electrolytic across VMOT/GND at the driver**
+- Each unit's own **≥100 µF electrolytic across VM/GND at the driver**
   (see [Power chain](#power-chain)) is still required regardless of shared
   supply — that's a per-driver spike-protection requirement, not something
   the shared PSU's own bulk capacitance substitutes for.
 - **Logic ground stays local to each unit.** The three controllers are
   independent Zigbee nodes with no wired link between them — only the 24 V
-  return and that *same unit's* FireBeetle/DRV8825 grounds need to be
-  common (per [Power chain](#power-chain)). There's no need to run a
-  shared logic-ground bus between units.
+  return and that *same unit's* XIAO/TMC2209 grounds need to be common (per
+  [Power chain](#power-chain)). There's no need to run a shared
+  logic-ground bus between units.
 
 ### Wire gauge (voltage drop)
 
 Sized for **5 m** one-way runs (10 m round trip, since current returns via
 GND too) using `Vdrop = I × ρ × (2×L) / A` with `ρ ≈ 0.0175 Ω·mm²/m`
-(copper). Typical guidance is to stay under ~3–5 % drop; the DRV8825 itself
-doesn't care about a few hundred millivolts off 24 V (it's happy down to
-~8 V):
+(copper). Typical guidance is to stay under ~3–5 % drop; the driver itself
+doesn't care about a few hundred millivolts off 24 V (VM floor is ~4.75 V):
 
 | Conductor | Drop @ 1.5 A (motor's rated current — a safe sizing figure) | Drop @ 2.5 A (pessimistic worst case) |
 |---|---|---|
@@ -152,49 +172,38 @@ branch fuse with margin. At 5 m, wire gauge is really about mechanical
 robustness (thin wire is fragile at connectors) rather than electrical
 necessity — recompute the table above if your actual runs are much longer.
 
-## DRV8825 complete pin-by-pin wiring
+## TMC2209 complete pin-by-pin wiring
 
-The DRV8825 is a small breakout with two columns of pins straddling a
-central chip. **Read the silkscreen labels on your specific board** — pin
-order can vary between clone manufacturers — but the signal names below are
-standard and this is the complete list. There is no separate logic-supply
-pin: the chip generates its own internal reference from VMOT, so every pin
-that "needs 3.3 V" is a *control signal*, not a power feed.
+The TMC2209 V1.3 breakout is a 16-pin module (two 8-pin columns straddling
+the chip), plus `DIAG`/`INDEX`/`VREF` broken out separately near the top and
+the current-limit trimpot. Pin names below come straight from BTT's own
+TMC2209 pin-designation manual (their V1.2 and V1.3 modules share this same
+layout) — still **read the silkscreen on your specific board** before
+wiring, since clones vary.
 
-| DRV8825 pin | Wire to | Notes |
+| TMC2209 pin | Wire to | Notes |
 |---|---|---|
-| `EN̅` (ENABLE) | FireBeetle **GPIO 4** | Active-low enable. Firmware drives it high (disabled) at idle, low only during a move. |
-| `M0` | FireBeetle **3V3** | ┐ |
-| `M1` | FireBeetle **3V3** | ├ `M2:M1:M0 = 0:1:1` → **1/8 microstep** (not firmware-controlled) |
-| `M2` | leave unconnected | ┘ internal pull-down on the board reads this as 0 |
-| `RESET̅` | jumper to `SLEEP̅`, then that joined node → **3V3** | **Must be high or the chip is held in reset.** See the callout below — this was last session's root cause. |
-| `SLEEP̅` | (tied to `RESET̅`, both → 3V3) | **Must be high or the chip is asleep.** Same callout. |
-| `STEP` | FireBeetle **GPIO 2** | Step pulse train |
-| `DIR` | FireBeetle **GPIO 3** | Direction level, set before each move |
-| `VMOT` | 24 V PSU **+** | Plus the ≥100 µF capacitor to the adjacent GND, right at the pin |
-| `GND` (power side, next to VMOT) | 24 V PSU **−** | |
+| `EN` (ENABLE) | XIAO **D2 / GPIO2** *(see [GPIO summary](#gpio-summary-srcmainc) — verify pin before wiring)* | Active-low enable, same convention as the DRV8825 this replaces. Firmware drives it high (disabled) at idle, low only during a move. |
+| `MS1` | **GND** | ┐ |
+| `MS2` | **GND** | ├ `MS2:MS1 = GND:GND` → **8 microsteps (1/8)** — matches the old DRV8825 setting exactly, so `1600 microsteps/motor-rev` / `24 000 microsteps/output-rev` and every derived constant (ramp tuning, `MIN_SPAN_STEPS`, calibration span math) carry over unchanged. |
+| `PDN` (×2 adjacent pins, silkscreened `PDN`) | Leave both unconnected | UART pin — factory-bridged to the first of the two positions internally. Not using UART in this revision — plain STEP/DIR standalone mode, same control model as the DRV8825 it replaces. GPIO **D7** is the suggested spare on the XIAO side if a future revision wants UART (register-based current control, StallGuard, etc.). |
+| `CLK` | Leave unconnected | Internal oscillator is used by default; no external clock needed. |
+| `STEP` | XIAO **D0 / GPIO0** | Step pulse train |
+| `DIR` | XIAO **D1 / GPIO1** | Direction level, set before each move |
+| `VM` | 24 V PSU **+** | Plus the ≥100 µF capacitor to the adjacent GND, right at the pin |
+| `GND` (power side, next to VM) | 24 V PSU **−** | |
 | `A1`, `A2` | Motor coil **A** (one pair) | See coil identification below |
 | `B1`, `B2` | Motor coil **B** (the other pair) | |
-| `FAULT̅` | leave unconnected | Not used by this firmware |
-| `GND` (logic side) | FireBeetle **GND** | Common ground — see power chain note above |
+| `VCC_IO` | **XIAO 3V3** | **This is the pin the DRV8825 never had.** DRV8825 self-derives its logic reference from VMOT; the TMC2209's digital core needs its own 3–5 V logic supply here, or `STEP`/`DIR`/`EN` won't be recognized at all. Tie to the XIAO's 3.3 V rail (not 5V) so the logic threshold matches what the XIAO's GPIOs actually drive. |
+| `GND` (logic side, next to `VCC_IO`) | XIAO GND | Common ground — see power chain note above |
+| `DIAG`, `INDEX`, `VREF` | `DIAG`/`INDEX` unconnected; `VREF` is the trimpot test point | `DIAG`/`INDEX` are stall-detection / step-position outputs, not used by this firmware (no closed-loop features, spec §11 out of scope). `VREF` is where you measure current limit — see below. |
 
-### ⚠️ The pin that caused an hour of "the motor is dead"
-
-**`SLEEP̅` and `RESET̅` both have internal pull-*downs* on the DRV8825.** Left
-unconnected, they sit at 0 V — which means the chip is **both asleep and
-held in reset simultaneously**. In that state the driver is completely
-inert: no current to the coils, no response to STEP/DIR, nothing. It looks
-exactly like a dead board, a bad motor, or a wiring fault anywhere else in
-the chain — the actual cause is almost always overlooked because "3.3 V
-logic pins that need to be *high* to do nothing in particular" isn't where
-people expect to look first.
-
-**The fix is two jumper wires:** one between `RESET̅` and `SLEEP̅` (so a
-single feed serves both), and one from that joined node to the FireBeetle's
-**3V3** pin. After wiring, **verify both pins read ~3.3 V to GND with a
-multimeter** before assuming the driver is awake — don't just trust that the
-jumper is seated; breadboard rows are a common place for this to silently
-fail (see the keypad section below for the same failure mode).
+**No `SPREAD` pin exists on this module's external header.**
+StealthChop2 vs SpreadCycle is an internal PCB solder-pad (silkscreened
+`SPRE`, on the underside) — not something reachable from the header at all.
+Per BTT's manual, **the factory-default bridge selects StealthChop2 ("mute
+mode")**, which is exactly what this swap is for. Nothing to wire; just
+don't touch that solder pad (re-bridging it selects SpreadCycle — loud).
 
 ### Coil identification
 
@@ -220,82 +229,96 @@ setting, motor disconnected from everything):
 
 ### GPIO summary (`src/main.c`)
 
-All 8 GPIOs used by this project:
+XIAO ESP32C6 exposes only 11 GPIOs on its header (`D0`–`D10`). This
+revision uses 7 for the same signals as before, drops the onboard-LED
+mirror (XIAO has no easily-probed user LED broken out to a header pin,
+and the external LED alone was always the primary indicator), and reserves
+one more for a possible future TMC2209 UART upgrade:
 
-| Signal | GPIO | Notes |
-|---|---|---|
-| `STEP` | GPIO 2 | Pulse train from `motion.c`'s GPTimer ISR |
-| `DIR` | GPIO 3 | Level set before each move; meaning flips with `motor_reversed` |
-| `EN̅` | GPIO 4 | High = driver **disabled**; firmware drives it low only during moves |
-| Keypad Up | GPIO 5 | Internal pull-up |
-| Keypad Down | GPIO 6 | Internal pull-up |
-| Keypad Fn | GPIO 7 | Internal pull-up |
-| External status LED | GPIO 14 | Through a series resistor to the LED, LED to GND |
-| Onboard LED (mirror) | GPIO 15 | FireBeetle's onboard LED; `status_led.c` drives it as a plain output alongside GPIO 14. GPIO15 is a strapping pin, but it's only ever driven as an output *after* boot strapping is latched, so sharing it here is fine. |
+| Signal | XIAO pin | GPIO | Notes |
+|---|---|---|---|
+| `STEP` | D0 | GPIO0 | Pulse train from `motion.c`'s GPTimer ISR |
+| `DIR` | D1 | GPIO1 | Level set before each move; meaning flips with `motor_reversed` |
+| `EN̅` | D2 | GPIO2 | High = driver **disabled**; firmware drives it low only during moves |
+| Keypad Up | D4 | GPIO22 | Internal pull-up (this pin doubles as I²C SDA on XIAO's silkscreen — unused here, plain GPIO input) |
+| Keypad Down | D5 | GPIO23 | Internal pull-up (doubles as I²C SCL — unused here) |
+| Keypad Fn | D6 | GPIO16 | Internal pull-up |
+| External status LED | D10 | GPIO18 | Through a series resistor to the LED, LED to GND. Sole status indicator this revision — no onboard-LED mirror. |
+| *(spare)* | D3, D7, D8, D9 | GPIO21, GPIO17, GPIO19, GPIO20 | Unused headroom — grouped this way so the keypad's 3-pin JST and the LED's 2-pin JST can be soldered directly onto contiguous header pins rather than jumpered. `D7` is the suggested pick if `PDN_UART` is ever wired for a future TMC2209 UART upgrade. |
 
-Keep all of `STEP`/`DIR`/`EN̅`/keypad clear of the ESP32-C6 strapping pins
-(GPIO8/9/15), the USB-Serial-JTAG pins, and FireBeetle reserved pins — same
-rule as the sibling projects. The one deliberate exception is the onboard
-LED mirror on GPIO15 (strapping pin): it is only ever driven as a
-boot-after output, never read at reset, so it doesn't disturb strapping.
+None of the ESP32-C6 strapping pins (GPIO4/5/8/9/15) are exposed on the
+XIAO's header at all, so there's no strapping-pin caution needed here — a
+simplification versus the FireBeetle, where the onboard-LED mirror had to
+share a strapping pin deliberately.
+
+**Before wiring, confirm this D-number → GPIO-number mapping against your
+specific XIAO board's silkscreen/schematic.** It's sourced from Seeed's
+published pin-multiplexing reference, not yet cross-checked against a
+physical board in hand.
 
 ## Setting Vref (current limit)
 
-Target current: **~1.2 A/phase** (80% of the motor's 1.5 A/phase rating).
+Target current: **~1.2 A/phase** (80% of the motor's 1.5 A/phase rating) —
+same target as before, but **the formula and the resulting voltage are
+different from the DRV8825.** Don't reuse the old 0.6 V figure.
 
-For a standard DRV8825 breakout, the current limit is set by the onboard
-trimpot per **Ilimit = 2 × Vref**, so:
+BTT's own manual gives the formula directly (0.11 Ω sense resistors, standard
+on this module):
 
 ```
-Vref = Ilimit / 2 = 1.2 A / 2 = 0.6 V
+Irms = 325mV / (Rsense + 20mΩ) × 1/√2 × (Vref / 2.5V)
+     = 325mV / 130mΩ × 1/√2 × (Vref / 2.5V)
+     ≈ Vref × 0.71        (equivalently: Vref ≈ Irms × 1.41)
+
+Vref = 1.2 A × 1.41 ≈ 1.69 V
 ```
 
-Procedure — **do this after the driver is confirmed awake** (RESET̅/SLEEP̅ at
-3.3 V, checked above), with the **motor still disconnected**:
+**This board does not ship at that value** — BTT's manual states the
+factory-default Vref is 1.2 V ±0.1 V (≈0.9 A), so the trimpot genuinely needs
+adjusting, unlike a board that happens to already be close.
 
-1. Power the board from the 24 V rail. The trimpot only produces a
-   meaningful reading once VMOT is present and the chip is out of sleep/reset
-   — if you measure near 0 V here, that's a symptom of the driver being
-   asleep, not a low current setting. Go back and check `SLEEP̅`/`RESET̅`
-   before touching the pot.
+Procedure — with the **motor still disconnected**:
+
+1. Power the board from the 24 V rail (VM present) with `EN`/`MS1`/`MS2`/
+   `VCC_IO` already wired per the table above — **`VCC_IO` matters here too**:
+   without it the chip's digital core isn't running and the Vref reading
+   won't behave sensibly.
 2. Set a multimeter to DC volts.
-3. Measure between the **Vref trimpot** (touch the probe to the metal top of
-   the screw itself — that's the wiper) and **GND** (a nearby GND pin on the
-   breakout, not the motor connector).
-4. Gently adjust the trimpot — turning it usually raises the reading — until
-   the meter reads **≈0.6 V** (0.55–0.65 V is fine).
+3. Measure between the **`VREF` test point** and **GND** (a nearby GND pin
+   on the breakout, not the motor connector) — consult your board's
+   silkscreen for the exact test-point location.
+4. Gently adjust the trimpot until the meter reads **≈1.69 V** (valid range
+   for this board is 0.2–2.2 V, so 1.69 V has headroom either side).
 5. Only then connect the motor.
 
 Re-check after any driver swap — trimpot position doesn't transfer between
-boards. If you ever measure Vref in the millivolt range with everything
-wired and powered, treat it as a signal to re-check `SLEEP̅`/`RESET̅` and
-`VMOT`, not as "the pot needs turning."
+boards.
 
 ## Keypad wiring
 
 3-key membrane keypad (Up / Down / Fn):
 
 ```
-Membrane keypad          FireBeetle 2 ESP32-C6
+Membrane keypad          XIAO ESP32C6
 ┌──────────────┐        ┌──────────────────┐
 │ Common ───────┼────────┤ GND              │
-│ Up     ───────┼────────┤ GPIO 5 (pull-up) │
-│ Down   ───────┼────────┤ GPIO 6 (pull-up) │
-│ Fn     ───────┼────────┤ GPIO 7 (pull-up) │
+│ Up     ───────┼────────┤ D4 / GPIO22 (pull-up) │
+│ Down   ───────┼────────┤ D5 / GPIO23 (pull-up) │
+│ Fn     ───────┼────────┤ D6 / GPIO16 (pull-up) │
 └──────────────┘        └──────────────────┘
 ```
 
 Common → GND; each key's line goes to its own GPIO configured with the
 internal pull-up, so the pin idles HIGH and reads LOW when pressed. Firmware
-debounce (via the `esp-zb-common` `debounce` module) handles switch bounce —
-no external resistors needed.
+debounce (via the `esp-zb-common` `debounce` module) handles switch bounce
+— no external resistors needed.
 
 **Identify the common pin before wiring**, don't assume it from the tail's
 position — membrane tail pinouts aren't consistent across suppliers, and the
 "common" is sometimes an end pin, sometimes not. With a multimeter on
 continuity: hold one key down and probe pairs on the tail; the pin that
 shows continuity for *every* key (tested one at a time) is the common. That
-one goes to GND; the other three go to GPIO 5/6/7.
+one goes to GND; the other three go to D4/D5/D6.
 
 **Breadboards split rows down the centre channel.** A jumper landed on the
 wrong half of a row, or in a neighbouring row entirely, won't show up
@@ -309,27 +332,49 @@ Before trusting the wiring, confirm all three keys electrically with the
 serial monitor:
 
 ```bash
-pio run -e dfrobot_firebeetle2_esp32c6_zigbee -t upload -t monitor
+pio run -e xiao_esp32c6_zigbee -t upload -t monitor
 ```
 
 Press each key in turn and watch for state changes propagating through the
 dispatcher (motion starting on a hold, an ACK flash on a tap once
 calibrated, etc.) — see `DEVELOPER_GUIDE.md` for the full gesture reference.
 If a key produces no reaction at all, don't assume firmware first; the
-overwhelming likelihood, based on last session, is wiring — go through the
-[Troubleshooting](#troubleshooting) keypad checklist.
+overwhelming likelihood, based on the first bring-up session, is wiring —
+go through the [Troubleshooting](#troubleshooting) keypad checklist.
 
 ## LED wiring
 
 ```
-GPIO 14 ── resistor (≈330 Ω–1 kΩ) ── LED anode
+GPIO 18 (D10) ── resistor (150 Ω) ── LED anode
                                        LED cathode ── GND
 ```
 
-One external status LED on the enclosure face, driven from GPIO 14 through a
-series resistor. The onboard LED mirrors the same pattern (`status_led.c`
-drives both together) so the state is visible with the enclosure open during
-bench work even before the external LED is wired.
+One external status LED on the enclosure face — **Kingbright L-7104SURC-E**,
+3mm through-hole, Hyper Red (AlGaInP) — driven from D10/GPIO18 through a
+series resistor. **This revision has no onboard-LED mirror** — the external
+LED is the only status indicator, so it needs to be wired and visible before
+doing any bring-up beyond stage 1 (flash + serial log only).
+
+Per the datasheet (Kingbright DSAB9908, Rev V.19A): `V_f` = 1.9V typ / 2.5V
+max at 20mA (±0.1V tolerance), **30mA absolute max DC current** (a "200mA"
+figure that shows up on some retailer listings is a *pulsed* rating — 1/10
+duty cycle, 0.1ms pulses — not continuous, and doesn't apply to a steady
+status LED), and a genuinely bright 3100mcd typical at 20mA.
+
+**Resistor: 150 Ω.** Working through the full `V_f` tolerance band
+(`R = (3.3V − V_f) / I_f`) rather than a single nominal value: worst-case
+low `V_f` (1.8V) draws 10.0mA, typical (1.9V) draws 9.3mA, worst-case high
+`V_f` (2.6V) draws 4.7mA — every case stays 3–6× under the 30mA rating, and
+since this LED's luminous intensity is roughly linear with current, even the
+4.7mA low end is still visibly bright (~700mcd) given how efficient this
+part is at 20mA. If the enclosure puts the LED 2–4m from the board, that
+run's added resistance (24 AWG, ~0.0842 Ω/m, round-trip since GND returns
+over the same distance) is 0.34–0.67 Ω — under 0.5% of 150 Ω, so it doesn't
+change the value. For a run that long, **put the resistor at the LED end,
+not the XIAO end**: it limits current identically either way, but if the
+two wires ever short together along the run, a resistor at the LED still
+protects the GPIO pin, whereas one back at the board would be bypassed by
+the short.
 
 See the design spec §2 for the full LED pattern table (off / 1 Hz / ~5 Hz /
 double-flash / ack / error / identify) and [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)
@@ -356,47 +401,48 @@ calibration**. Recalibrate afterward (see [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.m
 ## Motion speed tuning
 
 Cruise speed is a `#define` in `src/main.c` (`CRUISE_US`, microseconds per
-step at 1/8 microstep through the 1:15 reduction). Lower = faster and, on
-this motor, was found to run *quieter* as well (moves through resonance
-bands faster). Current bench value is `CRUISE_US = 100` (~2.4 s per output
-revolution, ~60 s full travel for a 2.5 m blind on a 30 mm rod). This has
-not yet been verified under real blind load — if the motor stalls or the
-blind stops short of its calibrated end (visible as position silently
-drifting over repeated cycles, since the driver is open-loop and can't
-detect a missed step), back off toward `150`–`300` and re-test. `JOG_CRUISE_US`
-and `CAL_TIMEOUT_US` are tuned together with cruise speed — the calibration
-timeout must comfortably exceed the time to jog the full span at jog speed,
-or a calibration attempt on a long blind can time out mid-session.
+step at 1/8 microstep through the 1:15 reduction). The DRV8825-era finding
+that "lower `CRUISE_US` also ran quieter" was specific to that driver's
+SpreadCycle-only chopping (moving through resonance bands faster reduced
+audible buzz); it needs **re-verifying on the bench with the TMC2209**,
+since StealthChop2 changes the noise character altogether — the whole point
+of the swap is that it should now be quiet across a wider speed range, not
+just at high `CRUISE_US`. Re-tune from the prior bench value
+(`CRUISE_US = 100`, ~2.4 s/output-rev) once the driver is confirmed running
+(`VCC_IO` wired, Vref set), listening for the actual result rather than
+assuming the old relationship still holds.
 
-If more speed is ever needed beyond what 1/8 microstep supports cleanly,
-the next lever is rewiring `M0` from 3V3 to GND for 1/4 microstep (doubles
-step rate for the same pulse frequency; louder, and the calibration span in
-steps will double too — recalibrate after changing microstep wiring).
+**The DRV8825-era "next lever" (rewire `M0` for 1/4 microstep to go
+faster) doesn't have a direct equivalent here.** The TMC2209's pin-only
+`MS1`/`MS2` table only offers 1/8, 1/16, 1/32, or 1/64 — 1/8 (what we're
+using) is already the *coarsest* resolution available without UART, so
+there's no pin-strap escalation path to a faster (coarser) microstep. If
+more speed is needed beyond what `CRUISE_US` tuning gives at 1/8, the
+options are (a) push `CRUISE_US` lower — the TMC2209's STEP timing headroom
+is well beyond anything used so far — or (b) move to UART mode (the
+spare `PDN_UART`/GPIO D7 pin) for full register control, which is new
+scope beyond this hardware swap.
 
 ## Troubleshooting
 
-Built directly from the first bench session's debugging path — work through
-these roughly in order; each stage assumes the previous one is confirmed
-good.
-
 ### Nothing works at all / device won't boot
 
-- Check the FireBeetle's power LED and confirm `/dev/cu.usbmodem*` (macOS)
-  appears when USB is plugged in.
-- Confirm 5 V is actually reaching the FireBeetle's 5V pin from the
-  step-down regulator (multimeter, 5V pin to GND) if running off the 24 V
-  rail rather than USB.
+- Check the XIAO's power LED and confirm the USB serial port (macOS:
+  `/dev/cu.usbmodem*`) appears when USB is plugged in.
+- Confirm 5 V is actually reaching the XIAO's 5V pin from the step-down
+  regulator (multimeter, 5V pin to GND) if running off the 24 V rail rather
+  than USB.
 - A rail sagging well below its nominal voltage (e.g. 3.3 V reading ~1.7 V)
   usually means something elsewhere is loading it down — check continuity
   between 3V3 and GND for an accidental short before re-powering.
 
 ### One or more keypad keys do nothing
 
-1. **Confirm the physical wiring order.** ▲→GPIO5, ▼→GPIO6, Fn→GPIO7 is the
+1. **Confirm the physical wiring order.** ▲→D4, ▼→D5, Fn→D6 is the
    firmware's expectation; wires landed in rotated or swapped positions will
    make keys register as the *wrong* key rather than not at all (▲ acting
    like Fn, etc.) — if presses do something but the wrong thing, recheck
-   which physical wire lands on which GPIO row.
+   which physical wire lands on which pin.
 2. **A key that does nothing at all**, while its neighbours work, is almost
    always a breadboard row issue: wrong row entirely, or the jumper on the
    wrong half of a row relative to the centre channel split. Re-seat the
@@ -409,30 +455,40 @@ good.
 
 ### Motor doesn't turn (or doesn't even hum/resist)
 
-Work through in this order — this is the exact sequence from the session
-that found the fault:
-
-1. **`SLEEP̅` and `RESET̅` at 3.3 V?** Measure both to GND. This was the
-   actual root cause last time — a completely inert motor with correct
-   STEP/DIR/EN wiring, correct VMOT, and correct Vref procedure, because the
-   chip was simply asleep. Check this **first**, before anything else on
-   this list.
-2. **VMOT at ~24 V?** Measure VMOT to GND. Confirms the 24 V rail is
-   actually reaching the driver (PSU on, correct wire, correct breadboard
-   row — the same "split rail" failure mode as above can bite here too).
-3. **Vref sensible (~0.6 V), not near 0 mV?** If it reads near-zero with
-   VMOT confirmed present, that's usually not "the pot is at zero" — it's
-   the driver not being awake yet (see #1) or not having VMOT at all
-   (see #2). The pot reading is a *symptom* of driver state, not just a
-   dial you're forgetting to turn.
-4. **Coil pairing correct?** Buzzing, vibration-without-rotation, or a very
-   weak/rough motion with everything above confirmed good points at swapped
-   coil pairs (A1/A2 mixed with B1/B2) rather than swapped polarity within
-   a pair.
-5. **EN̅ actually toggling?** With everything above confirmed, watch GPIO4
+1. **`VCC_IO` actually wired to 3V3?** This is the TMC2209's equivalent of
+   the DRV8825's old `SLEEP̅`/`RESET̅` trap — a completely inert driver with
+   otherwise-correct `STEP`/`DIR`/`EN`/`VM` wiring, because the digital core
+   has no logic supply and simply isn't running. Easy to skip since the
+   DRV8825 never needed this pin at all. Check this **first**.
+2. **`EN` actually toggling?** With everything wired, watch the `EN` pin
    with a meter during a commanded move — it should sit high at idle and
    pull low only while moving. If it never moves, that's a firmware/logic
    issue rather than a power-stage one.
+3. **VM at ~24 V?** Measure VM to GND. Confirms the 24 V rail is actually
+   reaching the driver (PSU on, correct wire, correct breadboard row).
+4. **Vref sensible (~1.69 V), not near 0 mV?** If it reads near-zero with
+   VM and `VCC_IO` both confirmed present, check `EN` again before assuming
+   the pot needs turning.
+5. **Coil pairing correct?** Buzzing, vibration-without-rotation, or a very
+   weak/rough motion with everything above confirmed good points at swapped
+   coil pairs (A1/A2 mixed with B1/B2) rather than swapped polarity within
+   a pair.
+
+### Motor turns, but noticeably louder/buzzier than expected
+
+This is new to the TMC2209 swap — the DRV8825 had no quiet mode to fail
+into. StealthChop2 ships as this module's factory default (no wiring
+required), so if it's not actually quiet:
+
+1. **Check nobody re-bridged the `SPRE` solder pad** on the underside of
+   the module. There's no external header pin for this — it's a PCB-level
+   solder jumper, factory-set to StealthChop2. Re-bridging it selects
+   SpreadCycle (the same loud chopping style as the old DRV8825). Compare
+   against the board's silkscreen/manual before assuming it's been touched.
+2. **Confirm `VCC_IO` is actually connected.** An unpowered digital core can
+   produce erratic/undefined chopper behavior rather than a clean failure.
+3. **Confirm `MS1`/`MS2` are both at GND**, not floating — floating
+   mode-select pins can read as an unintended combination.
 
 ### Motor turns but in the wrong direction
 
@@ -441,9 +497,9 @@ Not a wiring fault — see [Direction check](#direction-check) above. Use
 
 ### USB serial port disappears mid-session
 
-If the FireBeetle drops off `/dev/cu.usbmodem*` unexpectedly with no
-firmware change and no cable movement, check the 3V3 rail for sag/short
-before assuming the board failed — a browning-out ESP32-C6 can drop USB
+If the XIAO drops off its USB serial port unexpectedly with no firmware
+change and no cable movement, check the 3V3 rail for sag/short before
+assuming the board failed — a browning-out ESP32-C6 can drop USB
 enumeration. Re-seating the USB cable and, if that doesn't restore it,
 fully power-cycling (24 V off, USB unplugged, then back) is usually enough
 if the underlying rail issue is also fixed.
