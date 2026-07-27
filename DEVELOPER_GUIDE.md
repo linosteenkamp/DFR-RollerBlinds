@@ -123,17 +123,27 @@ boots trusting its last known position and taps work immediately.
 ## Bench verification checklist
 
 On-hardware checklist (also the source of Task 13 in the implementation
-plan). Requires the physical rig: FireBeetle + DRV8825 (Vref set, heatsink
-fitted) + motor + 24 V PSU + keypad + LED, and a z2m instance with
-permit-join.
+plan). Requires the **rev 2 physical rig**: Seeed XIAO ESP32C6 + BIGTREETECH
+TMC2209 V1.3 (`VCC_IO` wired to 3V3, `MS1`/`MS2` at GND, Vref set to
+~1.69V, heatsink fitted) + motor + 24 V PSU + keypad + LED, and a z2m
+instance with permit-join. See [HARDWARE.md](HARDWARE.md) for the full
+wiring reference.
 
-- [ ] Motor bench-run before mounting: direction, 1/8-µstep smoothness/audio, Vref current check
+> **Not yet done:** `src/main.c`'s pin `#define`s and `platformio.ini`'s
+> env name still target the original FireBeetle/DRV8825 GPIO map, not the
+> XIAO map in `HARDWARE.md`. That firmware update needs to land before this
+> checklist is actually runnable on rev 2 hardware — treat the items below
+> as the plan for that bench session, not as currently executable.
+
+- [ ] XIAO D-number → GPIO mapping verified against the physical board's silkscreen (documented in HARDWARE.md, not yet cross-checked against a board in hand)
+- [ ] `VCC_IO` sanity check: temporarily lift it and confirm the driver goes fully inert (no response to `STEP`/`DIR`/`EN`) — this is the TMC2209's equivalent of the old DRV8825 `SLEEP̅`/`RESET̅` trap, worth confirming once rather than discovering it live
+- [ ] Motor bench-run before mounting: direction, 1/8-µstep smoothness, Vref current check (~1.69V, not the old 0.6V), and confirm it's actually quiet (StealthChop2 is this module's factory default — if it isn't quiet, check the internal `SPRE` solder pad hasn't been re-bridged to SpreadCycle)
 - [ ] Join as router; z2m shows the device via the converter (cover + `calibrated: false`)
 - [ ] `motor_reversed` toggle from z2m and from keypad chord; both sides stay in sync; verify it wipes calibration
 - [ ] z2m motion commands rejected while uncalibrated (buttons in z2m produce an error/no motion)
 - [ ] Calibrate via keypad; deliberately try a wrong mark 2 (above mark 1) → five-flash error, mode stays
 - [ ] Full open / close / 50% from z2m; live position tracks ~1 s during moves
-- [ ] Keypad matrix: tap up/down full travel; tap-while-moving stops; hold jogs clamped at limits
+- [ ] Keypad matrix (D4/D5/D6): tap up/down full travel; tap-while-moving stops; hold jogs clamped at limits
 - [ ] Power-cut mid-travel → boots Position Unknown (double-flash, z2m locked) → re-home (Fn 3 s, jog Open, Fn)
 - [ ] Clean power cycle at rest → still calibrated, taps work immediately
 - [ ] Idle back-drive watch: leave the blind mid-travel overnight; if it creeps, revisit idle-hold (spec §2 fallback)
@@ -145,9 +155,9 @@ permit-join.
 - [ ] z2m lockout inside calibration mode (motion commands rejected while `s_cal_mode`)
 - [ ] Uncalibrated taps inert (hold-to-jog still works)
 - [ ] Zigbee-down keypad autonomy, then rejoin
-- [ ] Identify → LED (steady rapid blink while Identify is active)
+- [ ] Identify → LED (steady rapid blink while Identify is active, D10)
 - [ ] ≥10 consecutive full-travel cycles, checking both physical marks each time (open-loop drift)
-- [ ] DRV8825 thermal soak in enclosure
+- [ ] TMC2209 thermal soak in enclosure (built-in thermal shutdown is a backstop, not a substitute for adequate airflow — confirm temps stay reasonable under sustained cycling)
 - [ ] Power-cycle during a jogged calibration session
 - [ ] z2m Mode write while moving is rejected and stays in sync
 
