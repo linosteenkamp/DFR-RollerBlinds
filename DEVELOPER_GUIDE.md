@@ -139,8 +139,8 @@ except the pin mapping.
 - [x] Join as router **2026-08-02** — joined and published as `lounge-blind-3`, linkquality ~138, exposed via the converter as a cover with `calibrated: false`. The rev 1 converter needed no change (Zigbee identity is unchanged by the hardware swap).
 - [~] `motor_reversed` toggle — z2m side confirmed working **2026-08-02**; the keypad Up+Down chord and the calibration-wipe side effect are **not yet verified** (the wipe can't be observed while the device is already uncalibrated — re-test after a successful calibration).
 - [x] z2m motion commands rejected while uncalibrated **2026-08-02** — open/close pressed in z2m, no motor movement. Lockout is enforced device-side in `zb_goto_request()`, so this holds regardless of what the converter reports.
-- [ ] Calibrate via keypad; deliberately try a wrong mark 2 (above mark 1) → five-flash error, mode stays
-- [ ] Full open / close / 50% from z2m; live position tracks ~1 s during moves
+- [x] Calibrate via keypad **2026-08-02** — calibrated successfully on the bench rig (17HS4401 + small blind). The deliberate wrong-mark-2 five-flash rejection is **not yet retested** on rev 2.
+- [x] Full travel from keypad taps **2026-08-02** — clean both directions at `CRUISE_US = 150` / Vref 1.92 V. Getting there required correcting Vref for the fitted motor first; see [HARDWARE.md](HARDWARE.md#motion-speed-tuning). Live-position tracking during z2m moves not yet separately checked.
 - [ ] Keypad matrix (D4/D5/D6): tap up/down full travel; tap-while-moving stops; hold jogs clamped at limits
 - [ ] Power-cut mid-travel → boots Position Unknown (double-flash, z2m locked) → re-home (Fn 3 s, jog Open, Fn)
 - [ ] Clean power cycle at rest → still calibrated, taps work immediately
@@ -199,7 +199,9 @@ git push origin v1.0.0
 
 The workflow then:
 
-1. Checks out this repo (`ref: main`) and `linosteenkamp/esp-zb-common` at
+1. Checks out this repo at **the pushed tag** (`ref: ${{ github.ref }}`, so it
+   builds whatever commit you tagged — not necessarily `main`) and
+   `linosteenkamp/esp-zb-common` at
    `v0.1.1` (for its `tools/`). `esp-zb-common` is **public**, so no token
    is needed for this checkout or for the component-manager clone `pio run`
    does during the build. (Earlier revisions used a `ZB_COMMON_PAT`

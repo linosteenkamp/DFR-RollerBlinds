@@ -23,7 +23,8 @@ as settled until measured.
 | Part | Role |
 |---|---|
 | Seeed XIAO ESP32C6 (`seeed_xiao_esp32c6`) | Controller. Only 11 GPIOs are broken out (D0–D10) — the design keeps the GPIO budget to 7 used + 1 reserved (see [GPIO summary](#gpio-summary-srcmainc)), leaving 3 spare. |
-| 2HS60-1504JA05-020-03 bipolar stepper | Drive motor — 1.8°/step (200 full steps/rev), 1.5 A/phase class, 4-wire (2 coils) |
+| 2HS60-1504JA05-020-03 bipolar stepper | Drive motor for the **larger** blinds — 1.8°/step (200 full steps/rev), 1.5 A/phase class, 60 mm body, 4-wire (2 coils) |
+| 17HS4401 bipolar stepper | Drive motor for the **smaller** blinds — 1.8°/step, 1.7 A/phase class, 40 mm body, 4-wire. Lower torque than the 2HS60 (roughly half to two-thirds), and takes a **different Vref** — see [Setting Vref](#setting-vref-current-limit). Its lower torque is what sets the fleet-wide `CRUISE_US` ceiling; see [Motion speed tuning](#motion-speed-tuning). |
 | BIGTREETECH TMC2209 V1.3 breakout | Stepper driver, StealthChop2 silent chopping — ships factory-default (no wiring needed for it). 1/8 microstep via `MS1`/`MS2` pin-strapping (same resolution as before — preserves all step-count math). Needs its own logic-supply pin (`VCC_IO`), which the DRV8825 never had — see the pin table below. |
 | 3D-printed geartrain (`Blinds 2.step`) | 1:15 reduction to the roller tube |
 | Mean Well 24 V DC PSU — **recommend LRS-50-24** (LRS-35-24 acceptable) for a single unit | System supply. See [Multi-unit installations](#multi-unit-installations-shared-psu) for sharing one PSU across several controllers. |
@@ -273,9 +274,10 @@ physical board in hand.
 
 ## Setting Vref (current limit)
 
-Target current: **~1.2 A/phase** (80% of the motor's 1.5 A/phase rating) —
-same target as before, but **the formula and the resulting voltage are
-different from the DRV8825.** Don't reuse the old 0.6 V figure.
+**Vref is per-unit and depends on which motor that unit has** — the fleet
+uses two (see [BOM](#bom)). Target 80% of the motor's rated phase current.
+Also note **the formula and resulting voltage differ from the DRV8825** —
+don't reuse the old 0.6 V figure.
 
 BTT's own manual gives the formula directly (0.11 Ω sense resistors, standard
 on this module):
@@ -284,9 +286,21 @@ on this module):
 Irms = 325mV / (Rsense + 20mΩ) × 1/√2 × (Vref / 2.5V)
      = 325mV / 130mΩ × 1/√2 × (Vref / 2.5V)
      ≈ Vref × 0.71        (equivalently: Vref ≈ Irms × 1.41)
-
-Vref = 1.2 A × 1.41 ≈ 1.69 V
 ```
+
+| Motor | Blinds | Rated | Target (80%) | **Vref** |
+|---|---|---|---|---|
+| 2HS60-1504JA05-020-03 | larger | 1.5 A/phase | 1.2 A | **1.69 V** |
+| 17HS4401 | smaller | 1.7 A/phase | 1.36 A | **1.92 V** |
+
+Setting a 17HS4401 unit to 1.69 V under-drives it (that's only ~71% of its
+rating) and costs torque you need — this was hit on the bench 2026-08-02 and
+showed up as a stall. Confirm your motor's rating against its own datasheet
+rather than trusting the table; 17HS4401 variants exist.
+
+The 17HS4401 is the 42×42×**40 mm** body, versus the 2HS60's 60 mm. Less
+thermal mass, so it warms faster even at its own correct current — worth a
+touch-check during the thermal soak.
 
 **This board does not ship at that value** — BTT's manual states the
 factory-default Vref is 1.2 V ±0.1 V (≈0.9 A), so the trimpot genuinely needs
@@ -427,11 +441,51 @@ uncoupled, Vref 1.69 V. No re-tune needed for noise. That also confirms the
 `SPRE` pad is at its factory StealthChop2 bridge and the A/B coil pairing is
 correct.
 
-**What that does not settle is torque under load.** Free-running says nothing
-about whether 100 µs holds through the 1:15 reduction against a 2.5 m blind;
-that only shows up once coupled. If it stalls or loses steps under load, back
-off toward 120–150 µs — and note the escalation path below is narrower than it
-was on the DRV8825.
+**Torque under load is a separate question, and it turned on current, not
+speed.** Coupled to the 1:15 reduction and a real blind, a tap at
+`CRUISE_US = 100` started and then vibrated in place — a stall. Hold-to-jog
+kept working throughout, which was the tell: jog uses `JOG_CRUISE_US = 300`, so
+the only difference was cruise speed.
+
+The actual cause was Vref: the bench unit had a **17HS4401 still set to the
+2HS60's 1.69 V**, i.e. driven at ~71% of its rating. With Vref corrected to
+1.92 V, both 200 µs and **150 µs run clean full travel in both directions**
+(bench 2026-08-02, small blind). `CRUISE_US = 150` is the tuned value.
+
+Because 100 µs was only ever tested under-driven, the true stall point at
+correct current is unmeasured — it may well be below 150. That makes 150 at
+least the ~1.5× margin the rule of thumb wants, and possibly more. **Check Vref
+against the fitted motor before ever concluding a stall means "too fast".**
+
+**A stall silently desyncs position.** Step counting is open-loop, so any
+vibrate-in-place event means the stored position no longer matches reality —
+re-home before trusting it. If a move ends somewhere unexpected, suspect lost
+steps before suspecting the position logic.
+
+### `CRUISE_US` is fleet-wide but the motors are not
+
+The two motors have materially different torque (see [BOM](#bom)), and
+`CRUISE_US` is a single compile-time constant while Vref is a per-board
+trimpot. The 17HS4401 on the smaller blinds is the weaker motor, so **it sets
+the ceiling** — a value tuned on a 2HS60 unit would stall the small ones.
+
+Note the loads differ too: the weaker motor drives the lighter blinds, so the
+torque-to-load ratio may come out closer than the raw motor specs suggest.
+Until both are measured, that's an open question, not an assumption to build
+on. Get a tuned figure for each, then decide between:
+
+- tune for the worst case and ship one firmware (simplest; costs speed on the
+  stronger units, and is the right default if the two figures land close),
+- a per-variant build flag (splits the OTA image identity, which currently
+  assumes one image type `0x0003` — real added complexity), or
+- an NVS-backed runtime setting exposed through z2m (one firmware, one OTA
+  image, per-unit tuning; most work).
+
+Don't add the configuration machinery before the second measurement exists.
+
+**Before blaming speed, check Vref matches the fitted motor.** The bench stall
+above was measured with a 17HS4401 still set to the 2HS60's 1.69 V — i.e.
+under-driven to ~71% of rating. Correct current first, then tune speed.
 
 **The DRV8825-era "next lever" (rewire `M0` for 1/4 microstep to go
 faster) doesn't have a direct equivalent here.** The TMC2209's pin-only

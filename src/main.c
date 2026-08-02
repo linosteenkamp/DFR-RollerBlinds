@@ -44,7 +44,13 @@ static const char *TAG = "BLINDS";
 #define PIN_LED_EXT  2      /* D2 — sole indicator; no onboard mirror on XIAO */
 
 /* ---- motion tuning (bench constants, spec §6) ---- */
-#define CRUISE_US       100      /* 10 kHz at 1/8 µstep: ~2.4 s per output rev */
+#define CRUISE_US       150      /* bench-tuned 2026-08-02 on a 17HS4401 (small
+                                  * blind) at Vref 1.92 V: clean full travel both
+                                  * ways. 100 stalled, but only at the 2HS60's
+                                  * 1.69 V — i.e. under-driven, not too fast.
+                                  * The 2HS60 units are still unmeasured; if they
+                                  * need a different figure this constant is what
+                                  * has to become per-unit. See HARDWARE.md. */
 #define START_US        500      /* ~2 kHz first/last step */
 #define ACCEL_STEPS     800
 #define JOG_CRUISE_US   300      /* jog slower than travel but fast enough to
