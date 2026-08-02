@@ -129,13 +129,11 @@ TMC2209 V1.3 (`VCC_IO` wired to 3V3, `MS1`/`MS2` at GND, Vref set to
 instance with permit-join. See [HARDWARE.md](HARDWARE.md) for the full
 wiring reference.
 
-`src/main.c` and `platformio.ini` now target the XIAO/TMC2209 map, so this
-checklist is runnable — but **nothing below has been exercised on rev 2
-hardware yet**, and the D-number → GPIO mapping baked into the firmware is
-still from Seeed's published reference rather than a board in hand. Start
-with the mapping check.
+`src/main.c` and `platformio.ini` target the XIAO/TMC2209 map, so this
+checklist is runnable. Nothing below has been exercised on rev 2 hardware
+except the pin mapping.
 
-- [ ] XIAO D-number → GPIO mapping verified against the physical board's silkscreen (firmware assumes STEP D8=GPIO19, DIR D7=GPIO17, EN D9=GPIO20, Up D4=GPIO22, Down D5=GPIO23, Fn D6=GPIO16, LED D2=GPIO2)
+- [x] XIAO D-number → GPIO mapping verified **2026-08-02** — all seven confirmed on a bare board with `tools/pinwalk` (drives one GPIO high at a time; probed against GND). STEP D8=GPIO19, DIR D7=GPIO17, EN D9=GPIO20, Up D4=GPIO22, Down D5=GPIO23, Fn D6=GPIO16, LED D2=GPIO2. Seeed's published pinout table was correct; `src/main.c` needs no change. Note the silkscreen prints only D-numbers, so this can't be checked visually — re-run the walker on any future board rather than eyeballing it.
 - [ ] `VCC_IO` sanity check: temporarily lift it and confirm the driver goes fully inert (no response to `STEP`/`DIR`/`EN`) — this is the TMC2209's equivalent of the old DRV8825 `SLEEP̅`/`RESET̅` trap, worth confirming once rather than discovering it live
 - [ ] Motor bench-run before mounting: direction, 1/8-µstep smoothness, Vref current check (~1.69V, not the old 0.6V), and confirm it's actually quiet (StealthChop2 is this module's factory default — if it isn't quiet, check the internal `SPRE` solder pad hasn't been re-bridged to SpreadCycle)
 - [ ] Join as router; z2m shows the device via the converter (cover + `calibrated: false`)

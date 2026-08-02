@@ -1,0 +1,4 @@
+# Console over the built-in USB-Serial-JTAG, same as the main firmware, so
+# the walker's output shows up on the same port with no extra wiring.
+CONFIG_ESP_CONSOLE_UART_DEFAULT=n
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
