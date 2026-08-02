@@ -136,9 +136,9 @@ except the pin mapping.
 - [x] XIAO D-number → GPIO mapping verified **2026-08-02** — all seven confirmed on a bare board with `tools/pinwalk` (drives one GPIO high at a time; probed against GND). STEP D8=GPIO19, DIR D7=GPIO17, EN D9=GPIO20, Up D4=GPIO22, Down D5=GPIO23, Fn D6=GPIO16, LED D2=GPIO2. Seeed's published pinout table was correct; `src/main.c` needs no change. Note the silkscreen prints only D-numbers, so this can't be checked visually — re-run the walker on any future board rather than eyeballing it.
 - [~] `VCC_IO` sanity check — **skipped deliberately** on the rev 2 built board. The test means lifting `VCC_IO` to confirm the driver goes inert; on a soldered board that costs a desoldering job to prove a failure mode we already understand. It was worth doing on rev 1's breadboard. A sane Vref reading (below) already implies the digital core is powered.
 - [x] Motor bench-run before mounting **2026-08-02** — Vref set to 1.69 V (motor disconnected), motor then spins on both Up and Down holds with the motor free of the geartrain: **quiet and smooth** at `CRUISE_US = 100`. Quiet confirms StealthChop2 is live (the `SPRE` pad is at its factory bridge); smooth confirms the A/B coil pairing. LED double-flashes (`LED_UNCAL`) confirming the D2 harness; keypad holds confirmed through the full keypad → dispatcher → motion path. Direction sense not yet meaningful — deferred to after coupling, then fixed via `motor_reversed` if needed, never by rewiring coils. **Still unproven: torque under real blind load** — free-running quiet says nothing about whether 100 µs holds under the 1:15 reduction and a 2.5 m blind.
-- [ ] Join as router; z2m shows the device via the converter (cover + `calibrated: false`)
-- [ ] `motor_reversed` toggle from z2m and from keypad chord; both sides stay in sync; verify it wipes calibration
-- [ ] z2m motion commands rejected while uncalibrated (buttons in z2m produce an error/no motion)
+- [x] Join as router **2026-08-02** — joined and published as `lounge-blind-3`, linkquality ~138, exposed via the converter as a cover with `calibrated: false`. The rev 1 converter needed no change (Zigbee identity is unchanged by the hardware swap).
+- [~] `motor_reversed` toggle — z2m side confirmed working **2026-08-02**; the keypad Up+Down chord and the calibration-wipe side effect are **not yet verified** (the wipe can't be observed while the device is already uncalibrated — re-test after a successful calibration).
+- [x] z2m motion commands rejected while uncalibrated **2026-08-02** — open/close pressed in z2m, no motor movement. Lockout is enforced device-side in `zb_goto_request()`, so this holds regardless of what the converter reports.
 - [ ] Calibrate via keypad; deliberately try a wrong mark 2 (above mark 1) → five-flash error, mode stays
 - [ ] Full open / close / 50% from z2m; live position tracks ~1 s during moves
 - [ ] Keypad matrix (D4/D5/D6): tap up/down full travel; tap-while-moving stops; hold jogs clamped at limits
@@ -158,6 +158,29 @@ except the pin mapping.
 - [ ] TMC2209 thermal soak in enclosure (built-in thermal shutdown is a backstop, not a substitute for adequate airflow — confirm temps stay reasonable under sustained cycling)
 - [ ] Power-cycle during a jogged calibration session
 - [ ] z2m Mode write while moving is rejected and stays in sync
+
+## Known issues
+
+### `position: 0` published while uncalibrated
+
+While the device is uncalibrated it reports lift `0xFF`
+(`POSITION_LIFT_UNKNOWN`, `covering.c:31`) to mean "position unknown".
+The custom `fzCalibrated` handles that correctly and reports
+`calibrated: false`. The **stock `m.windowCovering` extend** in
+`z2m/dfr_roller_blinds.js` does not — it has no notion of the `0xFF`
+sentinel, treats 255 as a real percentage, and derives `position: 0` from
+it. So z2m publishes `calibrated: false` and `position: 0` in the same
+payload, and Home Assistant renders the cover as fully closed when the
+device is in fact saying it has no idea where it is.
+
+**Cosmetic, not a safety issue** — the lockout is enforced device-side in
+`zb_goto_request()`, so a bogus position can't produce motion. Pre-existing
+since rev 1, not a consequence of the rev 2 hardware swap; it simply wasn't
+noticed before.
+
+Fixing it means replacing the stock extend's position handling with a
+guarded version that suppresses `position` when lift `> 100`, then
+redeploying the converter. Deferred — observed 2026-08-02.
 
 ## OTA release flow
 
