@@ -419,13 +419,19 @@ Cruise speed is a `#define` in `src/main.c` (`CRUISE_US`, microseconds per
 step at 1/8 microstep through the 1:15 reduction). The DRV8825-era finding
 that "lower `CRUISE_US` also ran quieter" was specific to that driver's
 SpreadCycle-only chopping (moving through resonance bands faster reduced
-audible buzz); it needs **re-verifying on the bench with the TMC2209**,
-since StealthChop2 changes the noise character altogether — the whole point
-of the swap is that it should now be quiet across a wider speed range, not
-just at high `CRUISE_US`. Re-tune from the prior bench value
-(`CRUISE_US = 100`, ~2.4 s/output-rev) once the driver is confirmed running
-(`VCC_IO` wired, Vref set), listening for the actual result rather than
-assuming the old relationship still holds.
+audible buzz); StealthChop2 changes the noise character altogether.
+
+**Bench result 2026-08-02:** at the inherited `CRUISE_US = 100`
+(~2.4 s/output-rev), the TMC2209 runs **quiet and smooth free-running**, motor
+uncoupled, Vref 1.69 V. No re-tune needed for noise. That also confirms the
+`SPRE` pad is at its factory StealthChop2 bridge and the A/B coil pairing is
+correct.
+
+**What that does not settle is torque under load.** Free-running says nothing
+about whether 100 µs holds through the 1:15 reduction against a 2.5 m blind;
+that only shows up once coupled. If it stalls or loses steps under load, back
+off toward 120–150 µs — and note the escalation path below is narrower than it
+was on the DRV8825.
 
 **The DRV8825-era "next lever" (rewire `M0` for 1/4 microstep to go
 faster) doesn't have a direct equivalent here.** The TMC2209's pin-only
