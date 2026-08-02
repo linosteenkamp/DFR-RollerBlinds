@@ -183,13 +183,13 @@ wiring, since clones vary.
 
 | TMC2209 pin | Wire to | Notes |
 |---|---|---|
-| `EN` (ENABLE) | XIAO **D2 / GPIO2** *(see [GPIO summary](#gpio-summary-srcmainc) — verify pin before wiring)* | Active-low enable, same convention as the DRV8825 this replaces. Firmware drives it high (disabled) at idle, low only during a move. |
+| `EN` (ENABLE) | XIAO **D9 / GPIO20** | Active-low enable, same convention as the DRV8825 this replaces. Firmware drives it high (disabled) at idle, low only during a move. |
 | `MS1` | **GND** | ┐ |
 | `MS2` | **GND** | ├ `MS2:MS1 = GND:GND` → **8 microsteps (1/8)** — matches the old DRV8825 setting exactly, so `1600 microsteps/motor-rev` / `24 000 microsteps/output-rev` and every derived constant (ramp tuning, `MIN_SPAN_STEPS`, calibration span math) carry over unchanged. |
-| `PDN` (×2 adjacent pins, silkscreened `PDN`) | Leave both unconnected | UART pin — factory-bridged to the first of the two positions internally. Not using UART in this revision — plain STEP/DIR standalone mode, same control model as the DRV8825 it replaces. GPIO **D7** is the suggested spare on the XIAO side if a future revision wants UART (register-based current control, StallGuard, etc.). |
+| `PDN` (×2 adjacent pins, silkscreened `PDN`) | Leave both unconnected | UART pin — factory-bridged to the first of the two positions internally. Not using UART in this revision — plain STEP/DIR standalone mode, same control model as the DRV8825 it replaces. **D10 / GPIO18** is the suggested spare on the XIAO side if a future revision wants UART (register-based current control, StallGuard, etc.) — it sits next to `EN` on D9, so it lands in the same corner of the header as the rest of the driver harness. |
 | `CLK` | Leave unconnected | Internal oscillator is used by default; no external clock needed. |
-| `STEP` | XIAO **D0 / GPIO0** | Step pulse train |
-| `DIR` | XIAO **D1 / GPIO1** | Direction level, set before each move |
+| `STEP` | XIAO **D8 / GPIO19** | Step pulse train |
+| `DIR` | XIAO **D7 / GPIO17** | Direction level, set before each move |
 | `VM` | 24 V PSU **+** | Plus the ≥100 µF capacitor to the adjacent GND, right at the pin |
 | `GND` (power side, next to VM) | 24 V PSU **−** | |
 | `A1`, `A2` | Motor coil **A** (one pair) | See coil identification below |
@@ -232,19 +232,34 @@ setting, motor disconnected from everything):
 XIAO ESP32C6 exposes only 11 GPIOs on its header (`D0`–`D10`). This
 revision uses 7 for the same signals as before, drops the onboard-LED
 mirror (XIAO has no easily-probed user LED broken out to a header pin,
-and the external LED alone was always the primary indicator), and reserves
-one more for a possible future TMC2209 UART upgrade:
+and the external LED alone was always the primary indicator), and leaves
+4 spare.
+
+Assignments follow the **implementation board's physical layout**: the
+three driver signals sit together on `D7`–`D9` at one end of the header,
+the keypad's 3-pin harness on `D4`–`D6` at the other, and the LED on `D2`.
+That grouping is the reason for the pin choice — each harness lands on
+contiguous header pins and solders straight down without jumpers.
 
 | Signal | XIAO pin | GPIO | Notes |
 |---|---|---|---|
-| `STEP` | D0 | GPIO0 | Pulse train from `motion.c`'s GPTimer ISR |
-| `DIR` | D1 | GPIO1 | Level set before each move; meaning flips with `motor_reversed` |
-| `EN̅` | D2 | GPIO2 | High = driver **disabled**; firmware drives it low only during moves |
+| `STEP` | D8 | GPIO19 | Pulse train from `motion.c`'s GPTimer ISR |
+| `DIR` | D7 | GPIO17 | Level set before each move; meaning flips with `motor_reversed` |
+| `EN̅` | D9 | GPIO20 | High = driver **disabled**; firmware drives it low only during moves |
 | Keypad Up | D4 | GPIO22 | Internal pull-up (this pin doubles as I²C SDA on XIAO's silkscreen — unused here, plain GPIO input) |
 | Keypad Down | D5 | GPIO23 | Internal pull-up (doubles as I²C SCL — unused here) |
 | Keypad Fn | D6 | GPIO16 | Internal pull-up |
-| External status LED | D10 | GPIO18 | Through a series resistor to the LED, LED to GND. Sole status indicator this revision — no onboard-LED mirror. |
-| *(spare)* | D3, D7, D8, D9 | GPIO21, GPIO17, GPIO19, GPIO20 | Unused headroom — grouped this way so the keypad's 3-pin JST and the LED's 2-pin JST can be soldered directly onto contiguous header pins rather than jumpered. `D7` is the suggested pick if `PDN_UART` is ever wired for a future TMC2209 UART upgrade. |
+| External status LED | D2 | GPIO2 | Through a series resistor to the LED, LED to GND. Sole status indicator this revision — no onboard-LED mirror. |
+| *(spare)* | D0, D1, D3, D10 | GPIO0, GPIO1, GPIO21, GPIO18 | Unused headroom. `D10` is the suggested pick if `PDN_UART` is ever wired for a future TMC2209 UART upgrade — it neighbours `EN` on D9, keeping the driver harness in one corner. |
+
+**`D6`/`D7` are the ESP32-C6's default UART0 TX/RX pins**, and this design
+uses both (Fn button and `DIR`). That is safe *only* because the console
+runs on the built-in USB-Serial-JTAG rather than UART0 —
+`sdkconfig.defaults` sets `CONFIG_ESP_CONSOLE_UART_DEFAULT=n` /
+`CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`, leaving
+`CONFIG_ESP_CONSOLE_UART_NUM = -1`. If anyone ever switches the console
+back to UART0, the console would drive the Fn line and fight its pull-up.
+Don't make that change without moving these two signals first.
 
 None of the ESP32-C6 strapping pins (GPIO4/5/8/9/15) are exposed on the
 XIAO's header at all, so there's no strapping-pin caution needed here — a
@@ -332,7 +347,7 @@ Before trusting the wiring, confirm all three keys electrically with the
 serial monitor:
 
 ```bash
-pio run -e xiao_esp32c6_zigbee -t upload -t monitor
+pio run -e seeed_xiao_esp32c6_zigbee -t upload -t monitor
 ```
 
 Press each key in turn and watch for state changes propagating through the
@@ -345,12 +360,12 @@ go through the [Troubleshooting](#troubleshooting) keypad checklist.
 ## LED wiring
 
 ```
-GPIO 18 (D10) ── resistor (150 Ω) ── LED anode
-                                       LED cathode ── GND
+GPIO 2 (D2) ── resistor (150 Ω) ── LED anode
+                                     LED cathode ── GND
 ```
 
 One external status LED on the enclosure face — **Kingbright L-7104SURC-E**,
-3mm through-hole, Hyper Red (AlGaInP) — driven from D10/GPIO18 through a
+3mm through-hole, Hyper Red (AlGaInP) — driven from D2/GPIO2 through a
 series resistor. **This revision has no onboard-LED mirror** — the external
 LED is the only status indicator, so it needs to be wired and visible before
 doing any bring-up beyond stage 1 (flash + serial log only).
@@ -420,7 +435,7 @@ there's no pin-strap escalation path to a faster (coarser) microstep. If
 more speed is needed beyond what `CRUISE_US` tuning gives at 1/8, the
 options are (a) push `CRUISE_US` lower — the TMC2209's STEP timing headroom
 is well beyond anything used so far — or (b) move to UART mode (the
-spare `PDN_UART`/GPIO D7 pin) for full register control, which is new
+spare `PDN_UART`/GPIO D10 pin) for full register control, which is new
 scope beyond this hardware swap.
 
 ## Troubleshooting

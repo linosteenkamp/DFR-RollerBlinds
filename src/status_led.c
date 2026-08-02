@@ -1,7 +1,7 @@
 /**
  * @file status_led.c
- * @brief 50 ms-tick pattern player driving the external status LED with the
- *        onboard LED mirroring it. Patterns are on/off bitmasks over a
+ * @brief 50 ms-tick pattern player driving the external status LED — the
+ *        only indicator on this board. Patterns are on/off bitmasks over a
  *        repeating frame of 60 ticks (3 s).
  */
 #include "status_led.h"
@@ -13,7 +13,7 @@
 #define TICK_MS   50
 #define FRAME     60          /* 60 ticks * 50 ms = 3 s frame */
 
-static int s_ext = -1, s_onb = -1;
+static int s_ext = -1;
 static led_pattern_t s_base = LED_OFF;
 static led_pattern_t s_trans = LED_OFF;   /* LED_OFF = no transient */
 static int s_base_tick;    /* base and transient keep independent tick counters */
@@ -57,15 +57,13 @@ static void tick_cb(void *arg)
         s_base_tick = (s_base_tick + 1) % FRAME;
     }
     gpio_set_level(s_ext, lvl);
-    gpio_set_level(s_onb, lvl);
 }
 
-esp_err_t status_led_init(int gpio_ext, int gpio_onboard)
+esp_err_t status_led_init(int gpio_ext)
 {
     s_ext = gpio_ext;
-    s_onb = gpio_onboard;
     gpio_config_t io = {
-        .pin_bit_mask = (1ULL << gpio_ext) | (1ULL << gpio_onboard),
+        .pin_bit_mask = (1ULL << gpio_ext),
         .mode = GPIO_MODE_OUTPUT,
     };
     esp_err_t err = gpio_config(&io);

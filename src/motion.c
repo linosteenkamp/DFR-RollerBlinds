@@ -1,6 +1,6 @@
 /**
  * @file motion.c
- * @brief DRV8825 step generation on a GPTimer. One-shot alarms: each ISR
+ * @brief TMC2209 step generation on a GPTimer. One-shot alarms: each ISR
  *        invocation emits one step pulse, schedules the next by the ramp
  *        interval, and stops at plan end (or early at the decel-stop target).
  *        ISR + data in IRAM so OTA/NVS flash writes never stall stepping.
@@ -21,7 +21,9 @@
 
 static const char *TAG = "MOTION";
 
-#define STEP_PULSE_US 3   /* DRV8825 minimum STEP high time is 1.9 µs */
+#define STEP_PULSE_US 3   /* TMC2209 needs only ~100 ns STEP high (DRV8825 wanted
+                           * 1.9 µs); 3 µs is kept as generous headroom and is
+                           * still well inside the 100 µs CRUISE_US budget. */
 
 static motion_pins_t   s_pins;
 static QueueHandle_t   s_queue;
@@ -151,7 +153,7 @@ esp_err_t motion_start(int32_t from_steps, int32_t to_steps,
     if (s_reversed) level = !level;
     gpio_set_level(s_pins.gpio_dir, level);
     gpio_set_level(s_pins.gpio_en, 0);       /* enable driver */
-    esp_rom_delay_us(5);                     /* DRV8825 wake/setup time */
+    esp_rom_delay_us(5);                     /* driver enable/DIR setup time */
 
     s_moving = true;
     gptimer_alarm_config_t al = {

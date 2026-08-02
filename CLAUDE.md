@@ -7,12 +7,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ESP32-C6 IoT firmware (C / ESP-IDF via PlatformIO) for a **mains-powered
 stepper-driven roller blind controller that joins Zigbee as a Router** and
 presents a standard **Window Covering (0x0102)** device to Zigbee2MQTT / Home
-Assistant. Motion comes from a DRV8825-driven bipolar stepper through a
+Assistant. Motion comes from a TMC2209-driven bipolar stepper through a
 3D-printed 1:15 reduction; position is open-loop step counting against
 one-time-calibrated soft limits stored in NVS. A 3-key membrane keypad
 (Up / Down / Fn) gives full local control and hosts the calibration UX.
 
-**Target board:** DFRobot FireBeetle 2 ESP32-C6 (`dfrobot_firebeetle2_esp32c6`)
+**Target board:** Seeed XIAO ESP32C6 (`seeed_xiao_esp32c6`), driving a
+BIGTREETECH TMC2209 V1.3 in StealthChop2 mode. (Rev 1 was a DFRobot
+FireBeetle 2 + DRV8825; the swap kept 1/8 microstepping, so all step-count
+math and motion constants carried over unchanged.)
 
 **Library:** this is the first consumer of `esp-zb-common` (pinned to
 **v0.1.1** in `src/idf_component.yml`), the shared component extracted from
@@ -31,10 +34,10 @@ Re-home, Calibrated, Motor Reversed) — used throughout this file and the code.
 
 ```bash
 # Router build (deployment)
-pio run -e dfrobot_firebeetle2_esp32c6_zigbee -t upload -t monitor
+pio run -e seeed_xiao_esp32c6_zigbee -t upload -t monitor
 
 # Bench build (identical; named env kept for sibling symmetry)
-pio run -e dfrobot_firebeetle2_esp32c6_zigbee_test -t upload -t monitor
+pio run -e seeed_xiao_esp32c6_zigbee_test -t upload -t monitor
 
 # Host tests (position / ramp / keypad_logic — pure C, Unity)
 pio test -e native
@@ -69,7 +72,7 @@ pio run --target erase
 | `keypad_logic` | `src/keypad_logic.c` | Pure: press/release+time → Tap / Hold / Fn-long / Up+Down-chord | `test/test_keypad/` |
 | `blind_store` | `src/blind_store.c` | NVS persistence (namespace `blind`) | — |
 | `motion` | `src/motion.c` | GPTimer ISR step generation, DIR/EN, step counter, done-events to queue | — |
-| `status_led` | `src/status_led.c` | LED pattern player (external + onboard mirror) | — |
+| `status_led` | `src/status_led.c` | LED pattern player (single external LED) | — |
 | `covering` | `src/covering.c` | Window Covering cluster build/report + action-handler → queue | — |
 | `keypad` | `src/keypad.c` | 20 ms poller (no ISR) + library debounce → feeds `keypad_logic`, events to queue | — |
 | `main` | `src/main.c` | Wiring, GPIO map, constants, dispatcher task (gesture matrix + calibration flow) | — |
@@ -94,25 +97,25 @@ mid-move.
 ### Key Configuration Constants (`src/main.c`, copied verbatim)
 
 ```c
-/* ---- GPIO map (bench-verify; see HARDWARE.md) ---- */
-#define PIN_STEP     2
-#define PIN_DIR      3
-#define PIN_EN       4
-#define PIN_BTN_UP   5
-#define PIN_BTN_DOWN 6
-#define PIN_BTN_FN   7
-#define PIN_LED_EXT  14
-#define PIN_LED_ONB  15
+/* ---- GPIO map: XIAO ESP32C6, D-number → GPIO (see HARDWARE.md) ---- */
+#define PIN_STEP     19     /* D8 */
+#define PIN_DIR      17     /* D7 */
+#define PIN_EN       20     /* D9 */
+#define PIN_BTN_UP   22     /* D4 */
+#define PIN_BTN_DOWN 23     /* D5 */
+#define PIN_BTN_FN   16     /* D6 */
+#define PIN_LED_EXT  2      /* D2 — sole indicator; no onboard mirror on XIAO */
 
 /* ---- motion tuning (bench constants, spec §6) ---- */
-#define CRUISE_US       300      /* ~3.3 kHz at 1/8 µstep */
+#define CRUISE_US       100      /* 10 kHz at 1/8 µstep: ~2.4 s per output rev */
 #define START_US        500      /* ~2 kHz first/last step */
 #define ACCEL_STEPS     800
-#define JOG_CRUISE_US   600      /* jog slower for control */
+#define JOG_CRUISE_US   300      /* jog slower than travel, still crosses a full span */
+#define JOG_START_US    900      /* jog starts slower than its cruise */
 #define MIN_SPAN_STEPS  6000     /* ~1/4 output rev: min valid calibration */
 #define HARD_CAP_MARGIN 2400     /* watchdog: allowed overshoot of span */
 #define JOG_UNBOUNDED   2000000  /* "infinite" jog target while uncalibrated */
-#define CAL_TIMEOUT_US  (5LL * 60 * 1000000)
+#define CAL_TIMEOUT_US  (10LL * 60 * 1000000)  /* must exceed a full-span jog */
 #define REPORT_PERIOD_US (1LL * 1000000)
 ```
 

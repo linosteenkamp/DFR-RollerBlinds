@@ -15,7 +15,7 @@ typedef enum {
     LED_ERROR,          /* transient: five rapid flashes */
 } led_pattern_t;
 
-esp_err_t status_led_init(int gpio_ext, int gpio_onboard);
+esp_err_t status_led_init(int gpio_ext);
 void status_led_set(led_pattern_t base);       /* persistent */
 void status_led_flash(led_pattern_t transient);/* LED_ACK / LED_ERROR overlay */
 

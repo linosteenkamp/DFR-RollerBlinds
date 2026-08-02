@@ -28,15 +28,20 @@ static const char *TAG = "BLINDS";
 #define MODEL_ID    "\x10" "DFR-RollerBlinds"
 #define APP_ENDPOINT 1
 
-/* ---- GPIO map (bench-verify; see HARDWARE.md) ---- */
-#define PIN_STEP     2
-#define PIN_DIR      3
-#define PIN_EN       4
-#define PIN_BTN_UP   5
-#define PIN_BTN_DOWN 6
-#define PIN_BTN_FN   7
-#define PIN_LED_EXT  14
-#define PIN_LED_ONB  15
+/* ---- GPIO map: XIAO ESP32C6, D-number → GPIO (see HARDWARE.md) ----
+ * The D-numbers are what the silkscreen and the wiring harness use; the
+ * GPIO numbers below are what the driver API wants. Grouped to match the
+ * implementation board's physical layout: driver signals on D7-D9 at one
+ * end of the header, keypad on D4-D6 at the other, LED on D2.
+ * D6/D7 carry the C6's default UART0 pins — free here because the console
+ * runs on USB-Serial-JTAG (CONFIG_ESP_CONSOLE_UART_NUM = -1). */
+#define PIN_STEP     19     /* D8 */
+#define PIN_DIR      17     /* D7 */
+#define PIN_EN       20     /* D9 */
+#define PIN_BTN_UP   22     /* D4 */
+#define PIN_BTN_DOWN 23     /* D5 */
+#define PIN_BTN_FN   16     /* D6 */
+#define PIN_LED_EXT  2      /* D2 — sole indicator; no onboard mirror on XIAO */
 
 /* ---- motion tuning (bench constants, spec §6) ---- */
 #define CRUISE_US       100      /* 10 kHz at 1/8 µstep: ~2.4 s per output rev */
@@ -384,7 +389,7 @@ void app_main(void)
     motion_pins_t pins = { .gpio_step = PIN_STEP, .gpio_dir = PIN_DIR, .gpio_en = PIN_EN };
     ESP_ERROR_CHECK(motion_init(&pins, s_queue));
     motion_set_reversed(s_reversed);
-    ESP_ERROR_CHECK(status_led_init(PIN_LED_EXT, PIN_LED_ONB));
+    ESP_ERROR_CHECK(status_led_init(PIN_LED_EXT));
     ESP_ERROR_CHECK(keypad_init(PIN_BTN_UP, PIN_BTN_DOWN, PIN_BTN_FN, s_queue));
 
     const esp_timer_create_args_t cal_t = { .callback = cal_timeout_cb, .name = "cal_to" };

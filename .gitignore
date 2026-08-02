@@ -1,7 +1,7 @@
 .pio/
 managed_components/
 dependencies.lock
-sdkconfig.dfrobot_firebeetle2_esp32c6_zigbee
+sdkconfig.seeed_xiao_esp32c6_zigbee
 __pycache__/
 .pytest_cache/
 .superpowers/

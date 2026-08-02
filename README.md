@@ -5,8 +5,9 @@
 > *Photo placeholder — installed enclosure + motor + roller tube, to be added
 > after bench verification.*
 
-A DFRobot FireBeetle 2 ESP32-C6 that drives a bipolar stepper (through a
-3D-printed 1:15 reduction) to raise and lower a roller blind, and presents a
+A Seeed XIAO ESP32C6 that drives a bipolar stepper (through a BIGTREETECH
+TMC2209 and a 3D-printed 1:15 reduction) to raise and lower a roller blind,
+in near silence thanks to the driver's StealthChop2 chopping, and presents a
 standard **Window Covering** device (cluster 0x0102) to zigbee2mqtt / Home
 Assistant. It joins the mesh as a **Zigbee Router** — mains-powered,
 always-on, relays traffic and extends network range. A 3-key membrane keypad
@@ -36,7 +37,7 @@ flow; firmware updates are delivered over the air through zigbee2mqtt.
 
 ```bash
 # Build & flash
-pio run -e dfrobot_firebeetle2_esp32c6_zigbee -t upload -t monitor
+pio run -e seeed_xiao_esp32c6_zigbee -t upload -t monitor
 
 # Host unit tests
 pio test -e native
@@ -47,7 +48,7 @@ Pairing, calibration, and OTA setup are in
 
 ## Documentation
 
-- **[HARDWARE.md](HARDWARE.md)** — BOM, power chain, DRV8825 wiring, Vref
+- **[HARDWARE.md](HARDWARE.md)** — BOM, power chain, TMC2209 wiring, Vref
   procedure, keypad/LED wiring, direction check
 - **[DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)** — pairing, calibration
   walkthrough, bench checklist, OTA release flow

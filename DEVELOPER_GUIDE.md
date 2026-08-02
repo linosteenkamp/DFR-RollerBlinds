@@ -21,11 +21,11 @@ Span, Position Unknown, Re-home, Calibrated, Motor Reversed).
 ## Useful commands
 
 ```bash
-pio run -e dfrobot_firebeetle2_esp32c6_zigbee                 # build
-pio run -e dfrobot_firebeetle2_esp32c6_zigbee -t upload       # flash
-pio run -e dfrobot_firebeetle2_esp32c6_zigbee -t upload -t monitor
+pio run -e seeed_xiao_esp32c6_zigbee                 # build
+pio run -e seeed_xiao_esp32c6_zigbee -t upload       # flash
+pio run -e seeed_xiao_esp32c6_zigbee -t upload -t monitor
 pio run -t erase                                              # erase flash (re-pair)
-pio run -e dfrobot_firebeetle2_esp32c6_zigbee -t size         # image size vs slot
+pio run -e seeed_xiao_esp32c6_zigbee -t size         # image size vs slot
 pio run -t clean
 pio test -e native                                            # host tests
 ```
@@ -33,7 +33,7 @@ pio test -e native                                            # host tests
 ## Pairing
 
 1. Enable **permit join** in zigbee2mqtt.
-2. Flash and power the device (`pio run -e dfrobot_firebeetle2_esp32c6_zigbee -t upload -t monitor`);
+2. Flash and power the device (`pio run -e seeed_xiao_esp32c6_zigbee -t upload -t monitor`);
    it auto-runs BDB steering and joins as a Router.
 3. Install the external converter: copy `z2m/dfr_roller_blinds.js` into the
    zigbee2mqtt config directory and register it under `external_converters:`
@@ -129,13 +129,13 @@ TMC2209 V1.3 (`VCC_IO` wired to 3V3, `MS1`/`MS2` at GND, Vref set to
 instance with permit-join. See [HARDWARE.md](HARDWARE.md) for the full
 wiring reference.
 
-> **Not yet done:** `src/main.c`'s pin `#define`s and `platformio.ini`'s
-> env name still target the original FireBeetle/DRV8825 GPIO map, not the
-> XIAO map in `HARDWARE.md`. That firmware update needs to land before this
-> checklist is actually runnable on rev 2 hardware — treat the items below
-> as the plan for that bench session, not as currently executable.
+`src/main.c` and `platformio.ini` now target the XIAO/TMC2209 map, so this
+checklist is runnable — but **nothing below has been exercised on rev 2
+hardware yet**, and the D-number → GPIO mapping baked into the firmware is
+still from Seeed's published reference rather than a board in hand. Start
+with the mapping check.
 
-- [ ] XIAO D-number → GPIO mapping verified against the physical board's silkscreen (documented in HARDWARE.md, not yet cross-checked against a board in hand)
+- [ ] XIAO D-number → GPIO mapping verified against the physical board's silkscreen (firmware assumes STEP D8=GPIO19, DIR D7=GPIO17, EN D9=GPIO20, Up D4=GPIO22, Down D5=GPIO23, Fn D6=GPIO16, LED D2=GPIO2)
 - [ ] `VCC_IO` sanity check: temporarily lift it and confirm the driver goes fully inert (no response to `STEP`/`DIR`/`EN`) — this is the TMC2209's equivalent of the old DRV8825 `SLEEP̅`/`RESET̅` trap, worth confirming once rather than discovering it live
 - [ ] Motor bench-run before mounting: direction, 1/8-µstep smoothness, Vref current check (~1.69V, not the old 0.6V), and confirm it's actually quiet (StealthChop2 is this module's factory default — if it isn't quiet, check the internal `SPRE` solder pad hasn't been re-bridged to SpreadCycle)
 - [ ] Join as router; z2m shows the device via the converter (cover + `calibrated: false`)
@@ -150,12 +150,12 @@ wiring reference.
 - [ ] OTA round-trip: tag a release, z2m offers + installs it, device reboots into new version (confirm no rollback after a further power cycle), position survives
 - [ ] Router relay check with a downstream device
 - [ ] OTA download during an active move (IRAM validation + recovery path)
-- [ ] Calibration abort paths: no-jog abort (nothing changes), jogged abort (drops to Position Unknown), 5-minute timeout including mid-jog
+- [ ] Calibration abort paths: no-jog abort (nothing changes), jogged abort (drops to Position Unknown), 10-minute timeout including mid-jog
 - [ ] ZB preemption mid-move; ZB Stop mid-move; hold-jog preempted by ZB then released
 - [ ] z2m lockout inside calibration mode (motion commands rejected while `s_cal_mode`)
 - [ ] Uncalibrated taps inert (hold-to-jog still works)
 - [ ] Zigbee-down keypad autonomy, then rejoin
-- [ ] Identify → LED (steady rapid blink while Identify is active, D10)
+- [ ] Identify → LED (steady rapid blink while Identify is active, D2)
 - [ ] ≥10 consecutive full-travel cycles, checking both physical marks each time (open-loop drift)
 - [ ] TMC2209 thermal soak in enclosure (built-in thermal shutdown is a backstop, not a substitute for adequate airflow — confirm temps stay reasonable under sustained cycling)
 - [ ] Power-cycle during a jogged calibration session
@@ -189,7 +189,7 @@ The workflow then:
 2. Derives `major`/`minor`/`patch` from the tag and packs
    `file_version = 0x%X%X%02X0000` (must match `OTA_PACK_VERSION` in
    `include/ota_ids.h`).
-3. Builds `dfrobot_firebeetle2_esp32c6_zigbee` with those version flags.
+3. Builds `seeed_xiao_esp32c6_zigbee` with those version flags.
 4. Wraps `firmware.bin` into `DFR-RollerBlinds-<tag>.ota`
    (`esp-zb-common`'s `tools/make_ota_image.py`).
 5. Publishes a GitHub Release with that asset attached.
