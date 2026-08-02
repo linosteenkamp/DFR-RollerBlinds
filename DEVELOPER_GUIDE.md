@@ -143,9 +143,9 @@ except the pin mapping.
 - [x] Full travel from keypad taps **2026-08-02** — clean both directions at `CRUISE_US = 150` / Vref 1.92 V. Getting there required correcting Vref for the fitted motor first; see [HARDWARE.md](HARDWARE.md#motion-speed-tuning). Live-position tracking during z2m moves not yet separately checked.
 - [ ] Keypad matrix (D4/D5/D6): tap up/down full travel; tap-while-moving stops; hold jogs clamped at limits
 - [ ] Power-cut mid-travel → boots Position Unknown (double-flash, z2m locked) → re-home (Fn 3 s, jog Open, Fn)
-- [ ] Clean power cycle at rest → still calibrated, taps work immediately
+- [~] Clean power cycle at rest → still calibrated **2026-08-02** (observed as part of the OTA persistence check — calibration survived a power cycle at rest). "Taps work immediately afterwards" not separately confirmed.
 - [ ] Idle back-drive watch: leave the blind mid-travel overnight; if it creeps, revisit idle-hold (spec §2 fallback)
-- [~] OTA round-trip — **v2.0.0 offered, downloaded, installed, device rebooted into the new version (2026-08-02).** The CI path is therefore proven end to end on rev 2: tag → build → `.ota` asset → `ota/index.json` on main → z2m offer → install. Two sub-checks still outstanding: **no rollback after a further power cycle** (the bootloader's rollback-on-failed-self-check would silently revert a bad image, so a clean power cycle is what proves the image was accepted) and **position survives the update**.
+- [x] OTA round-trip **2026-08-02** — v2.0.0 offered, downloaded, installed, device rebooted into it; a further clean power cycle came back up **still on v2.0.0 with calibration intact**. That power cycle is the part that matters: `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE` would have silently reverted an image that failed its self-check, so surviving it proves the image was accepted rather than merely written. Whole path proven on rev 2: tag → CI build → `.ota` asset → `ota/index.json` on main → z2m offer → install → persist.
 - [ ] Router relay check with a downstream device
 - [ ] OTA download during an active move (IRAM validation + recovery path)
 - [ ] Calibration abort paths: no-jog abort (nothing changes), jogged abort (drops to Position Unknown), 10-minute timeout including mid-jog
