@@ -145,7 +145,7 @@ except the pin mapping.
 - [ ] Power-cut mid-travel → boots Position Unknown (double-flash, z2m locked) → re-home (Fn 3 s, jog Open, Fn)
 - [ ] Clean power cycle at rest → still calibrated, taps work immediately
 - [ ] Idle back-drive watch: leave the blind mid-travel overnight; if it creeps, revisit idle-hold (spec §2 fallback)
-- [ ] OTA round-trip: tag a release, z2m offers + installs it, device reboots into new version (confirm no rollback after a further power cycle), position survives
+- [~] OTA round-trip — **v2.0.0 offered, downloaded, installed, device rebooted into the new version (2026-08-02).** The CI path is therefore proven end to end on rev 2: tag → build → `.ota` asset → `ota/index.json` on main → z2m offer → install. Two sub-checks still outstanding: **no rollback after a further power cycle** (the bootloader's rollback-on-failed-self-check would silently revert a bad image, so a clean power cycle is what proves the image was accepted) and **position survives the update**.
 - [ ] Router relay check with a downstream device
 - [ ] OTA download during an active move (IRAM validation + recovery path)
 - [ ] Calibration abort paths: no-jog abort (nothing changes), jogged abort (drops to Position Unknown), 10-minute timeout including mid-jog
