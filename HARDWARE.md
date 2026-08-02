@@ -206,6 +206,28 @@ Per BTT's manual, **the factory-default bridge selects StealthChop2 ("mute
 mode")**, which is exactly what this swap is for. Nothing to wire; just
 don't touch that solder pad (re-bridging it selects SpreadCycle — loud).
 
+### ⚠️ The two motors' cables are NOT interchangeable
+
+**Found on the bench 2026-08-03.** The 2HS60 and the 17HS4401 use different
+lead orders in their connectors, so a cable made up for one motor produces
+**wrong coil pairing** on the other — one wire from coil A and one from coil B
+landing on the same driver terminal pair. Symptom is exactly the wrong-pairing
+signature below: buzzing, vibration without rotation, or weak rough motion. It
+looks like a dead driver or a speed problem and is neither.
+
+Consequences for a multi-unit build:
+
+- **Label every motor cable with its motor type** at assembly. The connectors
+  mate happily across types and give no physical hint they shouldn't.
+- **A motor swap means a cable swap.** Replacing a failed 17HS4401 with a
+  2HS60 (or vice versa) needs the matching cable, not just the matching Vref.
+- **Verify pairing by continuity, not by connector position** whenever a cable's
+  provenance is uncertain — the procedure directly below.
+
+Together with the per-motor [Vref](#setting-vref-current-limit), this makes two
+independent things that must match the fitted motor. Both present as motion
+faults, and neither is visible from the firmware side.
+
 ### Coil identification
 
 The 2HS60-1504JA05-020-03 has 4 leads forming 2 coils. Before wiring, find
