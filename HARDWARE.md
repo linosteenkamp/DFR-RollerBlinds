@@ -493,8 +493,17 @@ the ceiling** — a value tuned on a 2HS60 unit would stall the small ones.
 
 Note the loads differ too: the weaker motor drives the lighter blinds, so the
 torque-to-load ratio may come out closer than the raw motor specs suggest.
-Until both are measured, that's an open question, not an assumption to build
-on. Get a tuned figure for each, then decide between:
+
+**Partial 2HS60 result (2026-08-03):** clean full travel at `CRUISE_US = 150`
+— but **unmounted (no blind load) and at Vref 1.92 V**, i.e. ~1.36 A against
+its 1.5 A rating (~91%, not the 80% target). Both caveats point the same way:
+it passed with more current than spec and less load than reality. Dropping to
+its proper **1.69 V removes torque precisely when real load starts demanding
+it**. Not yet evidence that one `CRUISE_US` serves both motors — re-test
+loaded, at 1.69 V, before concluding that.
+
+Until both are measured **under load**, this stays an open question, not an
+assumption to build on. Get a tuned figure for each, then decide between:
 
 - tune for the worst case and ship one firmware (simplest; costs speed on the
   stronger units, and is the right default if the two figures land close),
