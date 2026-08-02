@@ -23,7 +23,8 @@ as settled until measured.
 | Part | Role |
 |---|---|
 | Seeed XIAO ESP32C6 (`seeed_xiao_esp32c6`) | Controller. Only 11 GPIOs are broken out (D0–D10) — the design keeps the GPIO budget to 7 used + 1 reserved (see [GPIO summary](#gpio-summary-srcmainc)), leaving 3 spare. |
-| 2HS60-1504JA05-020-03 bipolar stepper | Drive motor — 1.8°/step (200 full steps/rev), 1.5 A/phase class, 4-wire (2 coils) |
+| 2HS60-1504JA05-020-03 bipolar stepper | Drive motor for the **larger** blinds — 1.8°/step (200 full steps/rev), 1.5 A/phase class, 60 mm body, 4-wire (2 coils) |
+| 17HS4401 bipolar stepper | Drive motor for the **smaller** blinds — 1.8°/step, 1.7 A/phase class, 40 mm body, 4-wire. Lower torque than the 2HS60 (roughly half to two-thirds), and takes a **different Vref** — see [Setting Vref](#setting-vref-current-limit). Its lower torque is what sets the fleet-wide `CRUISE_US` ceiling; see [Motion speed tuning](#motion-speed-tuning). |
 | BIGTREETECH TMC2209 V1.3 breakout | Stepper driver, StealthChop2 silent chopping — ships factory-default (no wiring needed for it). 1/8 microstep via `MS1`/`MS2` pin-strapping (same resolution as before — preserves all step-count math). Needs its own logic-supply pin (`VCC_IO`), which the DRV8825 never had — see the pin table below. |
 | 3D-printed geartrain (`Blinds 2.step`) | 1:15 reduction to the roller tube |
 | Mean Well 24 V DC PSU — **recommend LRS-50-24** (LRS-35-24 acceptable) for a single unit | System supply. See [Multi-unit installations](#multi-unit-installations-shared-psu) for sharing one PSU across several controllers. |
@@ -183,13 +184,13 @@ wiring, since clones vary.
 
 | TMC2209 pin | Wire to | Notes |
 |---|---|---|
-| `EN` (ENABLE) | XIAO **D2 / GPIO2** *(see [GPIO summary](#gpio-summary-srcmainc) — verify pin before wiring)* | Active-low enable, same convention as the DRV8825 this replaces. Firmware drives it high (disabled) at idle, low only during a move. |
+| `EN` (ENABLE) | XIAO **D9 / GPIO20** | Active-low enable, same convention as the DRV8825 this replaces. Firmware drives it high (disabled) at idle, low only during a move. |
 | `MS1` | **GND** | ┐ |
 | `MS2` | **GND** | ├ `MS2:MS1 = GND:GND` → **8 microsteps (1/8)** — matches the old DRV8825 setting exactly, so `1600 microsteps/motor-rev` / `24 000 microsteps/output-rev` and every derived constant (ramp tuning, `MIN_SPAN_STEPS`, calibration span math) carry over unchanged. |
-| `PDN` (×2 adjacent pins, silkscreened `PDN`) | Leave both unconnected | UART pin — factory-bridged to the first of the two positions internally. Not using UART in this revision — plain STEP/DIR standalone mode, same control model as the DRV8825 it replaces. GPIO **D7** is the suggested spare on the XIAO side if a future revision wants UART (register-based current control, StallGuard, etc.). |
+| `PDN` (×2 adjacent pins, silkscreened `PDN`) | Leave both unconnected | UART pin — factory-bridged to the first of the two positions internally. Not using UART in this revision — plain STEP/DIR standalone mode, same control model as the DRV8825 it replaces. **D10 / GPIO18** is the suggested spare on the XIAO side if a future revision wants UART (register-based current control, StallGuard, etc.) — it sits next to `EN` on D9, so it lands in the same corner of the header as the rest of the driver harness. |
 | `CLK` | Leave unconnected | Internal oscillator is used by default; no external clock needed. |
-| `STEP` | XIAO **D0 / GPIO0** | Step pulse train |
-| `DIR` | XIAO **D1 / GPIO1** | Direction level, set before each move |
+| `STEP` | XIAO **D8 / GPIO19** | Step pulse train |
+| `DIR` | XIAO **D7 / GPIO17** | Direction level, set before each move |
 | `VM` | 24 V PSU **+** | Plus the ≥100 µF capacitor to the adjacent GND, right at the pin |
 | `GND` (power side, next to VM) | 24 V PSU **−** | |
 | `A1`, `A2` | Motor coil **A** (one pair) | See coil identification below |
@@ -232,19 +233,34 @@ setting, motor disconnected from everything):
 XIAO ESP32C6 exposes only 11 GPIOs on its header (`D0`–`D10`). This
 revision uses 7 for the same signals as before, drops the onboard-LED
 mirror (XIAO has no easily-probed user LED broken out to a header pin,
-and the external LED alone was always the primary indicator), and reserves
-one more for a possible future TMC2209 UART upgrade:
+and the external LED alone was always the primary indicator), and leaves
+4 spare.
+
+Assignments follow the **implementation board's physical layout**: the
+three driver signals sit together on `D7`–`D9` at one end of the header,
+the keypad's 3-pin harness on `D4`–`D6` at the other, and the LED on `D2`.
+That grouping is the reason for the pin choice — each harness lands on
+contiguous header pins and solders straight down without jumpers.
 
 | Signal | XIAO pin | GPIO | Notes |
 |---|---|---|---|
-| `STEP` | D0 | GPIO0 | Pulse train from `motion.c`'s GPTimer ISR |
-| `DIR` | D1 | GPIO1 | Level set before each move; meaning flips with `motor_reversed` |
-| `EN̅` | D2 | GPIO2 | High = driver **disabled**; firmware drives it low only during moves |
+| `STEP` | D8 | GPIO19 | Pulse train from `motion.c`'s GPTimer ISR |
+| `DIR` | D7 | GPIO17 | Level set before each move; meaning flips with `motor_reversed` |
+| `EN̅` | D9 | GPIO20 | High = driver **disabled**; firmware drives it low only during moves |
 | Keypad Up | D4 | GPIO22 | Internal pull-up (this pin doubles as I²C SDA on XIAO's silkscreen — unused here, plain GPIO input) |
 | Keypad Down | D5 | GPIO23 | Internal pull-up (doubles as I²C SCL — unused here) |
 | Keypad Fn | D6 | GPIO16 | Internal pull-up |
-| External status LED | D10 | GPIO18 | Through a series resistor to the LED, LED to GND. Sole status indicator this revision — no onboard-LED mirror. |
-| *(spare)* | D3, D7, D8, D9 | GPIO21, GPIO17, GPIO19, GPIO20 | Unused headroom — grouped this way so the keypad's 3-pin JST and the LED's 2-pin JST can be soldered directly onto contiguous header pins rather than jumpered. `D7` is the suggested pick if `PDN_UART` is ever wired for a future TMC2209 UART upgrade. |
+| External status LED | D2 | GPIO2 | Through a series resistor to the LED, LED to GND. Sole status indicator this revision — no onboard-LED mirror. |
+| *(spare)* | D0, D1, D3, D10 | GPIO0, GPIO1, GPIO21, GPIO18 | Unused headroom. `D10` is the suggested pick if `PDN_UART` is ever wired for a future TMC2209 UART upgrade — it neighbours `EN` on D9, keeping the driver harness in one corner. |
+
+**`D6`/`D7` are the ESP32-C6's default UART0 TX/RX pins**, and this design
+uses both (Fn button and `DIR`). That is safe *only* because the console
+runs on the built-in USB-Serial-JTAG rather than UART0 —
+`sdkconfig.defaults` sets `CONFIG_ESP_CONSOLE_UART_DEFAULT=n` /
+`CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`, leaving
+`CONFIG_ESP_CONSOLE_UART_NUM = -1`. If anyone ever switches the console
+back to UART0, the console would drive the Fn line and fight its pull-up.
+Don't make that change without moving these two signals first.
 
 None of the ESP32-C6 strapping pins (GPIO4/5/8/9/15) are exposed on the
 XIAO's header at all, so there's no strapping-pin caution needed here — a
@@ -258,9 +274,10 @@ physical board in hand.
 
 ## Setting Vref (current limit)
 
-Target current: **~1.2 A/phase** (80% of the motor's 1.5 A/phase rating) —
-same target as before, but **the formula and the resulting voltage are
-different from the DRV8825.** Don't reuse the old 0.6 V figure.
+**Vref is per-unit and depends on which motor that unit has** — the fleet
+uses two (see [BOM](#bom)). Target 80% of the motor's rated phase current.
+Also note **the formula and resulting voltage differ from the DRV8825** —
+don't reuse the old 0.6 V figure.
 
 BTT's own manual gives the formula directly (0.11 Ω sense resistors, standard
 on this module):
@@ -269,9 +286,21 @@ on this module):
 Irms = 325mV / (Rsense + 20mΩ) × 1/√2 × (Vref / 2.5V)
      = 325mV / 130mΩ × 1/√2 × (Vref / 2.5V)
      ≈ Vref × 0.71        (equivalently: Vref ≈ Irms × 1.41)
-
-Vref = 1.2 A × 1.41 ≈ 1.69 V
 ```
+
+| Motor | Blinds | Rated | Target (80%) | **Vref** |
+|---|---|---|---|---|
+| 2HS60-1504JA05-020-03 | larger | 1.5 A/phase | 1.2 A | **1.69 V** |
+| 17HS4401 | smaller | 1.7 A/phase | 1.36 A | **1.92 V** |
+
+Setting a 17HS4401 unit to 1.69 V under-drives it (that's only ~71% of its
+rating) and costs torque you need — this was hit on the bench 2026-08-02 and
+showed up as a stall. Confirm your motor's rating against its own datasheet
+rather than trusting the table; 17HS4401 variants exist.
+
+The 17HS4401 is the 42×42×**40 mm** body, versus the 2HS60's 60 mm. Less
+thermal mass, so it warms faster even at its own correct current — worth a
+touch-check during the thermal soak.
 
 **This board does not ship at that value** — BTT's manual states the
 factory-default Vref is 1.2 V ±0.1 V (≈0.9 A), so the trimpot genuinely needs
@@ -332,7 +361,7 @@ Before trusting the wiring, confirm all three keys electrically with the
 serial monitor:
 
 ```bash
-pio run -e xiao_esp32c6_zigbee -t upload -t monitor
+pio run -e seeed_xiao_esp32c6_zigbee -t upload -t monitor
 ```
 
 Press each key in turn and watch for state changes propagating through the
@@ -345,12 +374,12 @@ go through the [Troubleshooting](#troubleshooting) keypad checklist.
 ## LED wiring
 
 ```
-GPIO 18 (D10) ── resistor (150 Ω) ── LED anode
-                                       LED cathode ── GND
+GPIO 2 (D2) ── resistor (150 Ω) ── LED anode
+                                     LED cathode ── GND
 ```
 
 One external status LED on the enclosure face — **Kingbright L-7104SURC-E**,
-3mm through-hole, Hyper Red (AlGaInP) — driven from D10/GPIO18 through a
+3mm through-hole, Hyper Red (AlGaInP) — driven from D2/GPIO2 through a
 series resistor. **This revision has no onboard-LED mirror** — the external
 LED is the only status indicator, so it needs to be wired and visible before
 doing any bring-up beyond stage 1 (flash + serial log only).
@@ -404,13 +433,59 @@ Cruise speed is a `#define` in `src/main.c` (`CRUISE_US`, microseconds per
 step at 1/8 microstep through the 1:15 reduction). The DRV8825-era finding
 that "lower `CRUISE_US` also ran quieter" was specific to that driver's
 SpreadCycle-only chopping (moving through resonance bands faster reduced
-audible buzz); it needs **re-verifying on the bench with the TMC2209**,
-since StealthChop2 changes the noise character altogether — the whole point
-of the swap is that it should now be quiet across a wider speed range, not
-just at high `CRUISE_US`. Re-tune from the prior bench value
-(`CRUISE_US = 100`, ~2.4 s/output-rev) once the driver is confirmed running
-(`VCC_IO` wired, Vref set), listening for the actual result rather than
-assuming the old relationship still holds.
+audible buzz); StealthChop2 changes the noise character altogether.
+
+**Bench result 2026-08-02:** at the inherited `CRUISE_US = 100`
+(~2.4 s/output-rev), the TMC2209 runs **quiet and smooth free-running**, motor
+uncoupled, Vref 1.69 V. No re-tune needed for noise. That also confirms the
+`SPRE` pad is at its factory StealthChop2 bridge and the A/B coil pairing is
+correct.
+
+**Torque under load is a separate question, and it turned on current, not
+speed.** Coupled to the 1:15 reduction and a real blind, a tap at
+`CRUISE_US = 100` started and then vibrated in place — a stall. Hold-to-jog
+kept working throughout, which was the tell: jog uses `JOG_CRUISE_US = 300`, so
+the only difference was cruise speed.
+
+The actual cause was Vref: the bench unit had a **17HS4401 still set to the
+2HS60's 1.69 V**, i.e. driven at ~71% of its rating. With Vref corrected to
+1.92 V, both 200 µs and **150 µs run clean full travel in both directions**
+(bench 2026-08-02, small blind). `CRUISE_US = 150` is the tuned value.
+
+Because 100 µs was only ever tested under-driven, the true stall point at
+correct current is unmeasured — it may well be below 150. That makes 150 at
+least the ~1.5× margin the rule of thumb wants, and possibly more. **Check Vref
+against the fitted motor before ever concluding a stall means "too fast".**
+
+**A stall silently desyncs position.** Step counting is open-loop, so any
+vibrate-in-place event means the stored position no longer matches reality —
+re-home before trusting it. If a move ends somewhere unexpected, suspect lost
+steps before suspecting the position logic.
+
+### `CRUISE_US` is fleet-wide but the motors are not
+
+The two motors have materially different torque (see [BOM](#bom)), and
+`CRUISE_US` is a single compile-time constant while Vref is a per-board
+trimpot. The 17HS4401 on the smaller blinds is the weaker motor, so **it sets
+the ceiling** — a value tuned on a 2HS60 unit would stall the small ones.
+
+Note the loads differ too: the weaker motor drives the lighter blinds, so the
+torque-to-load ratio may come out closer than the raw motor specs suggest.
+Until both are measured, that's an open question, not an assumption to build
+on. Get a tuned figure for each, then decide between:
+
+- tune for the worst case and ship one firmware (simplest; costs speed on the
+  stronger units, and is the right default if the two figures land close),
+- a per-variant build flag (splits the OTA image identity, which currently
+  assumes one image type `0x0003` — real added complexity), or
+- an NVS-backed runtime setting exposed through z2m (one firmware, one OTA
+  image, per-unit tuning; most work).
+
+Don't add the configuration machinery before the second measurement exists.
+
+**Before blaming speed, check Vref matches the fitted motor.** The bench stall
+above was measured with a 17HS4401 still set to the 2HS60's 1.69 V — i.e.
+under-driven to ~71% of rating. Correct current first, then tune speed.
 
 **The DRV8825-era "next lever" (rewire `M0` for 1/4 microstep to go
 faster) doesn't have a direct equivalent here.** The TMC2209's pin-only
@@ -420,7 +495,7 @@ there's no pin-strap escalation path to a faster (coarser) microstep. If
 more speed is needed beyond what `CRUISE_US` tuning gives at 1/8, the
 options are (a) push `CRUISE_US` lower — the TMC2209's STEP timing headroom
 is well beyond anything used so far — or (b) move to UART mode (the
-spare `PDN_UART`/GPIO D7 pin) for full register control, which is new
+spare `PDN_UART`/GPIO D10 pin) for full register control, which is new
 scope beyond this hardware swap.
 
 ## Troubleshooting

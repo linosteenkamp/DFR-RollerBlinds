@@ -10,7 +10,7 @@
 typedef struct {
     int gpio_step;
     int gpio_dir;
-    int gpio_en;      /* DRV8825 EN̅: high = driver DISABLED */
+    int gpio_en;      /* TMC2209 EN̅: high = driver DISABLED */
 } motion_pins_t;
 
 typedef struct {

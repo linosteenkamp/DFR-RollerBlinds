@@ -21,11 +21,11 @@ Span, Position Unknown, Re-home, Calibrated, Motor Reversed).
 ## Useful commands
 
 ```bash
-pio run -e dfrobot_firebeetle2_esp32c6_zigbee                 # build
-pio run -e dfrobot_firebeetle2_esp32c6_zigbee -t upload       # flash
-pio run -e dfrobot_firebeetle2_esp32c6_zigbee -t upload -t monitor
+pio run -e seeed_xiao_esp32c6_zigbee                 # build
+pio run -e seeed_xiao_esp32c6_zigbee -t upload       # flash
+pio run -e seeed_xiao_esp32c6_zigbee -t upload -t monitor
 pio run -t erase                                              # erase flash (re-pair)
-pio run -e dfrobot_firebeetle2_esp32c6_zigbee -t size         # image size vs slot
+pio run -e seeed_xiao_esp32c6_zigbee -t size         # image size vs slot
 pio run -t clean
 pio test -e native                                            # host tests
 ```
@@ -33,7 +33,7 @@ pio test -e native                                            # host tests
 ## Pairing
 
 1. Enable **permit join** in zigbee2mqtt.
-2. Flash and power the device (`pio run -e dfrobot_firebeetle2_esp32c6_zigbee -t upload -t monitor`);
+2. Flash and power the device (`pio run -e seeed_xiao_esp32c6_zigbee -t upload -t monitor`);
    it auto-runs BDB steering and joins as a Router.
 3. Install the external converter: copy `z2m/dfr_roller_blinds.js` into the
    zigbee2mqtt config directory and register it under `external_converters:`
@@ -129,20 +129,18 @@ TMC2209 V1.3 (`VCC_IO` wired to 3V3, `MS1`/`MS2` at GND, Vref set to
 instance with permit-join. See [HARDWARE.md](HARDWARE.md) for the full
 wiring reference.
 
-> **Not yet done:** `src/main.c`'s pin `#define`s and `platformio.ini`'s
-> env name still target the original FireBeetle/DRV8825 GPIO map, not the
-> XIAO map in `HARDWARE.md`. That firmware update needs to land before this
-> checklist is actually runnable on rev 2 hardware — treat the items below
-> as the plan for that bench session, not as currently executable.
+`src/main.c` and `platformio.ini` target the XIAO/TMC2209 map, so this
+checklist is runnable. Nothing below has been exercised on rev 2 hardware
+except the pin mapping.
 
-- [ ] XIAO D-number → GPIO mapping verified against the physical board's silkscreen (documented in HARDWARE.md, not yet cross-checked against a board in hand)
-- [ ] `VCC_IO` sanity check: temporarily lift it and confirm the driver goes fully inert (no response to `STEP`/`DIR`/`EN`) — this is the TMC2209's equivalent of the old DRV8825 `SLEEP̅`/`RESET̅` trap, worth confirming once rather than discovering it live
-- [ ] Motor bench-run before mounting: direction, 1/8-µstep smoothness, Vref current check (~1.69V, not the old 0.6V), and confirm it's actually quiet (StealthChop2 is this module's factory default — if it isn't quiet, check the internal `SPRE` solder pad hasn't been re-bridged to SpreadCycle)
-- [ ] Join as router; z2m shows the device via the converter (cover + `calibrated: false`)
-- [ ] `motor_reversed` toggle from z2m and from keypad chord; both sides stay in sync; verify it wipes calibration
-- [ ] z2m motion commands rejected while uncalibrated (buttons in z2m produce an error/no motion)
-- [ ] Calibrate via keypad; deliberately try a wrong mark 2 (above mark 1) → five-flash error, mode stays
-- [ ] Full open / close / 50% from z2m; live position tracks ~1 s during moves
+- [x] XIAO D-number → GPIO mapping verified **2026-08-02** — all seven confirmed on a bare board with `tools/pinwalk` (drives one GPIO high at a time; probed against GND). STEP D8=GPIO19, DIR D7=GPIO17, EN D9=GPIO20, Up D4=GPIO22, Down D5=GPIO23, Fn D6=GPIO16, LED D2=GPIO2. Seeed's published pinout table was correct; `src/main.c` needs no change. Note the silkscreen prints only D-numbers, so this can't be checked visually — re-run the walker on any future board rather than eyeballing it.
+- [~] `VCC_IO` sanity check — **skipped deliberately** on the rev 2 built board. The test means lifting `VCC_IO` to confirm the driver goes inert; on a soldered board that costs a desoldering job to prove a failure mode we already understand. It was worth doing on rev 1's breadboard. A sane Vref reading (below) already implies the digital core is powered.
+- [x] Motor bench-run before mounting **2026-08-02** — Vref set to 1.69 V (motor disconnected), motor then spins on both Up and Down holds with the motor free of the geartrain: **quiet and smooth** at `CRUISE_US = 100`. Quiet confirms StealthChop2 is live (the `SPRE` pad is at its factory bridge); smooth confirms the A/B coil pairing. LED double-flashes (`LED_UNCAL`) confirming the D2 harness; keypad holds confirmed through the full keypad → dispatcher → motion path. Direction sense not yet meaningful — deferred to after coupling, then fixed via `motor_reversed` if needed, never by rewiring coils. **Still unproven: torque under real blind load** — free-running quiet says nothing about whether 100 µs holds under the 1:15 reduction and a 2.5 m blind.
+- [x] Join as router **2026-08-02** — joined and published as `lounge-blind-3`, linkquality ~138, exposed via the converter as a cover with `calibrated: false`. The rev 1 converter needed no change (Zigbee identity is unchanged by the hardware swap).
+- [~] `motor_reversed` toggle — z2m side confirmed working **2026-08-02**; the keypad Up+Down chord and the calibration-wipe side effect are **not yet verified** (the wipe can't be observed while the device is already uncalibrated — re-test after a successful calibration).
+- [x] z2m motion commands rejected while uncalibrated **2026-08-02** — open/close pressed in z2m, no motor movement. Lockout is enforced device-side in `zb_goto_request()`, so this holds regardless of what the converter reports.
+- [x] Calibrate via keypad **2026-08-02** — calibrated successfully on the bench rig (17HS4401 + small blind). The deliberate wrong-mark-2 five-flash rejection is **not yet retested** on rev 2.
+- [x] Full travel from keypad taps **2026-08-02** — clean both directions at `CRUISE_US = 150` / Vref 1.92 V. Getting there required correcting Vref for the fitted motor first; see [HARDWARE.md](HARDWARE.md#motion-speed-tuning). Live-position tracking during z2m moves not yet separately checked.
 - [ ] Keypad matrix (D4/D5/D6): tap up/down full travel; tap-while-moving stops; hold jogs clamped at limits
 - [ ] Power-cut mid-travel → boots Position Unknown (double-flash, z2m locked) → re-home (Fn 3 s, jog Open, Fn)
 - [ ] Clean power cycle at rest → still calibrated, taps work immediately
@@ -150,16 +148,39 @@ wiring reference.
 - [ ] OTA round-trip: tag a release, z2m offers + installs it, device reboots into new version (confirm no rollback after a further power cycle), position survives
 - [ ] Router relay check with a downstream device
 - [ ] OTA download during an active move (IRAM validation + recovery path)
-- [ ] Calibration abort paths: no-jog abort (nothing changes), jogged abort (drops to Position Unknown), 5-minute timeout including mid-jog
+- [ ] Calibration abort paths: no-jog abort (nothing changes), jogged abort (drops to Position Unknown), 10-minute timeout including mid-jog
 - [ ] ZB preemption mid-move; ZB Stop mid-move; hold-jog preempted by ZB then released
 - [ ] z2m lockout inside calibration mode (motion commands rejected while `s_cal_mode`)
 - [ ] Uncalibrated taps inert (hold-to-jog still works)
 - [ ] Zigbee-down keypad autonomy, then rejoin
-- [ ] Identify → LED (steady rapid blink while Identify is active, D10)
+- [ ] Identify → LED (steady rapid blink while Identify is active, D2)
 - [ ] ≥10 consecutive full-travel cycles, checking both physical marks each time (open-loop drift)
 - [ ] TMC2209 thermal soak in enclosure (built-in thermal shutdown is a backstop, not a substitute for adequate airflow — confirm temps stay reasonable under sustained cycling)
 - [ ] Power-cycle during a jogged calibration session
 - [ ] z2m Mode write while moving is rejected and stays in sync
+
+## Known issues
+
+### `position: 0` published while uncalibrated
+
+While the device is uncalibrated it reports lift `0xFF`
+(`POSITION_LIFT_UNKNOWN`, `covering.c:31`) to mean "position unknown".
+The custom `fzCalibrated` handles that correctly and reports
+`calibrated: false`. The **stock `m.windowCovering` extend** in
+`z2m/dfr_roller_blinds.js` does not — it has no notion of the `0xFF`
+sentinel, treats 255 as a real percentage, and derives `position: 0` from
+it. So z2m publishes `calibrated: false` and `position: 0` in the same
+payload, and Home Assistant renders the cover as fully closed when the
+device is in fact saying it has no idea where it is.
+
+**Cosmetic, not a safety issue** — the lockout is enforced device-side in
+`zb_goto_request()`, so a bogus position can't produce motion. Pre-existing
+since rev 1, not a consequence of the rev 2 hardware swap; it simply wasn't
+noticed before.
+
+Fixing it means replacing the stock extend's position handling with a
+guarded version that suppresses `position` when lift `> 100`, then
+redeploying the converter. Deferred — observed 2026-08-02.
 
 ## OTA release flow
 
@@ -178,7 +199,9 @@ git push origin v1.0.0
 
 The workflow then:
 
-1. Checks out this repo (`ref: main`) and `linosteenkamp/esp-zb-common` at
+1. Checks out this repo at **the pushed tag** (`ref: ${{ github.ref }}`, so it
+   builds whatever commit you tagged — not necessarily `main`) and
+   `linosteenkamp/esp-zb-common` at
    `v0.1.1` (for its `tools/`). `esp-zb-common` is **public**, so no token
    is needed for this checkout or for the component-manager clone `pio run`
    does during the build. (Earlier revisions used a `ZB_COMMON_PAT`
@@ -189,7 +212,7 @@ The workflow then:
 2. Derives `major`/`minor`/`patch` from the tag and packs
    `file_version = 0x%X%X%02X0000` (must match `OTA_PACK_VERSION` in
    `include/ota_ids.h`).
-3. Builds `dfrobot_firebeetle2_esp32c6_zigbee` with those version flags.
+3. Builds `seeed_xiao_esp32c6_zigbee` with those version flags.
 4. Wraps `firmware.bin` into `DFR-RollerBlinds-<tag>.ota`
    (`esp-zb-common`'s `tools/make_ota_image.py`).
 5. Publishes a GitHub Release with that asset attached.
