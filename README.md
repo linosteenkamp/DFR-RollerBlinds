@@ -46,10 +46,17 @@ pio test -e native
 Pairing, calibration, and OTA setup are in
 [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
 
+> **Fitting a unit to a blind?** Follow the
+> [per-blind install checklist](HARDWARE.md#installing-a-unit-per-blind-checklist).
+> The fleet uses **two different motors**, and each needs its own Vref *and* its
+> own motor cable — the cables are not interchangeable, and mismatching either
+> one produces a stall that looks like a firmware or speed problem.
+
 ## Documentation
 
 - **[HARDWARE.md](HARDWARE.md)** — BOM, power chain, TMC2209 wiring, Vref
-  procedure, keypad/LED wiring, direction check
+  procedure, keypad/LED wiring, direction check, and the
+  [per-blind install checklist](HARDWARE.md#installing-a-unit-per-blind-checklist)
 - **[DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)** — pairing, calibration
   walkthrough, bench checklist, OTA release flow
 - **[CLAUDE.md](CLAUDE.md)** — architecture, module table, concurrency rule

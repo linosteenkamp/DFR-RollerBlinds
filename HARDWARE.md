@@ -529,6 +529,44 @@ is well beyond anything used so far — or (b) move to UART mode (the
 spare `PDN_UART`/GPIO D10 pin) for full register control, which is new
 scope beyond this hardware swap.
 
+## Installing a unit (per-blind checklist)
+
+Bench bring-up is covered by `DEVELOPER_GUIDE.md`'s checklist. This is the
+shorter list for **mounting a finished unit on an actual blind**, and it exists
+because the fleet mixes two motors — several things must match the motor fitted
+to *this* unit, and none of them are visible from the firmware side.
+
+**Before mounting:**
+
+1. **Set Vref to this unit's motor**, not the last one you worked on —
+   **1.69 V** for the 2HS60, **1.92 V** for the 17HS4401
+   ([procedure](#setting-vref-current-limit)). Do it with the motor
+   disconnected. A trimpot left at the other motor's value is the single
+   easiest way to manufacture a stall that looks like a speed problem.
+2. **Confirm the motor cable belongs to this motor type.** They are not
+   interchangeable and the connectors give no hint — see
+   [the warning above](#️-the-two-motors-cables-are-not-interchangeable).
+   Label it now if it isn't already.
+3. **Fit the driver heatsink** and confirm the enclosure gives it airflow.
+
+**After mounting:**
+
+4. **Direction check** — hold Up; if the blind goes down, flip
+   `motor_reversed` ([Direction check](#direction-check)). Do this **before**
+   calibrating: flipping wipes calibration by design.
+5. **Calibrate** via the keypad (`DEVELOPER_GUIDE.md`).
+6. **Test the hard case: lifting on a full roll.** Peak torque demand is
+   raising the blind with maximum fabric wound on — larger effective radius
+   working against gravity. A unit that moves happily mid-travel can still
+   stall there, so a mid-travel test proves less than it appears to.
+7. **Run several full cycles**, both directions, and check the blind still
+   reaches its physical marks. Open-loop step counting means a stall or lost
+   steps show up as accumulating drift rather than an immediate error.
+
+If anything stalls, work through
+[Motor starts then vibrates in place](#motor-starts-then-vibrates-in-place-stall)
+rather than reaching straight for `CRUISE_US`.
+
 ## Troubleshooting
 
 ### Nothing works at all / device won't boot
@@ -579,6 +617,32 @@ scope beyond this hardware swap.
    weak/rough motion with everything above confirmed good points at swapped
    coil pairs (A1/A2 mixed with B1/B2) rather than swapped polarity within
    a pair.
+
+### Motor starts then vibrates in place (stall)
+
+The motor buzzes/shakes without turning, or turns weakly and roughly. **Three
+distinct causes produce this identical symptom on this project**, and two of
+them have already cost bench time. Check in this order — cheapest and most
+likely first:
+
+1. **Wrong motor cable.** The 2HS60 and 17HS4401 use different lead orders, so
+   a cable built for one gives wrong coil pairing on the other, and the
+   connectors mate happily with no physical hint. See
+   [the cable warning](#️-the-two-motors-cables-are-not-interchangeable). If
+   the cable's provenance is at all uncertain, verify pairing by continuity.
+2. **Vref doesn't match the fitted motor.** Different targets per motor — see
+   [Setting Vref](#setting-vref-current-limit). An under-driven motor stalls
+   under load exactly like an over-fast one. This is what the first rev 2 stall
+   turned out to be: a 17HS4401 left at the 2HS60's 1.69 V.
+3. **Genuinely too fast** (`CRUISE_US` too low for the load). Least likely of
+   the three, and the one to consider only after ruling out the first two.
+
+A useful discriminator: **if hold-to-jog works but a tap/remote move stalls**,
+it's speed-related (jog runs slower at `JOG_CRUISE_US`) — which means cause 2
+or 3, not 1. If *nothing* moves properly at any speed, suspect the cable.
+
+**Any stall silently desyncs position.** Step counting is open-loop, so after
+one the stored position no longer matches reality — re-home before trusting it.
 
 ### Motor turns, but noticeably louder/buzzier than expected
 
