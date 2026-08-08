@@ -272,7 +272,7 @@ contiguous header pins and solders straight down without jumpers.
 | Keypad Up | D4 | GPIO22 | Internal pull-up (this pin doubles as I²C SDA on XIAO's silkscreen — unused here, plain GPIO input) |
 | Keypad Down | D5 | GPIO23 | Internal pull-up (doubles as I²C SCL — unused here) |
 | Keypad Fn | D6 | GPIO16 | Internal pull-up |
-| External status LED | D3 | GPIO21 | Through a series resistor to the LED, LED to GND. Sole status indicator this revision — no onboard-LED mirror. Moved here from D2/GPIO2 on 2026-08-08 to suit the implementation board layout. |
+| External status LED | D3 | GPIO21 | Through a series resistor to the LED, LED to GND. Sole status indicator this revision — no onboard-LED mirror. Moved here from D2/GPIO2 on 2026-08-08 to suit the implementation board layout; confirmed working on hardware the same day. |
 | *(spare)* | D0, D1, D2, D10 | GPIO0, GPIO1, GPIO2, GPIO18 | Unused headroom. `D10` is the suggested pick if `PDN_UART` is ever wired for a future TMC2209 UART upgrade — it neighbours `EN` on D9, keeping the driver harness in one corner. |
 
 **`D6`/`D7` are the ESP32-C6's default UART0 TX/RX pins**, and this design
