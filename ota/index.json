@@ -3,9 +3,9 @@
     "modelId": "DFR-RollerBlinds",
     "manufacturerCode": 65278,
     "imageType": 3,
-    "fileVersion": 536870912,
-    "url": "https://github.com/linosteenkamp/DFR-RollerBlinds/releases/download/v2.0.0/DFR-RollerBlinds-v2.0.0.ota",
+    "fileVersion": 536936448,
+    "url": "https://github.com/linosteenkamp/DFR-RollerBlinds/releases/download/v2.0.1/DFR-RollerBlinds-v2.0.1.ota",
     "fileSize": 628190,
-    "sha512": "625401755537a870d1268f3df696ffde57c06b43c8de7a7af3cfc87da37eea3914b1e9f57f4ad381a5dd774acebc015321bfb03caf181928f658975c03341799"
+    "sha512": "00aa1aad48cd3c0b7e46fa85f43c0dff4f278aea274aac9ffefe3f7408cde7c4e79c3e67d5e38b42a17af8c3724ab9976678adb2b409961f39c95c00c89731dd"
   }
 ]
