@@ -260,7 +260,7 @@ and the external LED alone was always the primary indicator), and leaves
 
 Assignments follow the **implementation board's physical layout**: the
 three driver signals sit together on `D7`–`D9` at one end of the header,
-the keypad's 3-pin harness on `D4`–`D6` at the other, and the LED on `D2`.
+the keypad's 3-pin harness on `D4`–`D6` at the other, and the LED on `D3`.
 That grouping is the reason for the pin choice — each harness lands on
 contiguous header pins and solders straight down without jumpers.
 
@@ -272,8 +272,8 @@ contiguous header pins and solders straight down without jumpers.
 | Keypad Up | D4 | GPIO22 | Internal pull-up (this pin doubles as I²C SDA on XIAO's silkscreen — unused here, plain GPIO input) |
 | Keypad Down | D5 | GPIO23 | Internal pull-up (doubles as I²C SCL — unused here) |
 | Keypad Fn | D6 | GPIO16 | Internal pull-up |
-| External status LED | D2 | GPIO2 | Through a series resistor to the LED, LED to GND. Sole status indicator this revision — no onboard-LED mirror. |
-| *(spare)* | D0, D1, D3, D10 | GPIO0, GPIO1, GPIO21, GPIO18 | Unused headroom. `D10` is the suggested pick if `PDN_UART` is ever wired for a future TMC2209 UART upgrade — it neighbours `EN` on D9, keeping the driver harness in one corner. |
+| External status LED | D3 | GPIO21 | Through a series resistor to the LED, LED to GND. Sole status indicator this revision — no onboard-LED mirror. Moved here from D2/GPIO2 on 2026-08-08 to suit the implementation board layout. |
+| *(spare)* | D0, D1, D2, D10 | GPIO0, GPIO1, GPIO2, GPIO18 | Unused headroom. `D10` is the suggested pick if `PDN_UART` is ever wired for a future TMC2209 UART upgrade — it neighbours `EN` on D9, keeping the driver harness in one corner. |
 
 **`D6`/`D7` are the ESP32-C6's default UART0 TX/RX pins**, and this design
 uses both (Fn button and `DIR`). That is safe *only* because the console
@@ -396,12 +396,12 @@ go through the [Troubleshooting](#troubleshooting) keypad checklist.
 ## LED wiring
 
 ```
-GPIO 2 (D2) ── resistor (150 Ω) ── LED anode
+GPIO 21 (D3) ── resistor (150 Ω) ── LED anode
                                      LED cathode ── GND
 ```
 
 One external status LED on the enclosure face — **Kingbright L-7104SURC-E**,
-3mm through-hole, Hyper Red (AlGaInP) — driven from D2/GPIO2 through a
+3mm through-hole, Hyper Red (AlGaInP) — driven from D3/GPIO21 through a
 series resistor. **This revision has no onboard-LED mirror** — the external
 LED is the only status indicator, so it needs to be wired and visible before
 doing any bring-up beyond stage 1 (flash + serial log only).

@@ -32,7 +32,7 @@ static const char *TAG = "BLINDS";
  * The D-numbers are what the silkscreen and the wiring harness use; the
  * GPIO numbers below are what the driver API wants. Grouped to match the
  * implementation board's physical layout: driver signals on D7-D9 at one
- * end of the header, keypad on D4-D6 at the other, LED on D2.
+ * end of the header, keypad on D4-D6 at the other, LED on D3.
  * D6/D7 carry the C6's default UART0 pins — free here because the console
  * runs on USB-Serial-JTAG (CONFIG_ESP_CONSOLE_UART_NUM = -1). */
 #define PIN_STEP     19     /* D8 */
@@ -41,7 +41,7 @@ static const char *TAG = "BLINDS";
 #define PIN_BTN_UP   22     /* D4 */
 #define PIN_BTN_DOWN 23     /* D5 */
 #define PIN_BTN_FN   16     /* D6 */
-#define PIN_LED_EXT  2      /* D2 — sole indicator; no onboard mirror on XIAO */
+#define PIN_LED_EXT  21     /* D3 — sole indicator; no onboard mirror on XIAO */
 
 /* ---- motion tuning (bench constants, spec §6) ---- */
 #define CRUISE_US       150      /* bench-tuned 2026-08-02 on a 17HS4401 (small

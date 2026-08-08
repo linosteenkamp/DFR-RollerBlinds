@@ -104,7 +104,7 @@ mid-move.
 #define PIN_BTN_UP   22     /* D4 */
 #define PIN_BTN_DOWN 23     /* D5 */
 #define PIN_BTN_FN   16     /* D6 */
-#define PIN_LED_EXT  2      /* D2 — sole indicator; no onboard mirror on XIAO */
+#define PIN_LED_EXT  21     /* D3 — sole indicator; no onboard mirror on XIAO */
 
 /* ---- motion tuning (bench constants, spec §6) ---- */
 #define CRUISE_US       100      /* 10 kHz at 1/8 µstep: ~2.4 s per output rev */
