@@ -29,7 +29,7 @@ as settled until measured.
 | 3D-printed geartrain (`Blinds 2.step`) | 1:15 reduction to the roller tube |
 | Mean Well 24 V DC PSU — **recommend LRS-50-24** (LRS-35-24 acceptable) for a single unit | System supply. See [Multi-unit installations](#multi-unit-installations-shared-psu) for sharing one PSU across several controllers. |
 | Mean Well **LRS-150-24** (24 V, 6.5 A, ~156 W) — *optional, in place of the LRS-50-24 above* | Single shared supply for **3 blind controllers** on one PSU instead of one PSU per unit. See [Multi-unit installations](#multi-unit-installations-shared-psu) for sizing rationale and distribution wiring. |
-| Step-down regulator 5 V / 3.2 A (VIN 5.3–50 V) | 24 V → 5 V for the XIAO |
+| Step-down buck regulator, 24 V → 5 V for the XIAO | Current builds use a **Mini560 Pro**. Rev 1 used a **Pololu** 5 V/2.5 A (VIN 6–38 V). Either works functionally; the Pololu idles considerably more efficiently — see [Idle power draw](#idle-power-draw). |
 | Membrane keypad: 2 arrow keys + function key | Local controls + calibration UX |
 | External status LED (enclosure face) | State annunciator. This revision drops the onboard-LED mirror entirely — the external LED is the only status indicator (frees a GPIO on the XIAO's smaller header; see [GPIO summary](#gpio-summary-srcmainc)). |
 | Multimeter | Required — for Vref, VMOT, and 3V3-rail checks below. Don't skip these. |
@@ -88,6 +88,44 @@ stage is independently testable before moving to the next:
   resulting inductive spike is one of the most common ways to kill a
   stepper driver. Power down VM (or the whole 24 V rail) first.
 
+### Idle power draw
+
+Measured on the 24 V rail, device idle (calibrated, joined, not moving):
+
+| Build | Idle draw | Power |
+|---|---|---|
+| Rev 1 — FireBeetle 2 + DRV8825 + Pololu buck | ~8 mA | ~0.19 W |
+| Rev 2 — XIAO + TMC2209 + Mini560 Pro buck | ~25 mA | ~0.6 W |
+
+Roughly 3× more, **accepted as a non-issue** — these units are mains-powered,
+and ~0.4 W per unit is around 3.5 kWh/year, under 2 W across three units.
+Recorded because the number is useful for PSU sizing and because the cause is
+worth knowing if a future revision ever runs on anything but mains.
+
+**Three things changed at once**, so the increase isn't attributable yet:
+the MCU board, the stepper driver, and the buck regulator.
+
+Best guess is the **buck**, not the driver. Low quiescent current is a headline
+feature of Pololu's regulators, and several of that family use a power-save
+mode at light load. Mini560-class modules are cheap synchronous bucks optimised
+for delivering current, not for idling: they commonly carry an always-on power
+LED, and run fixed-frequency PWM with no light-load burst mode. At a couple of
+hundred mW of actual load, a regulator with ~10 mA of its own 24 V quiescent
+burns more than the circuit it feeds — which is exactly the regime where these
+parts diverge far more than their rated-load efficiency curves suggest.
+
+The TMC2209 is a plausible secondary contributor: it keeps an internal
+oscillator, charge pump and `VCC_IO`-powered digital core alive whenever VM is
+present, since `EN̅` disables the *output stage*, not the chip. It also has no
+standalone sleep pin, unlike the DRV8825's `SLEEP̅`.
+
+**To attribute it properly** (pending — no Pololu in stock as of 2026-08-08),
+measure the 24 V rail three times, adding one thing each step: buck alone with
+nothing on its output, then buck + XIAO with driver VM disconnected, then
+everything. If the buck alone accounts for most of the delta, look for a power
+LED on the module before replacing it — usually a resistor or trace that can be
+lifted for a few mA back.
+
 ## Multi-unit installations (shared PSU)
 
 Several controllers can share one larger 24 V supply instead of one PSU per
@@ -101,8 +139,10 @@ Anchor point: the single-unit recommendation (LRS-50-24, 35–50 W) already
 has generous margin for one axis's real draw. Two things dominate that
 draw, and both stay small:
 
-- **Idle:** the TMC2209 is disabled (`EN̅` high) between moves, so idle draw
-  per axis is near-zero — just ESP32-C6 + driver quiescent current.
+- **Idle:** the TMC2209's output stage is disabled (`EN̅` high) between moves,
+  so idle draw per axis is small — **measured ~25 mA at 24 V (~0.6 W)** on rev 2
+  (see [Idle power draw](#idle-power-draw)). Three units idling is under 2 W,
+  nowhere near the supply's rating.
 - **Moving:** the TMC2209's current limit caps the motor at ~1.2 A/phase,
   but because the driver chops the 24 V bus down to whatever the coil
   actually needs, the **bus-side** current at our modest cruise speed
