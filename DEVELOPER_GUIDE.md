@@ -10,7 +10,7 @@ membrane keypad for local control and calibration, and over-the-air firmware
 updates.
 
 This project consumes the shared `esp-zb-common` library (pinned to
-**v0.1.1**), extracted from `../DFR-DoorSensor`'s proven Zigbee/OTA code:
+**v0.2.0**), extracted from `../DFR-DoorSensor`'s proven Zigbee/OTA code:
 `zb_core` (stack init, join, endpoint/cluster registration via an
 app-supplied builder callback) and `ota_client` (OTA download + rollback
 self-check). See [CLAUDE.md](CLAUDE.md) for the full module table and
@@ -101,6 +101,7 @@ no jogging changes nothing.
 | Three quick flashes | Ack: mark accepted / direction toggled |
 | Five rapid flashes | Error: mark rejected |
 | Steady rapid blink | Zigbee Identify (0x0003) active |
+| 2 s on, 1 s off | Not joined to a Zigbee network (steering) |
 
 ## Re-home after power loss
 
@@ -190,6 +191,29 @@ toward ~275 RPM before assuming it needs to go slower.
 None of the four settings showed any sign of strain, so this is a comfort
 question rather than a torque one on this blind.
 
+## Recovering a device that has lost the network
+
+A device removed from zigbee2mqtt now clears its Zigbee state and steers for
+a network again by itself, retrying with backoff from 1 s to 60 s
+indefinitely. It rejoins on its own the next time permit-join is open — no
+power cycle, no USB. The LED shows **2 s on, 1 s off** while it is searching.
+
+If it does not come back — most likely because it never received the leave
+frame — hold **all three keys for 5 seconds**. That erases the device's
+Zigbee state and restarts it, so it comes up factory-new and steers.
+
+**Calibration, position and `travel_time` all survive**: they live in the
+`nvs` partition, and the reset erases only `zb_storage`. The device rejoins
+already knowing where its blind is.
+
+The gesture deliberately suppresses the other long-press gestures while all
+three keys are held. In particular the Up+Down reverse chord — which wipes
+calibration — cannot fire on the way to the 5-second mark.
+
+**Known limitation:** a device that misses its leave *and* cannot be reached
+at the keypad is still stuck. Detecting that the coordinator is ignoring us
+is out of scope here and needs its own design.
+
 ## Bench verification checklist
 
 On-hardware checklist (also the source of Task 13 in the implementation
@@ -272,7 +296,7 @@ The workflow then:
 1. Checks out this repo at **the pushed tag** (`ref: ${{ github.ref }}`, so it
    builds whatever commit you tagged — not necessarily `main`) and
    `linosteenkamp/esp-zb-common` at
-   `v0.1.1` (for its `tools/`). `esp-zb-common` is **public**, so no token
+   `v0.2.0` (for its `tools/`). `esp-zb-common` is **public**, so no token
    is needed for this checkout or for the component-manager clone `pio run`
    does during the build. (Earlier revisions used a `ZB_COMMON_PAT`
    fine-grained PAT while that repo was private; it repeatedly failed with

@@ -3,16 +3,23 @@
  * @brief Pure gesture classifier. Semantics (CONTEXT.md):
  *        - Tap: press+release < hold_ms.
  *        - Hold (jog): Up/Down held >= hold_ms -> HOLD_START, release -> HOLD_END.
- *        - Fn long-press >= long_ms -> FN_LONG (Fn never jogs).
+ *        - Fn long-press >= long_ms -> FN_LONG (Fn never jogs). Suppressed
+ *          while Up or Down is down.
  *        - Up+Down both held >= long_ms (from the second press) -> CHORD_REVERSE.
+ *          Suppressed while Fn is down.
  *          A chord attempt (both down together) suppresses the individual keys'
  *          TAP/HOLD events entirely, fired or not — fat-finger safety.
+ *        - All three held >= reset_ms (from the third press) -> FACTORY_RESET,
+ *          and every other gesture is suppressed while latched. Without that
+ *          suppression CHORD_REVERSE fires at long_ms and wipes the
+ *          calibration before the reset is ever reached.
  */
 #include "keypad_logic.h"
 
-void kp_init(kp_state_t *s, uint32_t hold_ms, uint32_t long_ms)
+void kp_init(kp_state_t *s, uint32_t hold_ms, uint32_t long_ms, uint32_t reset_ms)
 {
-    *s = (kp_state_t){ .hold_ms = hold_ms, .long_ms = long_ms };
+    *s = (kp_state_t){ .hold_ms = hold_ms, .long_ms = long_ms,
+                       .reset_ms = reset_ms };
 }
 
 static kp_event_t evt(kp_event_type_t t, key_id_t k)
@@ -29,6 +36,11 @@ kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_
         s->t_press[key] = now_ms;
         s->holding[key] = false;
         if (key == KEY_FN) s->long_fired = false;
+        if (s->down[KEY_UP] && s->down[KEY_DOWN] && s->down[KEY_FN]) {
+            s->in_reset    = true;
+            s->reset_fired = false;
+            s->t_reset     = now_ms;   /* timed from the press completing the trio */
+        }
         if ((key == KEY_UP || key == KEY_DOWN) &&
             s->down[KEY_UP] && s->down[KEY_DOWN] && !s->in_chord) {
             s->in_chord    = true;   /* latch: suppress both keys until released */
@@ -51,6 +63,13 @@ kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_
     s->down[key] = false;
     if (!was_down) return evt(KP_EVT_NONE, key);
 
+    if (s->in_reset) {
+        if (!s->down[KEY_UP] && !s->down[KEY_DOWN] && !s->down[KEY_FN]) {
+            s->in_reset = false;
+            s->in_chord = false;   /* the chord latch clears with it */
+        }
+        return evt(KP_EVT_NONE, key);   /* reset attempt suppresses everything */
+    }
     if (s->in_chord && (key == KEY_UP || key == KEY_DOWN)) {
         if (!s->down[KEY_UP] && !s->down[KEY_DOWN]) {
             s->in_chord = false;     /* both released: chord attempt over */
@@ -81,16 +100,33 @@ kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_
 
 kp_event_t kp_on_tick(kp_state_t *s, uint32_t now_ms)
 {
+    /* All three keys: the factory-reset gesture. Suppresses every other
+     * gesture while latched — CHORD_REVERSE in particular would wipe the
+     * calibration at long_ms, well before reset_ms. */
+    if (s->in_reset) {
+        if (!s->reset_fired &&
+            s->down[KEY_UP] && s->down[KEY_DOWN] && s->down[KEY_FN] &&
+            now_ms - s->t_reset >= s->reset_ms) {
+            s->reset_fired = true;
+            return evt(KP_EVT_FACTORY_RESET, KEY_FN);
+        }
+        return evt(KP_EVT_NONE, KEY_FN);
+    }
+
     /* Fn is independent of the Up/Down chord — checked first so a chord
      * attempt can never starve FN_LONG */
     if (s->down[KEY_FN] && !s->long_fired &&
+        !s->down[KEY_UP] && !s->down[KEY_DOWN] &&
         now_ms - s->t_press[KEY_FN] >= s->long_ms) {
         s->long_fired = true;
         return evt(KP_EVT_FN_LONG, KEY_FN);
     }
 
     /* chord: suppresses Up/Down hold processing */
-    if (s->in_chord && !s->chord_fired &&
+    /* The Fn guard is unreachable today (in_reset returns above) and is kept
+     * as defence in depth: it is what stops CHORD_REVERSE wiping the
+     * calibration if the in_reset latch is ever refactored away. */
+    if (s->in_chord && !s->chord_fired && !s->down[KEY_FN] &&
         s->down[KEY_UP] && s->down[KEY_DOWN] &&
         now_ms - s->t_press[KEY_UP] >= s->long_ms) {
         s->chord_fired = true;

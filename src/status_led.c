@@ -35,6 +35,8 @@ static bool pattern_level(led_pattern_t p, int t)
                                                              * against an already-blinking LED */
         return t >= 4 && t < 14 && (t % 2) == 0;
 
+    case LED_NO_NETWORK: return t < 40;                    /* 2 s on, 1 s off */
+
     case LED_OFF:
     default:            return false;
     }

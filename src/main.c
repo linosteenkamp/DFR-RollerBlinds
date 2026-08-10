@@ -90,6 +90,8 @@ static void refresh_outputs(void)
         status_led_set(LED_CAL_MARK1);
     } else if (s_pos.cal == POS_CAL_WAIT_MARK2) {
         status_led_set(LED_CAL_MARK2);
+    } else if (!zb_core_is_joined()) {
+        status_led_set(LED_NO_NETWORK);
     } else {
         status_led_set(cal ? LED_OFF : LED_UNCAL);
     }
@@ -272,6 +274,20 @@ static void zb_goto_request(uint8_t pct)
 
 /* ---------- event dispatch ---------- */
 
+/* Zigbee stack context (lock held): enqueue only, never touch s_pos here. */
+static void zb_network_lost_cb(void)
+{
+    app_event_t ev = { .type = APP_EVT_ZB_NET_LOST };
+    xQueueSend(s_queue, &ev, 0);
+}
+
+/* Zigbee stack context (lock held): enqueue only. */
+static void zb_network_joined_cb(void)
+{
+    app_event_t ev = { .type = APP_EVT_ZB_NET_JOINED };
+    xQueueSend(s_queue, &ev, 0);
+}
+
 static void handle_keypad(kp_event_t e)
 {
     s_pending_valid = false;   /* any local input is the last writer (spec §7) */
@@ -295,6 +311,18 @@ static void handle_keypad(kp_event_t e)
         break;
     case KP_EVT_CHORD_REVERSE:
         toggle_reversed();
+        break;
+    case KP_EVT_FACTORY_RESET:
+        /* Never mid-move: the reset reboots, and rebooting with
+         * move_in_progress still set drops the device to Position Unknown,
+         * which costs a keypad Re-home at the blind. Same guard the other
+         * destructive gestures use — tap to stop first, then hold. */
+        if (motion_is_moving()) {
+            ESP_LOGW(TAG, "factory reset ignored: stop the blind first");
+            break;
+        }
+        ESP_LOGW(TAG, "keypad factory reset: erasing Zigbee state");
+        zb_core_factory_reset();   /* does not return */
         break;
     default:
         break;
@@ -329,6 +357,12 @@ static void dispatcher_task(void *pv)
             s_travel_secs = ev.secs;
             blind_store_save_travel_time(s_travel_secs);
             apply_travel_time();
+            break;
+        case APP_EVT_ZB_NET_LOST:
+            refresh_outputs();
+            break;
+        case APP_EVT_ZB_NET_JOINED:
+            refresh_outputs();
             break;
         case APP_EVT_MOTION_DONE: {
             esp_timer_stop(s_report_timer);
@@ -464,7 +498,11 @@ void app_main(void)
         },
         .build_clusters    = covering_build_clusters,
         .post_register     = covering_post_register,
-        .on_joined         = NULL,   /* initial attribute sync happens below */
+        .on_joined         = zb_network_joined_cb,   /* LED only; the initial
+                                                      * attribute sync still
+                                                      * happens after
+                                                      * zb_core_wait_ready below */
+        .on_network_lost   = zb_network_lost_cb,
         .action_handler    = covering_action_handler,
     };
     ESP_ERROR_CHECK(zb_core_init(&cfg));

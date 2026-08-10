@@ -16,6 +16,7 @@
 #define POLL_MS   20
 #define HOLD_MS   400
 #define LONG_MS   3000
+#define RESET_MS  5000
 
 static const char *TAG = "KEYPAD";
 
@@ -69,7 +70,7 @@ esp_err_t keypad_init(int gpio_up, int gpio_down, int gpio_fn, QueueHandle_t q)
     for (int k = 0; k < KEY_COUNT; k++) {
         debounce_init(&s_db[k], gpio_get_level(s_gpio[k]));
     }
-    kp_init(&s_kp, HOLD_MS, LONG_MS);
+    kp_init(&s_kp, HOLD_MS, LONG_MS, RESET_MS);
 
     static esp_timer_handle_t timer;
     const esp_timer_create_args_t targs = { .callback = poll_cb, .name = "keypad" };
