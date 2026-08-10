@@ -36,11 +36,10 @@ kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_
         s->t_press[key] = now_ms;
         s->holding[key] = false;
         if (key == KEY_FN) s->long_fired = false;
-        if (s->down[KEY_UP] && s->down[KEY_DOWN] && s->down[KEY_FN] &&
-            !s->in_reset) {
+        if (s->down[KEY_UP] && s->down[KEY_DOWN] && s->down[KEY_FN]) {
             s->in_reset    = true;
             s->reset_fired = false;
-            s->t_reset     = now_ms;   /* timed from the third press */
+            s->t_reset     = now_ms;   /* timed from the press completing the trio */
         }
         if ((key == KEY_UP || key == KEY_DOWN) &&
             s->down[KEY_UP] && s->down[KEY_DOWN] && !s->in_chord) {
@@ -124,6 +123,9 @@ kp_event_t kp_on_tick(kp_state_t *s, uint32_t now_ms)
     }
 
     /* chord: suppresses Up/Down hold processing */
+    /* The Fn guard is unreachable today (in_reset returns above) and is kept
+     * as defence in depth: it is what stops CHORD_REVERSE wiping the
+     * calibration if the in_reset latch is ever refactored away. */
     if (s->in_chord && !s->chord_fired && !s->down[KEY_FN] &&
         s->down[KEY_UP] && s->down[KEY_DOWN] &&
         now_ms - s->t_press[KEY_UP] >= s->long_ms) {

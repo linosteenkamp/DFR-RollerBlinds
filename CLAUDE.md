@@ -18,7 +18,7 @@ FireBeetle 2 + DRV8825; the swap kept 1/8 microstepping, so all step-count
 math and motion constants carried over unchanged.)
 
 **Library:** this is the first consumer of `esp-zb-common` (pinned to
-**v0.1.1** in `src/idf_component.yml`), the shared component extracted from
+**v0.2.0** in `src/idf_component.yml`), the shared component extracted from
 `../DFR-DoorSensor`'s proven Zigbee/OTA code. It supplies `zb_core` (stack
 init, BDB steering/join, endpoint/cluster registration via an app-supplied
 builder callback) and `ota_client` (Zigbee OTA download + rollback

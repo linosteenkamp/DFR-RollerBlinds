@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: linosteenkamp/esp-zb-common
-          ref: v0.1.1
+          ref: v0.2.0
           path: esp-zb-common
 
       - name: Derive version from tag

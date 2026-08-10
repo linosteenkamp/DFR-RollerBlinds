@@ -42,7 +42,7 @@ void kp_init(kp_state_t *s, uint32_t hold_ms, uint32_t long_ms, uint32_t reset_m
 kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_ms);
 
 /* Call periodically (~50 ms). Emits time-based events: HOLD_START, FN_LONG,
- * CHORD_REVERSE. Returns at most one event per call. */
+ * CHORD_REVERSE, FACTORY_RESET. Returns at most one event per call. */
 kp_event_t kp_on_tick(kp_state_t *s, uint32_t now_ms);
 
 #endif /* KEYPAD_LOGIC_H */

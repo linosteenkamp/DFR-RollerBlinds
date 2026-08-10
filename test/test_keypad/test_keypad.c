@@ -182,6 +182,20 @@ static void test_reset_gesture_rearms_after_full_release(void)
                       kp_on_tick(&s, 10020 + RESET + 10).type);
 }
 
+static void test_reset_timer_restarts_when_trio_recompletes(void)
+{
+    /* Releasing one key and re-pressing it must restart the 5 s window, not
+     * inherit the original timestamp — otherwise the gesture fires instantly. */
+    init();
+    kp_on_change(&s, KEY_FN, true, 0);
+    kp_on_change(&s, KEY_UP, true, 100);
+    kp_on_change(&s, KEY_DOWN, true, 200);
+    kp_on_change(&s, KEY_UP, false, 4000);          /* still latched */
+    kp_on_change(&s, KEY_UP, true, 4100);           /* trio re-completes */
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_tick(&s, 4100 + RESET - 10).type);
+    TEST_ASSERT_EQUAL(KP_EVT_FACTORY_RESET, kp_on_tick(&s, 4100 + RESET + 10).type);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -199,5 +213,6 @@ int main(void)
     RUN_TEST(test_all_three_released_early_emits_nothing);
     RUN_TEST(test_fn_long_suppressed_while_up_held);
     RUN_TEST(test_reset_gesture_rearms_after_full_release);
+    RUN_TEST(test_reset_timer_restarts_when_trio_recompletes);
     return UNITY_END();
 }

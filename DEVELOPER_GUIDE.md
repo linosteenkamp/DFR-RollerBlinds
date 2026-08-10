@@ -10,7 +10,7 @@ membrane keypad for local control and calibration, and over-the-air firmware
 updates.
 
 This project consumes the shared `esp-zb-common` library (pinned to
-**v0.1.1**), extracted from `../DFR-DoorSensor`'s proven Zigbee/OTA code:
+**v0.2.0**), extracted from `../DFR-DoorSensor`'s proven Zigbee/OTA code:
 `zb_core` (stack init, join, endpoint/cluster registration via an
 app-supplied builder callback) and `ota_client` (OTA download + rollback
 self-check). See [CLAUDE.md](CLAUDE.md) for the full module table and
@@ -296,7 +296,7 @@ The workflow then:
 1. Checks out this repo at **the pushed tag** (`ref: ${{ github.ref }}`, so it
    builds whatever commit you tagged — not necessarily `main`) and
    `linosteenkamp/esp-zb-common` at
-   `v0.1.1` (for its `tools/`). `esp-zb-common` is **public**, so no token
+   `v0.2.0` (for its `tools/`). `esp-zb-common` is **public**, so no token
    is needed for this checkout or for the component-manager clone `pio run`
    does during the build. (Earlier revisions used a `ZB_COMMON_PAT`
    fine-grained PAT while that repo was private; it repeatedly failed with
