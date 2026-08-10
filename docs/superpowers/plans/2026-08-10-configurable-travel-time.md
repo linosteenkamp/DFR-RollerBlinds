@@ -72,11 +72,15 @@ static void test_travel_time_clamps_to_max_cruise(void)
                              ramp_us_from_travel_time(400, SPAN_STEPS));
 }
 
-static void test_travel_time_on_exact_bound_is_not_clamped_away(void)
+static void test_travel_time_just_above_floor_passes_through(void)
 {
-    /* 18 s over this span is exactly RAMP_MIN_CRUISE_US. */
+    /* 18 s lands exactly on the floor, 19 s just above it. The second
+     * assertion is the one that carries weight: a value near the bound must
+     * come through the arithmetic unchanged rather than being flattened to
+     * the clamp, which asserting only the exact-bound case cannot show. */
     TEST_ASSERT_EQUAL_UINT32(RAMP_MIN_CRUISE_US,
                              ramp_us_from_travel_time(18, SPAN_STEPS));
+    TEST_ASSERT_EQUAL_UINT32(63, ramp_us_from_travel_time(19, SPAN_STEPS));
 }
 
 static void test_travel_time_without_span_returns_default(void)
@@ -118,7 +122,7 @@ Register them inside the existing `main()` runner alongside the current `RUN_TES
     RUN_TEST(test_travel_time_converts_to_cruise_interval);
     RUN_TEST(test_travel_time_clamps_to_min_cruise);
     RUN_TEST(test_travel_time_clamps_to_max_cruise);
-    RUN_TEST(test_travel_time_on_exact_bound_is_not_clamped_away);
+    RUN_TEST(test_travel_time_just_above_floor_passes_through);
     RUN_TEST(test_travel_time_without_span_returns_default);
     RUN_TEST(test_zero_travel_time_returns_default);
     RUN_TEST(test_cruise_interval_converts_back_to_travel_time);
@@ -730,7 +734,7 @@ Add the value that worked to the bench log in `DEVELOPER_GUIDE.md`, and commit.
 | Mid-move write applies next move | 4 (`PROF_MOVE` read at move start) |
 | Clamp-and-write-back, not reject | 4 (`apply_travel_time`), 5 (no optimistic state) |
 | `span_steps == 0` guard | 1 |
-| Host tests: nominal, both clamps, zero span, exact bound | 1 |
+| Host tests: nominal, both clamps, zero span, floor boundary | 1 |
 | On-device verification | 6 |
 
 No gaps.
