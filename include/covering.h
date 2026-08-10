@@ -27,6 +27,7 @@ void covering_set_motion_allowed(bool allowed);
 void covering_report_lift(uint8_t pct);
 void covering_set_operational(bool calibrated);   /* ConfigStatus bit0 */
 void covering_report_mode(bool reversed);         /* Mode attr bit0 */
+void covering_report_travel_time(uint16_t secs);  /* Velocity attr 0x0014 */
 
 #endif /* USE_ZIGBEE */
 #endif /* COVERING_H */

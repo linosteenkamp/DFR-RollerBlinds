@@ -15,6 +15,7 @@ typedef enum {
     APP_EVT_ZB_STOP,         /* Stop command */
     APP_EVT_ZB_GOTO,         /* .pct: GoToLiftPercentage */
     APP_EVT_ZB_SET_REVERSED, /* .on: Mode attr bit0 written from z2m */
+    APP_EVT_ZB_SET_SPEED,    /* .secs: Velocity attr (0x0014) written from z2m */
     APP_EVT_MOTION_DONE,     /* .steps final position, .completed reached target */
     APP_EVT_CAL_TIMEOUT,     /* 5-min calibration timeout */
     APP_EVT_REPORT_TICK,     /* 1 s live-position reporting tick during moves */
@@ -26,6 +27,7 @@ typedef struct {
     union {
         kp_event_t kp;
         uint8_t    pct;
+        uint16_t   secs;
         bool       on;
         struct { int32_t steps; bool completed; };
     };
