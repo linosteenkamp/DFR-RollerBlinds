@@ -70,6 +70,32 @@ const tzCalibrated = {
     },
 };
 
+const fzTravelTime = {
+    cluster: 'closuresWindowCovering',
+    type: ['attributeReport', 'readResponse'],
+    convert: (model, msg) => {
+        if (msg.data.velocityLift !== undefined) {
+            return {travel_time: msg.data.velocityLift};
+        }
+    },
+};
+
+const tzTravelTime = {
+    key: ['travel_time'],
+    convertSet: async (entity, key, value, meta) => {
+        await entity.write('closuresWindowCovering',
+                           {velocityLift: Math.round(Number(value))});
+        // Deliberately no optimistic state: the device clamps the request to
+        // what its motor can drive and reports the value it actually applied,
+        // so read it back rather than echoing what was asked for.
+        await entity.read('closuresWindowCovering', ['velocityLift']);
+        return {};
+    },
+    convertGet: async (entity, key, meta) => {
+        await entity.read('closuresWindowCovering', ['velocityLift']);
+    },
+};
+
 module.exports = [
     {
         zigbeeModel: ['DFR-RollerBlinds'],
@@ -82,13 +108,21 @@ module.exports = [
         extend: [
             m.windowCovering({controls: ['lift']}),
         ],
-        fromZigbee: [fzCalibrated, fzMotorReversed],
-        toZigbee: [tzMotorReversed, tzCalibrated],
+        fromZigbee: [fzCalibrated, fzMotorReversed, fzTravelTime],
+        toZigbee: [tzMotorReversed, tzCalibrated, tzTravelTime],
         exposes: [
             e.binary('calibrated', ea.STATE_GET, true, false)
                 .withDescription('Travel limits calibrated; motion commands are rejected until true'),
             e.binary('motor_reversed', ea.ALL, true, false)
                 .withDescription('Flip motor direction (install-time; wipes calibration)'),
+            e.numeric('travel_time', ea.ALL)
+                .withUnit('s')
+                .withValueMin(10).withValueMax(300)
+                .withDescription('Time for one full open/close travel. The ' +
+                    'device clamps this to what its motor can actually drive ' +
+                    'and reports back the value applied, so the field may ' +
+                    'settle higher than requested. Too low a value stalls the ' +
+                    'motor, which loses position and needs a keypad re-home.'),
         ],
         configure: async (device, coordinatorEndpoint) => {
             const ep = device.getEndpoint(1);
@@ -97,9 +131,12 @@ module.exports = [
             // reports for them (only lift is reportable, which the
             // windowCovering extend already configures). calibrated is
             // derived from the lift report instead (0xFF = uncalibrated);
-            // motor_reversed is read on demand via its refresh arrow.
+            // motor_reversed and travel_time are read on demand via their
+            // refresh arrows (velocityLift is also not reportable, same
+            // stack bug).
             await ep.read('closuresWindowCovering',
-                ['configStatus', 'windowCoveringMode', 'currentPositionLiftPercentage']);
+                ['configStatus', 'windowCoveringMode',
+                 'currentPositionLiftPercentage', 'velocityLift']);
         },
         ota: true,
     },
