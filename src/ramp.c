@@ -46,3 +46,20 @@ uint32_t ramp_interval_us(const ramp_plan_t *r, int32_t step_idx)
     int32_t i = (step_idx < from_end) ? step_idx : from_end;  /* mirror */
     return interval_at(r, i);
 }
+
+uint32_t ramp_us_from_travel_time(uint16_t secs, int32_t span_steps)
+{
+    if (secs == 0 || span_steps <= 0) return RAMP_DEFAULT_CRUISE_US;
+    uint64_t us = ((uint64_t)secs * 1000000ull) / (uint64_t)span_steps;
+    if (us < RAMP_MIN_CRUISE_US) return RAMP_MIN_CRUISE_US;
+    if (us > RAMP_MAX_CRUISE_US) return RAMP_MAX_CRUISE_US;
+    return (uint32_t)us;
+}
+
+uint16_t ramp_travel_time_from_us(uint32_t cruise_us, int32_t span_steps)
+{
+    if (span_steps <= 0) return 0;
+    uint64_t secs = ((uint64_t)cruise_us * (uint64_t)span_steps) / 1000000ull;
+    if (secs > 65535ull) return 65535;
+    return (uint16_t)secs;
+}
