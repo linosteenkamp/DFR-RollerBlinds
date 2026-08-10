@@ -139,8 +139,11 @@ static void test_travel_time_from_us_without_span_is_zero(void)
 
 static void test_travel_time_round_trip_does_not_lose_a_second(void)
 {
-    /* A span whose division is inexact: 55 s -> 149 us (truncated), which
-     * must still report back as 55, not 54. */
+    /* A span whose division is inexact both ways. 55 s wants 150.0003 us,
+     * truncated to 150; 150 us over this span is then 54.9999 s, which a
+     * truncating inverse would report as 54. Rounding is what keeps the
+     * round trip honest — and it matters because the operator docs say a
+     * value settling different from the request means the clamp was hit. */
     const int32_t span = 366666;
     uint32_t us = ramp_us_from_travel_time(55, span);
     TEST_ASSERT_EQUAL_UINT16(55, ramp_travel_time_from_us(us, span));
