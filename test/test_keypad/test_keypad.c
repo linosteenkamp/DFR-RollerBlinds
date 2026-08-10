@@ -6,10 +6,11 @@ void tearDown(void) {}
 
 #define HOLD 400
 #define LONG 3000
+#define RESET 5000
 
 static kp_state_t s;
 
-static void init(void) { kp_init(&s, HOLD, LONG); }
+static void init(void) { kp_init(&s, HOLD, LONG, RESET); }
 
 static void test_short_press_is_tap(void)
 {
@@ -119,14 +120,66 @@ static void test_fn_press_does_not_rearm_chord(void)
     TEST_ASSERT_TRUE(e.type != KP_EVT_CHORD_REVERSE);   /* no duplicate toggle */
 }
 
-static void test_fn_long_fires_during_chord(void)
+static void test_all_three_suppress_chord_and_fn_long(void)
+{
+    /* Replaces test_fn_long_fires_during_chord. Holding all three keys is now
+     * the factory-reset gesture, so neither the calibration long-press nor the
+     * reverse chord may fire on the way — CHORD_REVERSE would wipe the
+     * calibration before the 5 s reset ever lands. */
+    init();
+    kp_on_change(&s, KEY_FN, true, 0);
+    kp_on_change(&s, KEY_UP, true, 100);
+    kp_on_change(&s, KEY_DOWN, true, 200);
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_tick(&s, LONG + 10).type);
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_tick(&s, 200 + LONG + 10).type);
+}
+
+static void test_all_three_held_emits_factory_reset_once(void)
 {
     init();
     kp_on_change(&s, KEY_FN, true, 0);
     kp_on_change(&s, KEY_UP, true, 100);
-    kp_on_change(&s, KEY_DOWN, true, 200);   /* chord latch at 200 */
-    TEST_ASSERT_EQUAL(KP_EVT_FN_LONG, kp_on_tick(&s, LONG + 10).type);
-    TEST_ASSERT_EQUAL(KP_EVT_CHORD_REVERSE, kp_on_tick(&s, 200 + LONG + 10).type);
+    kp_on_change(&s, KEY_DOWN, true, 200);          /* third press at 200 */
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_tick(&s, 200 + RESET - 10).type);
+    TEST_ASSERT_EQUAL(KP_EVT_FACTORY_RESET, kp_on_tick(&s, 200 + RESET + 10).type);
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_tick(&s, 200 + RESET + 500).type);
+}
+
+static void test_all_three_released_early_emits_nothing(void)
+{
+    init();
+    kp_on_change(&s, KEY_FN, true, 0);
+    kp_on_change(&s, KEY_UP, true, 100);
+    kp_on_change(&s, KEY_DOWN, true, 200);
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_DOWN, false, 3000).type);
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_UP, false, 3050).type);
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_FN, false, 3100).type);
+}
+
+static void test_fn_long_suppressed_while_up_held(void)
+{
+    init();
+    kp_on_change(&s, KEY_UP, true, 0);
+    kp_on_change(&s, KEY_FN, true, 100);
+    TEST_ASSERT_EQUAL(KP_EVT_HOLD_START, kp_on_tick(&s, 500).type);   /* Up jogs */
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_tick(&s, 100 + LONG + 10).type);
+}
+
+static void test_reset_gesture_rearms_after_full_release(void)
+{
+    init();
+    kp_on_change(&s, KEY_FN, true, 0);
+    kp_on_change(&s, KEY_UP, true, 100);
+    kp_on_change(&s, KEY_DOWN, true, 200);
+    TEST_ASSERT_EQUAL(KP_EVT_FACTORY_RESET, kp_on_tick(&s, 200 + RESET + 10).type);
+    kp_on_change(&s, KEY_FN, false, 9000);
+    kp_on_change(&s, KEY_UP, false, 9010);
+    kp_on_change(&s, KEY_DOWN, false, 9020);
+    kp_on_change(&s, KEY_FN, true, 10000);
+    kp_on_change(&s, KEY_UP, true, 10010);
+    kp_on_change(&s, KEY_DOWN, true, 10020);
+    TEST_ASSERT_EQUAL(KP_EVT_FACTORY_RESET,
+                      kp_on_tick(&s, 10020 + RESET + 10).type);
 }
 
 int main(void)
@@ -141,6 +194,10 @@ int main(void)
     RUN_TEST(test_two_keys_without_long_hold_are_independent);
     RUN_TEST(test_chord_during_jog_ends_hold);
     RUN_TEST(test_fn_press_does_not_rearm_chord);
-    RUN_TEST(test_fn_long_fires_during_chord);
+    RUN_TEST(test_all_three_suppress_chord_and_fn_long);
+    RUN_TEST(test_all_three_held_emits_factory_reset_once);
+    RUN_TEST(test_all_three_released_early_emits_nothing);
+    RUN_TEST(test_fn_long_suppressed_while_up_held);
+    RUN_TEST(test_reset_gesture_rearms_after_full_release);
     return UNITY_END();
 }
