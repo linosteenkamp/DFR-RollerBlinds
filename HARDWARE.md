@@ -552,7 +552,13 @@ assumption to build on. Get a tuned figure for each, then decide between:
 - an NVS-backed runtime setting exposed through z2m (one firmware, one OTA
   image, per-unit tuning; most work).
 
-Don't add the configuration machinery before the second measurement exists.
+**Resolved 2026-08-10:** travel time is now a per-unit runtime setting written
+from z2m and persisted in NVS, so no fleet-wide compromise value is needed —
+see [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md#tuning-travel-time-from-z2m).
+`RAMP_DEFAULT_CRUISE_US` remains the fallback for a unit that has never been
+set. The trigger was not fleet variation but iteration cost: with units
+installed and unreachable by USB, every speed change had become an hour-long
+OTA cycle.
 
 **Before blaming speed, check Vref matches the fitted motor.** The bench stall
 above was measured with a 17HS4401 still set to the 2HS60's 1.69 V — i.e.

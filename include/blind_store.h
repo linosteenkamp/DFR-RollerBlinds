@@ -12,6 +12,7 @@ typedef struct {
     int32_t cur_steps;
     bool    motor_reversed;
     bool    move_in_progress;   /* set at move start, cleared on clean end */
+    uint16_t travel_secs;       /* full-travel time in seconds; 0 = never set */
 } blind_store_data_t;
 
 /* Open the namespace and load everything; missing keys become safe defaults
@@ -22,5 +23,6 @@ esp_err_t blind_store_save_span(bool span_valid, int32_t closed_steps);
 esp_err_t blind_store_save_position(bool pos_known, int32_t cur_steps);
 esp_err_t blind_store_save_motor_reversed(bool reversed);
 esp_err_t blind_store_set_move_flag(bool in_progress);
+esp_err_t blind_store_save_travel_time(uint16_t secs);
 
 #endif /* BLIND_STORE_H */

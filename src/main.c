@@ -20,6 +20,7 @@
 #include "keypad.h"
 #include "status_led.h"
 #include "covering.h"
+#include "ramp.h"
 
 static const char *TAG = "BLINDS";
 
@@ -44,13 +45,6 @@ static const char *TAG = "BLINDS";
 #define PIN_LED_EXT  21     /* D3 — sole indicator; no onboard mirror on XIAO */
 
 /* ---- motion tuning (bench constants, spec §6) ---- */
-#define CRUISE_US       150      /* bench-tuned 2026-08-02 on a 17HS4401 (small
-                                  * blind) at Vref 1.92 V: clean full travel both
-                                  * ways. 100 stalled, but only at the 2HS60's
-                                  * 1.69 V — i.e. under-driven, not too fast.
-                                  * The 2HS60 units are still unmeasured; if they
-                                  * need a different figure this constant is what
-                                  * has to become per-unit. See HARDWARE.md. */
 #define START_US        500      /* ~2 kHz first/last step */
 #define ACCEL_STEPS     800
 #define JOG_CRUISE_US   300      /* jog slower than travel but fast enough to
@@ -65,6 +59,7 @@ static const char *TAG = "BLINDS";
 static QueueHandle_t s_queue;
 static position_t    s_pos;
 static bool          s_reversed;
+static uint16_t      s_travel_secs;   /* requested full-travel time; 0 = unset */
 static bool          s_cal_mode;      /* position.cal != NONE mirror for clarity */
 static bool          s_identifying;   /* Zigbee Identify in progress */
 static bool          s_cal_moved;     /* blind was jogged inside calibration mode */
@@ -75,7 +70,10 @@ static int32_t       s_raw;           /* raw step counter (valid in cal mode too
 static esp_timer_handle_t s_cal_timer;
 static esp_timer_handle_t s_report_timer;
 
-static const motion_profile_t PROF_MOVE = { CRUISE_US, START_US, ACCEL_STEPS };
+/* Not const: cruise_us is set at boot from NVS and whenever the travel-time
+ * setting or the calibrated span changes. Read at move start, so a change
+ * mid-move applies to the NEXT move. */
+static motion_profile_t PROF_MOVE = { RAMP_DEFAULT_CRUISE_US, START_US, ACCEL_STEPS };
 static const motion_profile_t PROF_JOG  = { JOG_CRUISE_US, JOG_START_US, ACCEL_STEPS };
 
 /* ---------- helpers ---------- */
@@ -95,6 +93,36 @@ static void refresh_outputs(void)
     } else {
         status_led_set(cal ? LED_OFF : LED_UNCAL);
     }
+}
+
+/* Derive the cruise interval from the requested travel time and the current
+ * span (clamped). Touches PROF_MOVE only — safe to call at boot before the
+ * dispatcher task exists, and thereafter only from the dispatcher, which
+ * owns PROF_MOVE and s_pos. */
+static void recompute_cruise(void)
+{
+    PROF_MOVE.cruise_us = ramp_us_from_travel_time(s_travel_secs,
+                                                   s_pos.closed_steps);
+}
+
+/* The duration the current cruise interval actually produces. With no span
+ * there is nothing to clamp against, so the request stands unchanged;
+ * calibration will correct it. */
+static uint16_t achieved_travel_secs(void)
+{
+    return (s_pos.closed_steps > 0)
+        ? ramp_travel_time_from_us(PROF_MOVE.cruise_us, s_pos.closed_steps)
+        : s_travel_secs;
+}
+
+/* Dispatcher-only: recompute the cruise interval and tell z2m what was
+ * actually applied. Called on a z2m write and whenever the span changes
+ * (calibration, direction wipe) — the stored value is a duration, so its
+ * meaning moves with the span. */
+static void apply_travel_time(void)
+{
+    recompute_cruise();
+    covering_report_travel_time(achieved_travel_secs());
 }
 
 static int32_t hard_cap(void)
@@ -201,6 +229,7 @@ static void handle_mark(void)
             blind_store_save_span(s_pos.span_valid, s_pos.closed_steps);
             blind_store_save_position(s_pos.pos_known, s_pos.cur_steps);
             s_raw = s_pos.cur_steps;                     /* re-anchor raw frame */
+            apply_travel_time();   /* new span -> same duration, new interval */
         }
         status_led_flash(LED_ACK);
     } else {
@@ -223,6 +252,7 @@ static void toggle_reversed(void)
     s_raw = 0;
     covering_report_mode(s_reversed);
     status_led_flash(LED_ACK);
+    apply_travel_time();   /* span was wiped: fall back until recalibrated */
     refresh_outputs();
 }
 
@@ -294,6 +324,11 @@ static void dispatcher_task(void *pv)
             } else if (ev.on != s_reversed) {
                 toggle_reversed();
             }
+            break;
+        case APP_EVT_ZB_SET_SPEED:
+            s_travel_secs = ev.secs;
+            blind_store_save_travel_time(s_travel_secs);
+            apply_travel_time();
             break;
         case APP_EVT_MOTION_DONE: {
             esp_timer_stop(s_report_timer);
@@ -390,6 +425,12 @@ void app_main(void)
         ESP_LOGW(TAG, "unclean shutdown mid-move -> Position Unknown, re-home needed");
     }
     s_reversed = st.motor_reversed;
+    s_travel_secs = st.travel_secs;
+    /* Cruise speed must be correct before the dispatcher can serve a keypad
+     * tap — which is well before the Zigbee join (up to 60 s) completes — or
+     * a unit configured slower than the compile-time default would run a
+     * local tap at the (possibly stall-prone) default during that window. */
+    recompute_cruise();
     s_raw = s_pos.pos_known ? s_pos.cur_steps : 0;
 
     motion_pins_t pins = { .gpio_step = PIN_STEP, .gpio_dir = PIN_DIR, .gpio_en = PIN_EN };
@@ -438,6 +479,9 @@ void app_main(void)
         ESP_LOGI(TAG, "joined");
     }
     covering_report_mode(s_reversed);
+    /* Report only — the dispatcher task is live by now and owns PROF_MOVE /
+     * s_pos, so this must not mutate them. */
+    covering_report_travel_time(achieved_travel_secs());
     refresh_outputs();
 
     /* Confirm a pending-verify OTA image once the app is up (join not

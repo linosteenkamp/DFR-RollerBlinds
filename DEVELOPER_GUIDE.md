@@ -120,6 +120,30 @@ A clean power cycle (no move in progress) keeps full calibration — the
 geartrain prevents the blind moving by hand while unpowered, so the device
 boots trusting its last known position and taps work immediately.
 
+## Tuning travel time from z2m
+
+Full-travel time is a per-unit setting, not a compile-time constant. Set
+`travel_time` (seconds) on the device in z2m; it persists in NVS and survives
+OTA updates.
+
+The device clamps the request to what its motor can drive — the floor is
+`RAMP_MIN_CRUISE_US` (60 µs/step) — and **writes back the value it actually
+applied**, so the field settling higher than you asked for means you hit the
+clamp, not that the write failed.
+
+To find a blind's limit, step the value down until it stalls, then back off
+comfortably. Torque margin varies with temperature, supply sag, and how much
+fabric is wound on the roll, so a value that just works on a warm afternoon
+with a near-empty roll can stall on a cold morning with a full one.
+
+**A stall silently desyncs position** (step counting is open-loop) and
+recovery is a keypad re-home — physical access to the blind. Tune in steps,
+not leaps.
+
+A device that has never been set reports the duration implied by its
+compile-time default, so a freshly updated unit shows its existing speed
+rather than `0`.
+
 ## Bench verification checklist
 
 On-hardware checklist (also the source of Task 13 in the implementation

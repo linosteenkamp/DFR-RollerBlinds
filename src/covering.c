@@ -37,6 +37,12 @@ static uint8_t s_lift_pct   = POSITION_LIFT_UNKNOWN;
 static uint8_t s_cover_type = ESP_ZB_ZCL_ATTR_WINDOW_COVERING_TYPE_ROLLERSHADE;
 static uint8_t s_mode       = COVER_MODE_BASE;
 static uint8_t s_cfg_status = ESP_ZB_ZCL_ATTR_WINDOW_COVERING_CONFIG_ONLINE; /* not yet operational */
+/* Full-travel time in seconds, held in the standard Velocity attribute
+ * (0x0014). ZCL defines that attribute as a velocity; storing a duration in
+ * it is a deliberate reuse, consistent with how Mode and ConfigStatus are
+ * already used here, and avoids a manufacturer-specific attribute on a stack
+ * that has already produced two attribute-layer defects. */
+static uint16_t s_travel_secs = 0;
 
 void covering_set_queue(QueueHandle_t q) { s_queue = q; }
 void covering_set_motion_allowed(bool allowed) { s_motion_allowed = allowed; }
@@ -75,6 +81,13 @@ void covering_build_clusters(esp_zb_cluster_list_t *clusters)
         ESP_ZB_ZCL_ATTR_TYPE_U8,
         ESP_ZB_ZCL_ATTR_ACCESS_READ_ONLY | ESP_ZB_ZCL_ATTR_ACCESS_REPORTING,
         &s_lift_pct);
+    /* Travel time: u16, read+write, NO REPORTING flag — the reporting engine
+     * crash-loops on anything but lift. z2m reads this on demand. */
+    esp_zb_cluster_add_attr(attrs, ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING,
+        ESP_ZB_ZCL_ATTR_WINDOW_COVERING_VELOCITY_ID,
+        ESP_ZB_ZCL_ATTR_TYPE_U16,
+        ESP_ZB_ZCL_ATTR_ACCESS_READ_WRITE,
+        &s_travel_secs);
     esp_zb_cluster_list_add_window_covering_cluster(clusters, attrs,
         ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
 }
@@ -155,6 +168,13 @@ esp_err_t covering_action_handler(esp_zb_core_action_callback_id_t cb_id,
             post((app_event_t){ .type = APP_EVT_ZB_SET_REVERSED,
                                 .on = (mode & ESP_ZB_ZCL_ATTR_WINDOW_COVERING_TYPE_REVERSED_MOTOR_DIRECTION) != 0 });
         }
+        if (msg->info.cluster == ESP_ZB_ZCL_CLUSTER_ID_WINDOW_COVERING &&
+            msg->attribute.id == ESP_ZB_ZCL_ATTR_WINDOW_COVERING_VELOCITY_ID &&
+            msg->attribute.data.value) {
+            /* Enqueue only — the dispatcher owns clamping and persistence. */
+            post((app_event_t){ .type = APP_EVT_ZB_SET_SPEED,
+                                .secs = *(uint16_t *)msg->attribute.data.value });
+        }
         return ESP_OK;
     }
     default:
@@ -199,5 +219,11 @@ void covering_report_mode(bool reversed)
     s_mode = COVER_MODE_BASE |
              (reversed ? ESP_ZB_ZCL_ATTR_WINDOW_COVERING_TYPE_REVERSED_MOTOR_DIRECTION : 0);
     set_attr(ESP_ZB_ZCL_ATTR_WINDOW_COVERING_MODE_ID, &s_mode);
+}
+
+void covering_report_travel_time(uint16_t secs)
+{
+    s_travel_secs = secs;
+    set_attr(ESP_ZB_ZCL_ATTR_WINDOW_COVERING_VELOCITY_ID, &s_travel_secs);
 }
 #endif /* USE_ZIGBEE */

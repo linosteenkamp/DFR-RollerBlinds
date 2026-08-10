@@ -25,6 +25,13 @@ static int32_t get_i32(const char *key, int32_t dflt)
     return v;
 }
 
+static uint16_t get_u16(const char *key, uint16_t dflt)
+{
+    uint16_t v = dflt;
+    nvs_get_u16(s_nvs, key, &v);   /* NOT_FOUND leaves default */
+    return v;
+}
+
 esp_err_t blind_store_init(blind_store_data_t *out)
 {
     esp_err_t err = nvs_open("blind", NVS_READWRITE, &s_nvs);
@@ -39,6 +46,7 @@ esp_err_t blind_store_init(blind_store_data_t *out)
     out->cur_steps        = get_i32("pos", 0);
     out->motor_reversed   = get_u8_bool("rev", false);
     out->move_in_progress = get_u8_bool("moving", false);
+    out->travel_secs      = get_u16("spd", 0);
     return ESP_OK;
 }
 
@@ -77,6 +85,11 @@ esp_err_t blind_store_save_position(bool pos_known, int32_t cur_steps)
 esp_err_t blind_store_save_motor_reversed(bool reversed)
 {
     return commit2(nvs_set_u8(s_nvs, "rev", reversed ? 1 : 0), ESP_OK);
+}
+
+esp_err_t blind_store_save_travel_time(uint16_t secs)
+{
+    return commit2(nvs_set_u16(s_nvs, "spd", secs), ESP_OK);
 }
 
 esp_err_t blind_store_set_move_flag(bool in_progress)

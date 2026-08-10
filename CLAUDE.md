@@ -107,7 +107,6 @@ mid-move.
 #define PIN_LED_EXT  21     /* D3 — sole indicator; no onboard mirror on XIAO */
 
 /* ---- motion tuning (bench constants, spec §6) ---- */
-#define CRUISE_US       100      /* 10 kHz at 1/8 µstep: ~2.4 s per output rev */
 #define START_US        500      /* ~2 kHz first/last step */
 #define ACCEL_STEPS     800
 #define JOG_CRUISE_US   300      /* jog slower than travel, still crosses a full span */
@@ -118,6 +117,13 @@ mid-move.
 #define CAL_TIMEOUT_US  (10LL * 60 * 1000000)  /* must exceed a full-span jog */
 #define REPORT_PERIOD_US (1LL * 1000000)
 ```
+
+Cruise speed (the travel move, not the jog) is no longer a compile-time
+constant: it is a per-unit runtime setting written from z2m as a full-travel
+duration in seconds, persisted under NVS key `spd`, and converted to
+`PROF_MOVE.cruise_us` against the calibrated span (`ramp_us_from_travel_time()`
+in `src/ramp.c`). Default before any value is set is `RAMP_DEFAULT_CRUISE_US`
+(`include/ramp.h`).
 
 At 1/8 microstep (M0-M2 hard-wired) through the 1:15 reduction that is
 1600 microsteps/motor-rev, 24 000 microsteps/output-rev.
@@ -162,6 +168,7 @@ Namespace **`blind`** (`blind_store.c`), keys:
 | `pos_ok` | u8 bool | `pos_known` — `pos` is trustworthy |
 | `pos` | i32 | `cur_steps` — last known absolute position |
 | `rev` | u8 bool | `motor_reversed` |
+| `spd` | u16 | full-travel time in seconds; `0` = never set, use `RAMP_DEFAULT_CRUISE_US` |
 | `moving` | u8 bool | `move_in_progress` — set at move start, cleared on clean completion |
 
 ## OTA
