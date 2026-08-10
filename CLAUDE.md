@@ -162,6 +162,7 @@ Namespace **`blind`** (`blind_store.c`), keys:
 | `pos_ok` | u8 bool | `pos_known` — `pos` is trustworthy |
 | `pos` | i32 | `cur_steps` — last known absolute position |
 | `rev` | u8 bool | `motor_reversed` |
+| `spd` | u16 | full-travel time in seconds; `0` = never set, use `RAMP_DEFAULT_CRUISE_US` |
 | `moving` | u8 bool | `move_in_progress` — set at move start, cleared on clean completion |
 
 ## OTA
