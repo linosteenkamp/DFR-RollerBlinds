@@ -144,6 +144,52 @@ A device that has never been set reports the duration implied by its
 compile-time default, so a freshly updated unit shows its existing speed
 rather than `0`.
 
+### Set about 3 seconds below the time you actually want
+
+Measured on `lounge-blind-3` (17HS4401, span ≈ 345 000 steps) across four
+settings, timed from the 1 Hz position reports:
+
+| Set | Measured | Over |
+|---|---|---|
+| 30 | ~33 s | +3.3 |
+| 45 | ~49 s | +4.0 |
+| 53 | ~55 s | +2.0 |
+| 60 | ~63 s | +2.6 |
+
+The overhead is **constant in seconds, not a percentage** — about 3 s
+whatever you ask for, which is why it is ~11% at 30 s but only ~4% at 60 s.
+That is the signature of a fixed cost per step: roughly **9.6 µs**, of which
+`STEP_PULSE_US` (3 µs, a blocking delay in the ISR) is a third and ISR
+entry/exit plus reprogramming the GPTimer alarm accounts for the rest. It is
+paid ~345 000 times per travel.
+
+`ramp_us_from_travel_time()` deliberately does not compensate: the figure is
+board- and build-specific, and baking a magic constant into the conversion
+would be a guess dressed as precision. Subtract ~3 s by hand instead.
+
+### Noise is not monotonic with speed
+
+Also measured on that unit, by ear:
+
+| Set | ≈ motor RPM | Motor hum | Gearbox noise |
+|---|---|---|---|
+| 30 | ~415 | worst | highest |
+| **45** | **~275** | **lowest** | middle |
+| 53 | ~235 | ≈ 45 | lower |
+| 60 | ~205 | worse than 45 | lowest |
+
+Two independent sources pulling opposite ways: mechanical noise rises with
+speed, while motor hum has a **minimum around 250–275 RPM**. Below that the
+motor moves into a mid-band resonance; above it StealthChop2 — a voltage-mode
+chopper — progressively loses its grip on current as back-EMF rises.
+
+**So slowing down to quieten a humming blind can make it worse.** 60 s is
+slower than 53 s and noticeably noisier. If a unit hums, try speeding it up
+toward ~275 RPM before assuming it needs to go slower.
+
+None of the four settings showed any sign of strain, so this is a comfort
+question rather than a torque one on this blind.
+
 ## Bench verification checklist
 
 On-hardware checklist (also the source of Task 13 in the implementation
