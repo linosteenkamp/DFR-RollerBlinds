@@ -96,19 +96,33 @@ static void refresh_outputs(void)
 }
 
 /* Derive the cruise interval from the requested travel time and the current
- * span, clamp it, and tell z2m what was actually applied. Called at boot, on
- * a z2m write, and whenever the span changes (calibration, direction wipe) —
- * the stored value is a duration, so its meaning moves with the span. */
-static void apply_travel_time(void)
+ * span (clamped). Touches PROF_MOVE only — safe to call at boot before the
+ * dispatcher task exists, and thereafter only from the dispatcher, which
+ * owns PROF_MOVE and s_pos. */
+static void recompute_cruise(void)
 {
     PROF_MOVE.cruise_us = ramp_us_from_travel_time(s_travel_secs,
                                                    s_pos.closed_steps);
-    /* With no span there is nothing to clamp against, so echo the request
-     * back unchanged; calibration will correct it. */
-    uint16_t achieved = (s_pos.closed_steps > 0)
+}
+
+/* The duration the current cruise interval actually produces. With no span
+ * there is nothing to clamp against, so the request stands unchanged;
+ * calibration will correct it. */
+static uint16_t achieved_travel_secs(void)
+{
+    return (s_pos.closed_steps > 0)
         ? ramp_travel_time_from_us(PROF_MOVE.cruise_us, s_pos.closed_steps)
         : s_travel_secs;
-    covering_report_travel_time(achieved);
+}
+
+/* Dispatcher-only: recompute the cruise interval and tell z2m what was
+ * actually applied. Called on a z2m write and whenever the span changes
+ * (calibration, direction wipe) — the stored value is a duration, so its
+ * meaning moves with the span. */
+static void apply_travel_time(void)
+{
+    recompute_cruise();
+    covering_report_travel_time(achieved_travel_secs());
 }
 
 static int32_t hard_cap(void)
@@ -412,6 +426,11 @@ void app_main(void)
     }
     s_reversed = st.motor_reversed;
     s_travel_secs = st.travel_secs;
+    /* Cruise speed must be correct before the dispatcher can serve a keypad
+     * tap — which is well before the Zigbee join (up to 60 s) completes — or
+     * a unit configured slower than the compile-time default would run a
+     * local tap at the (possibly stall-prone) default during that window. */
+    recompute_cruise();
     s_raw = s_pos.pos_known ? s_pos.cur_steps : 0;
 
     motion_pins_t pins = { .gpio_step = PIN_STEP, .gpio_dir = PIN_DIR, .gpio_en = PIN_EN };
@@ -460,7 +479,9 @@ void app_main(void)
         ESP_LOGI(TAG, "joined");
     }
     covering_report_mode(s_reversed);
-    apply_travel_time();
+    /* Report only — the dispatcher task is live by now and owns PROF_MOVE /
+     * s_pos, so this must not mutate them. */
+    covering_report_travel_time(achieved_travel_secs());
     refresh_outputs();
 
     /* Confirm a pending-verify OTA image once the app is up (join not

@@ -59,7 +59,12 @@ uint32_t ramp_us_from_travel_time(uint16_t secs, int32_t span_steps)
 uint16_t ramp_travel_time_from_us(uint32_t cruise_us, int32_t span_steps)
 {
     if (span_steps <= 0) return 0;
-    uint64_t secs = ((uint64_t)cruise_us * (uint64_t)span_steps) / 1000000ull;
+    /* Round rather than truncate: ramp_us_from_travel_time already truncated
+     * once, and a second truncation here would report a value a full second
+     * below the request, which the operator-facing docs would have them read
+     * as a clamp that never happened. */
+    uint64_t secs = ((uint64_t)cruise_us * (uint64_t)span_steps + 500000ull)
+                    / 1000000ull;
     if (secs > 65535ull) return 65535;
     return (uint16_t)secs;
 }

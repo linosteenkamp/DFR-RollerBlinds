@@ -137,6 +137,15 @@ static void test_travel_time_from_us_without_span_is_zero(void)
     TEST_ASSERT_EQUAL_UINT16(0, ramp_travel_time_from_us(150, 0));
 }
 
+static void test_travel_time_round_trip_does_not_lose_a_second(void)
+{
+    /* A span whose division is inexact: 55 s -> 149 us (truncated), which
+     * must still report back as 55, not 54. */
+    const int32_t span = 366666;
+    uint32_t us = ramp_us_from_travel_time(55, span);
+    TEST_ASSERT_EQUAL_UINT16(55, ramp_travel_time_from_us(us, span));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -155,5 +164,6 @@ int main(void)
     RUN_TEST(test_cruise_interval_converts_back_to_travel_time);
     RUN_TEST(test_travel_time_round_trips);
     RUN_TEST(test_travel_time_from_us_without_span_is_zero);
+    RUN_TEST(test_travel_time_round_trip_does_not_lose_a_second);
     return UNITY_END();
 }
