@@ -11,6 +11,7 @@ typedef enum {
     LED_CAL_MARK2,      /* fast ~5 Hz blink: awaiting mark 2 (Closed) */
     LED_UNCAL,          /* double-flash every 3 s: uncalibrated / pos unknown */
     LED_IDENTIFY,       /* steady rapid blink: Zigbee Identify */
+    LED_NO_NETWORK,     /* 2 s on, 1 s off: not joined to a Zigbee network */
     LED_ACK,            /* transient: three quick flashes */
     LED_ERROR,          /* transient: five rapid flashes */
 } led_pattern_t;
