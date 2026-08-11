@@ -156,7 +156,7 @@ typedef enum {
     TRC_MOVE_NOOP,     /* a = target                b = s_raw        */
     TRC_MOVE_REFUSED,  /* a = esp_err_t             b = hard_cap     */
     TRC_MOVE_DONE,     /* a = steps                 b = completed    */
-    TRC_ZB_CMD,        /* a = app_event_type        b = pct          */
+    TRC_ZB_CMD,        /* a = pct           b = 1 if parked pending  */
     TRC_QUEUE_FULL,    /* a = dropped event type    b = —            */
 } trace_code_t;
 
