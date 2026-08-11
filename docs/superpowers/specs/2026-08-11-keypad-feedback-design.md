@@ -70,7 +70,7 @@ silent.
 
 | Where | Condition | Signal | Meaning |
 |---|---|---|---|
-| `start_move` no-op branch | `target == s_raw` | `LED_ACK` | already at that limit |
+| `start_move` no-op branch | `target == s_raw` (tap, jog, or z2m goto) | `LED_ACK` | already at that limit |
 | `start_move` error branch | `motion_start` refused | `LED_ERROR` | hard cap or busy |
 | `handle_mark`, the `if (!s_cal_mode) return;` path | Fn tapped outside Calibration Mode | `LED_ACK` | nothing to mark |
 | `handle_keypad`, `KP_EVT_TAP` on Up/Down | `!cal_dev` — needs a new `else` on the existing `if (cal_dev)` | `LED_ERROR` | lockout, needs calibration |
@@ -91,9 +91,13 @@ refusing, not shrugging. The persistent `LED_UNCAL` base pattern already says
 the device is uncalibrated; this makes the refusal legible at the moment of
 pressing.
 
-**`start_move` is shared with the Zigbee path**, so a z2m `goto` to the current
-position will also flash. Accepted: harmless, arguably useful, and separating
-them would mean plumbing caller identity through for no real benefit.
+**`start_move` is shared across taps, jogs, and the Zigbee path**, so a hold
+that jogs toward a limit already reached, or a z2m `goto` to the current
+position, will also flash. Accepted: harmless, arguably useful, and separating
+the callers would mean plumbing caller identity through for no real benefit.
+The jog case is the one that matters most in practice — holding Up at the
+open limit with no feedback was the actual reproduction that motivated this
+work.
 
 ### 2. The dead-zone threshold
 

@@ -320,7 +320,13 @@ static void handle_keypad(kp_event_t e)
         if (e.key == KEY_FN) { handle_mark(); break; }
         if (cal_dev) {                                       /* full travel */
             goto_pct(e.key == KEY_UP ? 0 : 100);
-        } else {
+        } else if (!s_cal_mode) {
+            /* Inside Calibration Mode, cal_dev is always false (position_calibrated
+             * requires cal == POS_CAL_NONE), so this branch would otherwise fire on
+             * every short Up/Down tap while lining up a mark. LED_ERROR there already
+             * means "mark rejected" (handle_mark) — firing it here too would read as
+             * a rejected mark and could send the operator jogging further the wrong
+             * way. Stay quiet; the lockout signal only applies outside the mode. */
             status_led_flash(LED_ERROR);   /* lockout: needs calibration */
         }
         break;

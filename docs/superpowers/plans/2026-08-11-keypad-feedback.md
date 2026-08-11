@@ -312,6 +312,12 @@ Requires an uncalibrated board — either a fresh one, or wipe calibration with
 the Up+Down chord (which sets `motor_reversed` and wipes the span).
 Expected: **five rapid flashes**, no motion.
 
+**Warning:** the Up+Down chord also toggles `motor_reversed`. If you use it
+here, toggle the chord back again before continuing to Step 5 onward, or the
+later "ordinary full travel" and calibration checks will run under a flipped
+direction sense. Using a fresh, never-calibrated board instead avoids this
+entirely.
+
 - [ ] **Step 5: Idle and calibrated, tap Fn**
 
 With the blind stopped and not in Calibration Mode, tap Fn.
@@ -333,9 +339,16 @@ Enter Calibration Mode (Fn long-press) and jog repeatedly with short holds.
 Expected: **no flashes**, and the `LED_CAL_MARK1` / `LED_CAL_MARK2` blink
 pattern continues uninterrupted throughout.
 
+Also, inside Calibration Mode, tap Up and Down **briefly** — well under
+400 ms, short enough to stay a tap rather than a hold. Expected: **no
+flashes** here either. A tap this short is a natural way to nudge a mark into
+position, and it must not be mistaken for the five-flash "mark rejected"
+signal that `handle_mark` uses for a genuinely too-close mark 2.
+
 This is the regression this change could plausibly introduce, and it would
 damage the workflow that is hardest to recover from. If flashes appear here,
-the guard placement in Task 2 Step 3 is wrong — stop and fix it.
+the guard placement in Task 2 Step 3 (for the jog case) or the `handle_keypad`
+lockout branch (for the tap case) is wrong — stop and fix it.
 
 - [ ] **Step 9: Merge**
 
