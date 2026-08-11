@@ -143,6 +143,7 @@ static void start_move(int32_t target, const motion_profile_t *prof)
 {
     if (target == s_raw) {
         TRACE(TRC_MOVE_NOOP, target, s_pos.closed_steps);
+        status_led_flash(LED_ACK);   /* heard you; already there */
         refresh_outputs();   /* already there — keep reports honest, no NVS churn */
         return;
     }
@@ -153,6 +154,7 @@ static void start_move(int32_t target, const motion_profile_t *prof)
     if (err != ESP_OK) {
         blind_store_set_move_flag(false);
         TRACE(TRC_MOVE_REFUSED, err, cap);
+        status_led_flash(LED_ERROR);   /* refusing — needs attention */
         ESP_LOGW(TAG, "move refused: %s", esp_err_to_name(err));
     } else {
         esp_timer_start_periodic(s_report_timer, REPORT_PERIOD_US);
@@ -226,7 +228,10 @@ static void enter_or_exit_cal(void)
 static void handle_mark(void)
 {
     if (motion_is_moving()) { motion_stop(); return; }   /* Fn tap = stop first */
-    if (!s_cal_mode) return;                             /* idle taps inert */
+    if (!s_cal_mode) {
+        status_led_flash(LED_ACK);   /* heard you; nothing to mark */
+        return;                                          /* idle taps inert */
+    }
     /* NOTE: s_raw stays one continuous frame through the whole calibration —
      * position_cal_mark stores mark 1's raw and computes the span as the
      * difference at mark 2, so the caller must NOT re-anchor between marks. */
@@ -313,7 +318,9 @@ static void handle_keypad(kp_event_t e)
         if (e.key == KEY_FN) { handle_mark(); break; }
         if (cal_dev) {                                       /* full travel */
             goto_pct(e.key == KEY_UP ? 0 : 100);
-        }                                                    /* uncal: inert */
+        } else {
+            status_led_flash(LED_ERROR);   /* lockout: needs calibration */
+        }
         break;
     case KP_EVT_HOLD_START:
         if (!motion_is_moving()) jog(e.key == KEY_UP);
