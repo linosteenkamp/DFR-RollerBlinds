@@ -61,6 +61,9 @@ static void test_push_past_depth_saturates_and_drops_oldest(void)
     TEST_ASSERT_EQUAL_INT32(5, trace_ring_at(&r, 0)->a);
     TEST_ASSERT_EQUAL_INT32(TRACE_DEPTH + 4,
                             trace_ring_at(&r, TRACE_DEPTH - 1)->a);
+    /* A full ring must still pass validation; an off-by-one in the bounds check
+     * would silently reject the most common real state after sustained logging. */
+    TEST_ASSERT_TRUE(trace_ring_valid(&r, MAGIC));
 }
 
 /* A wrapped ring must still read oldest-first, not from index 0. */
