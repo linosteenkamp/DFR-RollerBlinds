@@ -13,6 +13,7 @@
 #include "motion.h"
 
 #include "driver/gpio.h"
+#include "driver/gpio_filter.h"
 #include "esp_timer.h"
 #include "esp_log.h"
 
@@ -28,6 +29,37 @@ static int           s_gpio[KEY_COUNT];
 static key_filter_t  s_filt[KEY_COUNT];
 static kp_state_t    s_kp;
 static QueueHandle_t s_queue;
+
+/* Kill sub-microsecond coupled spikes in silicon before the integrator ever
+ * samples them. Opportunistic, not load-bearing: the integrator is the fix,
+ * and a device that cannot allocate a filter must still come up with working
+ * keys rather than fail init and leave the blind with no local control.
+ *
+ * The clock source is not the default on purpose. The C6 caps the window at
+ * 63 ticks, and GLITCH_FILTER_CLK_SRC_DEFAULT is PLL_F80M at 12.5 ns/tick —
+ * that caps the window at 787 ns and rejects anything longer outright. XTAL
+ * is 40 MHz / 25 ns per tick, so 1500 ns is 60 ticks: inside the limit, and
+ * a wider window than the default clock can express at all. */
+static void install_glitch_filters(void)
+{
+    for (int k = 0; k < KEY_COUNT; k++) {
+        gpio_flex_glitch_filter_config_t fcfg = {
+            .clk_src         = GLITCH_FILTER_CLK_SRC_XTAL,
+            .gpio_num        = (gpio_num_t)s_gpio[k],
+            .window_width_ns = 1500,
+            .window_thres_ns = 1500,
+        };
+        gpio_glitch_filter_handle_t h;
+        esp_err_t err = gpio_new_flex_glitch_filter(&fcfg, &h);
+        if (err == ESP_OK) {
+            err = gpio_glitch_filter_enable(h);
+        }
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "glitch filter on gpio %d unavailable (%s) — integrator still active",
+                     s_gpio[k], esp_err_to_name(err));
+        }
+    }
+}
 
 static void post_kp(kp_event_t e)
 {
@@ -73,6 +105,8 @@ esp_err_t keypad_init(int gpio_up, int gpio_down, int gpio_fn, QueueHandle_t q)
     };
     esp_err_t err = gpio_config(&io);
     if (err != ESP_OK) return err;
+
+    install_glitch_filters();
 
     for (int k = 0; k < KEY_COUNT; k++) {
         key_filter_init(&s_filt[k], FILTER_SAMPLES, gpio_get_level(s_gpio[k]));
