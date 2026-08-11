@@ -1,7 +1,7 @@
 # Diagnostic trace: a fault log that survives the reset
 
 **Date:** 2026-08-11
-**Status:** approved, not yet implemented
+**Status:** implemented and bench-verified 2026-08-11
 **Repos:** `DFR-RollerBlinds` only
 
 ## Problem
