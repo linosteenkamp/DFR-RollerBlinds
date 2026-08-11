@@ -3,6 +3,7 @@ set(SRCS
     "position.c"
     "ramp.c"
     "keypad_logic.c"
+    "key_filter.c"
     "keypad.c"
     "blind_store.c"
     "motion.c"

@@ -401,8 +401,17 @@ Membrane keypad          XIAO ESP32C6
 
 Common → GND; each key's line goes to its own GPIO configured with the
 internal pull-up, so the pin idles HIGH and reads LOW when pressed. Firmware
-debounce (via the `esp-zb-common` `debounce` module) handles switch bounce
-— no external resistors needed.
+debounce is now an integrator filter (`src/key_filter.c`) that requires a
+sustained level change before it registers an edge, replacing the
+`esp-zb-common` `debounce` module — which was a pure change detector that did
+no debouncing at all; a single noisy sample passed straight through as a
+full press-and-release. That gap is what let a keypad harness routed beside
+the stepper cable on an installed unit fake presses and run the blind end to
+end on its own. On an installed unit, the internal pull-up alone proved
+insufficient — external pull-ups and an RC filter are recommended even with
+the firmware fix in place, see
+[Keypad noise immunity](#keypad-noise-immunity-recommended-for-new-builds)
+below.
 
 **Identify the common pin before wiring**, don't assume it from the tail's
 position — membrane tail pinouts aren't consistent across suppliers, and the
@@ -432,6 +441,38 @@ calibrated, etc.) — see `DEVELOPER_GUIDE.md` for the full gesture reference.
 If a key produces no reaction at all, don't assume firmware first; the
 overwhelming likelihood, based on the first bring-up session, is wiring —
 go through the [Troubleshooting](#troubleshooting) keypad checklist.
+
+### Keypad noise immunity (recommended for new builds)
+
+An installed unit ran itself up and down six times in one night — a keypad
+harness routed beside the stepper cable coupled enough noise onto the
+high-impedance internal-pull-up lines to fake key presses. The firmware fix
+(the `key_filter` integrator above) closes the software half of that gap, but
+the internal pull-up alone still leaves the lines more susceptible to coupled
+noise than they need to be. The following hardware changes are recommended
+for new builds, in priority order:
+
+1. **External 4.7 kΩ pull-ups to 3V3 on all three key lines.** The biggest
+   single win: it drops the node impedance from ~45 kΩ (the internal pull-up
+   alone) to ~4.3 kΩ, roughly a 10× cut in coupled noise voltage for the same
+   coupled current.
+2. **RC low-pass at the MCU pin**: 1 kΩ in series from the connector, 100 nF
+   from pin to GND. τ ≈ 100 µs — invisible to a human press, fatal to coupled
+   spikes.
+3. **Route the keypad harness away from the motor cable.** Separate bundles;
+   cross at right angles where they must meet, rather than running parallel
+   alongside each other.
+4. **Twisted or shielded keypad cable**, with a ground return alongside the
+   signals, shield grounded at the MCU end only.
+5. **Move Fn off D6 in the next board revision.** The physical-layout pin map
+   puts the keypad on D4-D6 and the driver on D7-D9, landing Fn (D6/GPIO16)
+   immediately adjacent to `DIR` (D7/GPIO17), with `STEP` (D8) — switching at
+   kilohertz with fast edges — two pins over. That's a coupling path on the
+   board itself, not only in the harness. D0, D1, D2, and D10 are spare.
+
+See `docs/superpowers/specs/2026-08-11-keypad-debounce-design.md` for the
+full incident writeup and the residual-risk analysis of what's still
+accepted without these changes.
 
 ## LED wiring
 

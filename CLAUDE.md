@@ -39,7 +39,7 @@ pio run -e seeed_xiao_esp32c6_zigbee -t upload -t monitor
 # Bench build (identical; named env kept for sibling symmetry)
 pio run -e seeed_xiao_esp32c6_zigbee_test -t upload -t monitor
 
-# Host tests (position / ramp / keypad_logic — pure C, Unity)
+# Host tests (position / ramp / keypad_logic / key_filter — pure C, Unity)
 pio test -e native
 
 # Clean / erase flash (before re-provisioning in development)
@@ -57,7 +57,7 @@ pio run --target erase
    drops straight to Position Unknown.
 3. `motion_init()` — STEP/DIR/EN GPIOs (`EN̅` high = disabled at idle), GPTimer.
 4. `status_led_init()`, `keypad_init()` — LED pattern player, keypad GPIOs +
-   debounce → `APP_EVT_KEYPAD` events.
+   integrator debounce → `APP_EVT_KEYPAD` events.
 5. `zb_core_init()` (library) — Router bring-up; `covering_build_clusters` /
    `covering_post_register` register Basic / Identify / Window Covering / OTA.
 6. `dispatcher_task` is created and the stack task runs forever; everything
@@ -74,7 +74,8 @@ pio run --target erase
 | `motion` | `src/motion.c` | GPTimer ISR step generation, DIR/EN, step counter, done-events to queue | — |
 | `status_led` | `src/status_led.c` | LED pattern player (single external LED) | — |
 | `covering` | `src/covering.c` | Window Covering cluster build/report + action-handler → queue | — |
-| `keypad` | `src/keypad.c` | 20 ms poller (no ISR) + library debounce → feeds `keypad_logic`, events to queue | — |
+| `keypad` | `src/keypad.c` | 5 ms poller (no ISR) + `key_filter` integrator → feeds `keypad_logic`, events to queue | — |
+| `key_filter` | `src/key_filter.c` | Pure: integrator debounce — the output flips only after a full rail-to-rail traverse | `test/test_key_filter/` |
 | `main` | `src/main.c` | Wiring, GPIO map, constants, dispatcher task (gesture matrix + calibration flow) | — |
 | `app_event` | `include/app_event.h` | The one queue item type shared by keypad/covering/motion/main | — |
 | `ota_ids` / `fw_version` | `include/ota_ids.h`, `include/fw_version.h` | OTA identity (image type 0x0003) | — |
