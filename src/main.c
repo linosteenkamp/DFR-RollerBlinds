@@ -21,6 +21,8 @@
 #include "status_led.h"
 #include "covering.h"
 #include "ramp.h"
+#include "trace.h"
+#include "esp_system.h"   /* esp_reset_reason */
 
 static const char *TAG = "BLINDS";
 
@@ -140,13 +142,17 @@ static int32_t hard_cap(void)
 static void start_move(int32_t target, const motion_profile_t *prof)
 {
     if (target == s_raw) {
+        TRACE(TRC_MOVE_NOOP, target, s_raw);
         refresh_outputs();   /* already there — keep reports honest, no NVS churn */
         return;
     }
+    int32_t cap = hard_cap();          /* hoisted so a refusal can record it */
+    TRACE(TRC_MOVE_START, s_raw, target);
     blind_store_set_move_flag(true);
-    esp_err_t err = motion_start(s_raw, target, prof, hard_cap());
+    esp_err_t err = motion_start(s_raw, target, prof, cap);
     if (err != ESP_OK) {
         blind_store_set_move_flag(false);
+        TRACE(TRC_MOVE_REFUSED, err, cap);
         ESP_LOGW(TAG, "move refused: %s", esp_err_to_name(err));
     } else {
         esp_timer_start_periodic(s_report_timer, REPORT_PERIOD_US);
@@ -263,6 +269,7 @@ static void toggle_reversed(void)
 static void zb_goto_request(uint8_t pct)
 {
     if (!position_calibrated(&s_pos)) return;   /* lockout backstop */
+    TRACE(TRC_ZB_CMD, pct, motion_is_moving() ? 1 : 0);
     if (motion_is_moving()) {
         s_pending_pct   = pct;
         s_pending_valid = true;
@@ -290,6 +297,7 @@ static void zb_network_joined_cb(void)
 
 static void handle_keypad(kp_event_t e)
 {
+    TRACE(TRC_KEY_EVENT, e.type, e.key);
     s_pending_valid = false;   /* any local input is the last writer (spec §7) */
     bool cal_dev = position_calibrated(&s_pos);
     switch (e.type) {
@@ -365,6 +373,7 @@ static void dispatcher_task(void *pv)
             refresh_outputs();
             break;
         case APP_EVT_MOTION_DONE: {
+            TRACE(TRC_MOVE_DONE, ev.steps, ev.completed);
             esp_timer_stop(s_report_timer);
             s_raw = ev.steps;
             esp_err_t perr = ESP_OK;
@@ -438,6 +447,10 @@ static void dispatcher_task(void *pv)
 
 void app_main(void)
 {
+    trace_init();                              /* validate; clear only if cold */
+    trace_dump();                              /* history from BEFORE this reset */
+    TRACE(TRC_BOOT, esp_reset_reason(), 0);    /* then mark the new session */
+
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
