@@ -192,12 +192,19 @@ ESP-IDF 5.5.1.
 
 ```c
 gpio_flex_glitch_filter_config_t fcfg = {
-    .clk_src         = GLITCH_FILTER_CLK_SRC_DEFAULT,
+    .clk_src         = GLITCH_FILTER_CLK_SRC_XTAL,
     .gpio_num        = s_gpio[k],
-    .window_width_ns = 1000,
-    .window_thres_ns = 1000,
+    .window_width_ns = 1500,
+    .window_thres_ns = 1500,
 };
 ```
+
+**The clock source is not the default, deliberately.** The C6 caps the window
+at 63 ticks (`GPIO_LL_GLITCH_FILTER_MAX_WINDOW`), and
+`GLITCH_FILTER_CLK_SRC_DEFAULT` is PLL_F80M at 12.5 ns/tick, which caps the
+window at 787 ns and rejects anything longer with `ESP_ERR_INVALID_ARG`.
+XTAL runs at 40 MHz / 25 ns/tick, so 1500 ns is 60 ticks — inside the limit
+and a wider rejection window than the default clock can express at all.
 
 Real presses are milliseconds, so genuine input is unaffected.
 
