@@ -1,7 +1,7 @@
 # Keypad debounce: phantom taps run the blind end to end
 
 **Date:** 2026-08-11
-**Status:** approved, not yet implemented
+**Status:** implemented in v2.2.0; bench verification outstanding
 **Repos:** `DFR-RollerBlinds` only (no `esp-zb-common` change)
 
 ## Problem
