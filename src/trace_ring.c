@@ -1,7 +1,5 @@
 #include "trace_ring.h"
 
-#include <stddef.h>
-
 bool trace_ring_valid(const trace_ring_t *r, uint32_t magic)
 {
     /* Bookkeeping is checked as well as the magic: uninitialised RTC memory

@@ -2,6 +2,7 @@
 #define TRACE_RING_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #ifndef TRACE_DEPTH
