@@ -294,6 +294,14 @@ so this ships as **v2.2.0** and the installed blind takes both in one OTA.
 
 Not implemented here. Listed in priority order.
 
+> **Superseded — see `HARDWARE.md` "Keypad noise immunity" for the current
+> values.** The series resistor below is wrong: 1 kΩ against a ~4.6 kΩ
+> combined pull-up divides a pressed key up to ~0.59 V, against a 0.83 V
+> logic-low threshold, and worse at the strong end of the internal pull-up's
+> 10-80 kΩ spread. Use **220-470 Ω**. The pull-up may be 4.7 kΩ **or 5.1 kΩ**
+> — the difference is negligible. Kept here unedited as the record of what
+> was approved on 2026-08-11.
+
 1. **External pull-ups, 4.7 kΩ to 3V3** on all three keypad lines. The
    biggest single win: ~45 kΩ → ~4.3 kΩ at the node, roughly a 10× cut in
    coupled noise voltage.

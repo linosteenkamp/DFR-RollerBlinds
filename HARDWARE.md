@@ -452,13 +452,45 @@ the internal pull-up alone still leaves the lines more susceptible to coupled
 noise than they need to be. The following hardware changes are recommended
 for new builds, in priority order:
 
-1. **External 4.7 kΩ pull-ups to 3V3 on all three key lines.** The biggest
-   single win: it drops the node impedance from ~45 kΩ (the internal pull-up
-   alone) to ~4.3 kΩ, roughly a 10× cut in coupled noise voltage for the same
-   coupled current.
-2. **RC low-pass at the MCU pin**: 1 kΩ in series from the connector, 100 nF
-   from pin to GND. τ ≈ 100 µs — invisible to a human press, fatal to coupled
-   spikes.
+1. **External pull-ups to 3V3 on all three key lines, 4.7 kΩ or 5.1 kΩ.** The
+   biggest single win: it drops the node impedance from ~45 kΩ (the internal
+   pull-up alone) to ~4.3-4.6 kΩ, roughly a 10× cut in coupled noise voltage
+   for the same coupled current. **Either value is fine** — 5.1 kΩ gives 9.8×
+   against 4.7 kΩ's 10.6×, a difference far inside the tolerance of cable
+   length and routing. Use whichever is in the drawer; do not order a part
+   for the sake of the nominal value.
+2. **RC low-pass at the MCU pin**: **220-470 Ω** in series from the connector,
+   100 nF from pin to GND.
+
+   **Do not use 1 kΩ here** (an earlier revision of this document did). With
+   a pull-up at the pin, the series resistor forms a divider when a key is
+   pressed, so the line never reaches 0 V:
+
+   ```
+   V_low = 3V3 × Rs / (Rs + Rpu_combined)
+   ```
+
+   The C6's guaranteed logic low is 0.25 × VDD ≈ 0.83 V. With Rs = 1 kΩ
+   against a combined pull-up of ~4.6 kΩ that yields 0.59 V — only ~0.24 V of
+   margin. Worse, the internal pull-up's spec spread is wide (commonly quoted
+   10-80 kΩ, not a tight 45 kΩ); at the strong end the combined value falls to
+   ~3.4 kΩ and V_low climbs to 0.75 V, close enough to the threshold that
+   temperature and supply drift matter. Rs = 220 Ω gives V_low ≈ 0.15 V and
+   ample margin.
+
+   Shrinking Rs costs nothing in filtering, because the low-pass corner is set
+   by the *pull-up* and the cap, not by Rs: 5.1 kΩ with 100 nF gives ~310 Hz
+   (τ ≈ 510 µs) either way — invisible to a human press, fatal to coupled
+   spikes. The series resistor's real job is pin protection and limiting
+   injected current, which 220 Ω does perfectly well.
+
+   **Once the external pull-ups are fitted**, also switch `keypad_init`'s
+   `gpio_config` from `GPIO_PULLUP_ENABLE` to `GPIO_PULLUP_DISABLE` in
+   `src/keypad.c`. The pull-up is then exactly the external resistor instead
+   of that resistor in parallel with an unknown 10-80 kΩ, which makes the
+   divider above deterministic. **Only after the resistors are physically
+   installed** — making this change on unmodified hardware leaves the key
+   lines floating.
 3. **Route the keypad harness away from the motor cable.** Separate bundles;
    cross at right angles where they must meet, rather than running parallel
    alongside each other.
