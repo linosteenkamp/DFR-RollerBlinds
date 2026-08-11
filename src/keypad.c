@@ -10,6 +10,7 @@
 #include "keypad_logic.h"
 #include "app_event.h"
 #include "key_filter.h"
+#include "trace.h"
 #include "motion.h"
 
 #include "driver/gpio.h"
@@ -81,6 +82,7 @@ static void post_kp(kp_event_t e)
     if (e.type == KP_EVT_NONE) return;
     app_event_t ev = { .type = APP_EVT_KEYPAD, .kp = e };
     if (xQueueSend(s_queue, &ev, 0) != pdTRUE) {
+        TRACE(TRC_QUEUE_FULL, e.type, 0);
         ESP_LOGE(TAG, "queue full, dropped kp event type=%d", e.type);
         if (e.type == KP_EVT_HOLD_END || e.type == KP_EVT_TAP) {
             /* a dropped stop-class event must not leave the motor running */

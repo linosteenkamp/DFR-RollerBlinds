@@ -5,6 +5,8 @@ set(SRCS
     "keypad_logic.c"
     "key_filter.c"
     "keypad.c"
+    "trace_ring.c"
+    "trace.c"
     "blind_store.c"
     "motion.c"
     "status_led.c"

@@ -39,7 +39,7 @@ pio run -e seeed_xiao_esp32c6_zigbee -t upload -t monitor
 # Bench build (identical; named env kept for sibling symmetry)
 pio run -e seeed_xiao_esp32c6_zigbee_test -t upload -t monitor
 
-# Host tests (position / ramp / keypad_logic / key_filter — pure C, Unity)
+# Host tests (position / ramp / keypad_logic / key_filter / trace_ring — pure C, Unity)
 pio test -e native
 
 # Clean / erase flash (before re-provisioning in development)
@@ -76,6 +76,8 @@ pio run --target erase
 | `covering` | `src/covering.c` | Window Covering cluster build/report + action-handler → queue | — |
 | `keypad` | `src/keypad.c` | 5 ms poller (no ISR) + `key_filter` integrator → feeds `keypad_logic`, events to queue | — |
 | `key_filter` | `src/key_filter.c` | Pure: integrator debounce — the output flips only after a full rail-to-rail traverse | `test/test_key_filter/` |
+| `trace_ring` | `src/trace_ring.c` | Pure: fixed-size ring of decision records | `test/test_trace_ring/` |
+| `trace` | `src/trace.c` | RTC_NOINIT storage + boot dump; survives resets, not power loss | — |
 | `main` | `src/main.c` | Wiring, GPIO map, constants, dispatcher task (gesture matrix + calibration flow) | — |
 | `app_event` | `include/app_event.h` | The one queue item type shared by keypad/covering/motion/main | — |
 | `ota_ids` / `fw_version` | `include/ota_ids.h`, `include/fw_version.h` | OTA identity (image type 0x0003) | — |
