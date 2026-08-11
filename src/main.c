@@ -69,6 +69,7 @@ static bool          s_cal_abort_pending; /* timeout hit mid-jog: abort on DONE 
 static bool          s_pending_valid; /* ZB target parked while a move decelerates */
 static uint8_t       s_pending_pct;
 static int32_t       s_raw;           /* raw step counter (valid in cal mode too) */
+static uint8_t       s_move_start_pct;  /* lift % when the current move began */
 static esp_timer_handle_t s_cal_timer;
 static esp_timer_handle_t s_report_timer;
 
@@ -148,6 +149,7 @@ static void start_move(int32_t target, const motion_profile_t *prof)
         return;
     }
     int32_t cap = hard_cap();          /* hoisted so a refusal can record it */
+    s_move_start_pct = position_lift_pct(&s_pos);
     TRACE(TRC_MOVE_START, s_raw, target);
     blind_store_set_move_flag(true);
     esp_err_t err = motion_start(s_raw, target, prof, cap);
@@ -409,6 +411,13 @@ static void dispatcher_task(void *pv)
             } else {
                 position_set_current(&s_pos, position_clamp(&s_pos, ev.steps));
                 perr = blind_store_save_position(s_pos.pos_known, s_pos.cur_steps);
+                /* Dead-zone feedback: a move too small to change the reported
+                 * lift % is invisible to the operator and to z2m alike, so it
+                 * is indistinguishable from a dead key unless we say so. */
+                if (position_calibrated(&s_pos) &&
+                    position_lift_pct(&s_pos) == s_move_start_pct) {
+                    status_led_flash(LED_ACK);
+                }
             }
             if (perr == ESP_OK) {
                 blind_store_set_move_flag(false);
