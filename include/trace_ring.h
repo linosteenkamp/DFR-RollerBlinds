@@ -13,7 +13,10 @@
 typedef struct {
     uint32_t t_ms;   /* uptime when recorded */
     uint16_t code;   /* trace_code_t, see trace.h */
-    uint16_t seq;    /* monotonic; a gap in the dump means the ring wrapped */
+    uint16_t seq;    /* monotonic; retained records are always contiguous, so
+                      * a gap can never appear in the dump. A wrap is signalled
+                      * instead by count == TRACE_DEPTH, or by a header whose
+                      * first record's seq is not 0. */
     int32_t  a, b;
 } trace_rec_t;
 

@@ -21,15 +21,20 @@ void trace_ring_reset(trace_ring_t *r, uint32_t magic)
 void trace_ring_push(trace_ring_t *r, uint32_t t_ms, uint16_t code,
                      int32_t a, int32_t b)
 {
-    trace_rec_t *rec = &r->rec[r->head];
+    /* r->head is untrusted the moment anything can TRACE() before trace_init()
+     * has validated (or reset) the ring — a panic handler is the obvious
+     * future caller. Mask rather than trust it. */
+    uint32_t h = r->head % TRACE_DEPTH;
+    trace_rec_t *rec = &r->rec[h];
     rec->t_ms = t_ms;
     rec->code = code;
     rec->seq  = r->seq++;
     rec->a    = a;
     rec->b    = b;
 
-    r->head = (r->head + 1) % TRACE_DEPTH;
+    r->head = (h + 1) % TRACE_DEPTH;
     if (r->count < TRACE_DEPTH) r->count++;
+    if (r->count > TRACE_DEPTH) r->count = TRACE_DEPTH;
 }
 
 uint32_t trace_ring_count(const trace_ring_t *r)

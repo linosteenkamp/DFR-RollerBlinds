@@ -142,7 +142,7 @@ static int32_t hard_cap(void)
 static void start_move(int32_t target, const motion_profile_t *prof)
 {
     if (target == s_raw) {
-        TRACE(TRC_MOVE_NOOP, target, s_raw);
+        TRACE(TRC_MOVE_NOOP, target, s_pos.closed_steps);
         refresh_outputs();   /* already there — keep reports honest, no NVS churn */
         return;
     }
@@ -269,8 +269,12 @@ static void toggle_reversed(void)
 static void zb_goto_request(uint8_t pct)
 {
     if (!position_calibrated(&s_pos)) return;   /* lockout backstop */
-    TRACE(TRC_ZB_CMD, pct, motion_is_moving() ? 1 : 0);
-    if (motion_is_moving()) {
+    bool moving = motion_is_moving();   /* one read: the ISR can clear it between
+                                          * the trace and the branch otherwise,
+                                          * making the record misreport which
+                                          * arm actually ran */
+    TRACE(TRC_ZB_CMD, pct, moving ? 1 : 0);
+    if (moving) {
         s_pending_pct   = pct;
         s_pending_valid = true;
         motion_stop();
@@ -297,9 +301,12 @@ static void zb_network_joined_cb(void)
 
 static void handle_keypad(kp_event_t e)
 {
-    TRACE(TRC_KEY_EVENT, e.type, e.key);
     s_pending_valid = false;   /* any local input is the last writer (spec §7) */
     bool cal_dev = position_calibrated(&s_pos);
+    /* Calibration state folded into the record (0x100 bit): a lockout
+     * early-return downstream is otherwise indistinguishable from a
+     * dispatcher that silently decided nothing. */
+    TRACE(TRC_KEY_EVENT, e.type, e.key | (cal_dev ? 0x100 : 0));
     switch (e.type) {
     case KP_EVT_TAP:
         if (motion_is_moving()) { motion_stop(); break; }   /* any tap stops */

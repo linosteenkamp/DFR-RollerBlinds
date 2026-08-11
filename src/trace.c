@@ -7,16 +7,24 @@
  */
 #include "trace.h"
 
+#include <stdio.h>
+
 #include "esp_attr.h"
 #include "esp_timer.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
+
+#if TRACE_ENABLED
 
 static const char *TAG = "TRACE";
 
-#define TRACE_MAGIC 0x54524331u   /* "TRC1" */
-
-#if TRACE_ENABLED
+/* XORed with the ring's own size so a layout change (a field added to
+ * trace_rec_t, trace_code_t renumbered) changes the magic too. Without this,
+ * a reflash — esptool resets the chip, it does not cut power — leaves the
+ * previous build's ring in place with a magic that still matches, and the
+ * first dump prints stale data as current. */
+#define TRACE_MAGIC (0x54524331u ^ (uint32_t)sizeof(trace_ring_t))
 
 RTC_NOINIT_ATTR static trace_ring_t s_ring;
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
@@ -32,7 +40,15 @@ static const char *code_name(uint16_t c)
     case TRC_MOVE_DONE:    return "MOVE_DONE";
     case TRC_ZB_CMD:       return "ZB_CMD";
     case TRC_QUEUE_FULL:   return "QUEUE_FULL";
-    default:               return "?";
+    default: {
+        /* Keep the number: an unrecognised code is the one clue that this
+         * dump is a stale-layout ring (see TRACE_MAGIC above) rather than a
+         * bug in this table. Single-threaded, boot-time-only caller, so a
+         * reused static buffer is safe. */
+        static char buf[16];
+        snprintf(buf, sizeof buf, "?%u", (unsigned)c);
+        return buf;
+    }
     }
 }
 
@@ -54,13 +70,15 @@ void trace_emit(uint16_t code, int32_t a, int32_t b)
 void trace_dump(void)
 {
     uint32_t n = trace_ring_count(&s_ring);
+    int reason = (int)esp_reset_reason();
     if (n == 0) {
-        ESP_LOGI(TAG, "no records");
+        ESP_LOGI(TAG, "no records (reset reason %d)", reason);
         return;
     }
-    ESP_LOGI(TAG, "%u records, seq %u..%u", (unsigned)n,
+    ESP_LOGI(TAG, "%u records, seq %u..%u, reset reason %d", (unsigned)n,
              (unsigned)trace_ring_at(&s_ring, 0)->seq,
-             (unsigned)trace_ring_at(&s_ring, n - 1)->seq);
+             (unsigned)trace_ring_at(&s_ring, n - 1)->seq,
+             reason);
     for (uint32_t i = 0; i < n; i++) {
         const trace_rec_t *r = trace_ring_at(&s_ring, i);
         ESP_LOGI(TAG, "[%9u] %-12s a=%ld b=%ld",

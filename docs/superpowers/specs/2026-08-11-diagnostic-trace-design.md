@@ -84,7 +84,7 @@ Considered and rejected:
 typedef struct {
     uint32_t t_ms;   /* uptime when recorded */
     uint16_t code;   /* trace_code_t */
-    uint16_t seq;    /* monotonic; makes ring wrap visible */
+    uint16_t seq;    /* monotonic; retained records are contiguous, never gapped */
     int32_t  a, b;   /* payload, meaning depends on code */
 } trace_rec_t;       /* 16 bytes */
 ```
@@ -254,7 +254,8 @@ New host suite `test/test_trace_ring/`, added to the `native` env's
 3. Pushes below depth → count rises, `at(0)` is oldest.
 4. Pushes past depth → count saturates at `TRACE_DEPTH`, oldest dropped,
    newest retained.
-5. `seq` monotonic across the wrap, so a gap is visible rather than silent.
+5. `seq` monotonic across the wrap. Retained records are always contiguous —
+   a gap can never appear — so this only confirms ordering, not wrap detection.
 6. Reset clears the count but preserves the magic.
 
 The four existing suites must pass unchanged.
@@ -269,8 +270,10 @@ confirm the boot dump shows the pre-reset `KEY_EVENT`.
 - **Lost on power removal.** RTC RAM is cleared when power is actually cut.
   For a soak, pair it with z2m's log: z2m survives power loss and shows *that*
   the blind moved; the trace shows *why*, and is lost if power drops.
-- **256 records.** Sustained activity wraps the ring; `seq` gaps make that
-  visible.
+- **256 records.** Sustained activity wraps the ring, silently dropping the
+  oldest records; retained records stay contiguous, so there is no `seq` gap
+  to notice. A wrap is visible instead as `count == TRACE_DEPTH`, or as a
+  header whose first record's `seq` is not 0.
 - **Uptime, not wall clock.** Correlating with z2m's wall-clock log means
   noting current uptime at read time and subtracting.
 - **Records decisions, not causes.** If an event never reaches the dispatcher,

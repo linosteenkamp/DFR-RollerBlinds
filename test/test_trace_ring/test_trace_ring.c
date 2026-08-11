@@ -18,12 +18,25 @@ static void test_uninitialised_ring_is_not_valid(void)
     TEST_ASSERT_FALSE(trace_ring_valid(&r, MAGIC));
 }
 
-/* Garbage that happens to collide with the magic must still be rejected
- * on its out-of-range bookkeeping. */
-static void test_right_magic_but_bogus_indices_is_not_valid(void)
+/* Garbage that happens to collide with the magic must still be rejected on
+ * its out-of-range bookkeeping. Split into two single-field cases rather
+ * than corrupting head and count together: an implementation that only
+ * bounds-checks one of the two would pass a combined test undetected. */
+static void test_valid_count_but_bogus_head_is_not_valid(void)
 {
     memset(&r, 0xA5, sizeof r);
     r.magic = MAGIC;
+    r.count = 3;                   /* in range */
+    r.head  = TRACE_DEPTH + 7;     /* out of range */
+    TEST_ASSERT_FALSE(trace_ring_valid(&r, MAGIC));
+}
+
+static void test_valid_head_but_bogus_count_is_not_valid(void)
+{
+    memset(&r, 0xA5, sizeof r);
+    r.magic = MAGIC;
+    r.head  = 3;                   /* in range */
+    r.count = TRACE_DEPTH + 7;     /* out of range */
     TEST_ASSERT_FALSE(trace_ring_valid(&r, MAGIC));
 }
 
@@ -105,7 +118,8 @@ int main(void)
 {
     UNITY_BEGIN();
     RUN_TEST(test_uninitialised_ring_is_not_valid);
-    RUN_TEST(test_right_magic_but_bogus_indices_is_not_valid);
+    RUN_TEST(test_valid_count_but_bogus_head_is_not_valid);
+    RUN_TEST(test_valid_head_but_bogus_count_is_not_valid);
     RUN_TEST(test_reset_makes_valid_and_empty);
     RUN_TEST(test_push_below_depth_orders_oldest_first);
     RUN_TEST(test_push_past_depth_saturates_and_drops_oldest);
