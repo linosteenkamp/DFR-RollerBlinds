@@ -57,7 +57,7 @@ pio run --target erase
    drops straight to Position Unknown.
 3. `motion_init()` — STEP/DIR/EN GPIOs (`EN̅` high = disabled at idle), GPTimer.
 4. `status_led_init()`, `keypad_init()` — LED pattern player, keypad GPIOs +
-   debounce → `APP_EVT_KEYPAD` events.
+   integrator debounce → `APP_EVT_KEYPAD` events.
 5. `zb_core_init()` (library) — Router bring-up; `covering_build_clusters` /
    `covering_post_register` register Basic / Identify / Window Covering / OTA.
 6. `dispatcher_task` is created and the stack task runs forever; everything

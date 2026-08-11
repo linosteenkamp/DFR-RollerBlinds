@@ -18,7 +18,9 @@
 #include "esp_log.h"
 
 #define POLL_MS        5
-#define FILTER_SAMPLES 12   /* 12 x 5 ms = 60 ms of settled level per edge */
+#define FILTER_SAMPLES 12   /* net 12-sample excess to flip: 60 ms if the level
+                               is cleanly settled, longer on a rattling line */
+_Static_assert(FILTER_SAMPLES > 0, "integrator needs a non-zero window");
 #define HOLD_MS   400
 #define LONG_MS   3000
 #define RESET_MS  5000
@@ -30,16 +32,24 @@ static key_filter_t  s_filt[KEY_COUNT];
 static kp_state_t    s_kp;
 static QueueHandle_t s_queue;
 
-/* Kill sub-microsecond coupled spikes in silicon before the integrator ever
- * samples them. Opportunistic, not load-bearing: the integrator is the fix,
- * and a device that cannot allocate a filter must still come up with working
+/* Kills sub-microsecond coupled spikes in silicon, but be honest about what
+ * that buys a 5 ms *polled* consumer: a spike well under the 1500 ns window
+ * has maybe a 0.03% chance of landing on the instant `poll_cb` happens to
+ * sample (1.5 us against a 5 ms period) even with no filter at all. The
+ * integrator is what actually rejects noise here; this is cheap insurance
+ * under it, not the reason the bug is fixed. Opportunistic, not load-bearing:
+ * a device that cannot allocate a filter must still come up with working
  * keys rather than fail init and leave the blind with no local control.
  *
  * The clock source is not the default on purpose. The C6 caps the window at
  * 63 ticks, and GLITCH_FILTER_CLK_SRC_DEFAULT is PLL_F80M at 12.5 ns/tick —
  * that caps the window at 787 ns and rejects anything longer outright. XTAL
  * is 40 MHz / 25 ns per tick, so 1500 ns is 60 ticks: inside the limit, and
- * a wider window than the default clock can express at all. */
+ * a wider window than the default clock can express at all. Side effect:
+ * gpio_new_flex_glitch_filter() switches the IO MUX clock source to XTAL
+ * process-wide (refcounted internally, no unwind on our side) — a future
+ * consumer elsewhere in the image that wants the default clock source back
+ * would get ESP_ERR_INVALID_STATE, not a silent fallback. */
 static void install_glitch_filters(void)
 {
     for (int k = 0; k < KEY_COUNT; k++) {
@@ -53,6 +63,11 @@ static void install_glitch_filters(void)
         esp_err_t err = gpio_new_flex_glitch_filter(&fcfg, &h);
         if (err == ESP_OK) {
             err = gpio_glitch_filter_enable(h);
+            if (err != ESP_OK) {
+                /* Created but wouldn't enable: don't orphan the channel, the
+                 * C6 only has SOC_GPIO_FLEX_GLITCH_FILTER_NUM (8) of them. */
+                gpio_del_glitch_filter(h);
+            }
         }
         if (err != ESP_OK) {
             ESP_LOGW(TAG, "glitch filter on gpio %d unavailable (%s) — integrator still active",

@@ -41,7 +41,7 @@ void kp_init(kp_state_t *s, uint32_t hold_ms, uint32_t long_ms, uint32_t reset_m
 /* Feed a debounced edge. Returns at most one event (KP_EVT_NONE otherwise). */
 kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_ms);
 
-/* Call periodically (~50 ms). Emits time-based events: HOLD_START, FN_LONG,
+/* Call periodically (~5 ms). Emits time-based events: HOLD_START, FN_LONG,
  * CHORD_REVERSE, FACTORY_RESET. Returns at most one event per call. */
 kp_event_t kp_on_tick(kp_state_t *s, uint32_t now_ms);
 

@@ -95,6 +95,25 @@ stop a move.
   observed failure is entirely single-glitch taps, and requiring a clean
   uninterrupted press for those gestures would add state to `keypad_logic.c`
   and new tests for a failure mode not yet seen.
+
+  The accepted exposure, made explicit — what a noise burst must sustain to
+  reach each outcome, all measured against the 12-sample/60 ms integrator:
+
+  | Outcome | What it takes | Effect |
+  |---|---|---|
+  | Phantom press | net-low ≥ 60 ms | harmless alone |
+  | TAP | the above, then net-high, total < 400 ms | full travel (idle only) |
+  | HOLD_START | net-low ≥ 460 ms on Up or Down | jog, clamped to the limits |
+  | FN_LONG | net-low ≥ 3060 ms on Fn alone | enters Calibration Mode |
+  | CHORD_REVERSE | net-low ≥ 3060 ms on Up AND Down | wipes calibration |
+  | FACTORY_RESET | net-low ≥ 5060 ms on all three | leaves the Zigbee network |
+
+  The accepted exposure is "≥3 s of sustained net-low on two or three
+  lines," not "no phantom gestures" — this design does not claim the latter.
+  Every destructive gesture is already guarded by `motion_is_moving()`
+  elsewhere in the firmware, so the noisiest phase (motor running, coupling
+  at its worst) can only ever produce a benign `motion_stop()`, not one of
+  the outcomes above.
 - **An input plausibility/rate layer.** Rejected as complexity without
   evidence.
 - **Changing the gesture matrix or its semantics.** A tap remains a full
