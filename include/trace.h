@@ -54,7 +54,7 @@ typedef enum {
     /* Proof the 5 ms poller is still running, and what it sees. Without it,
      * "poller stopped", "line never moved" and "gesture suppressed" are the
      * same silence in a dump.
-     *   a = polls since the last heartbeat (12000 at a healthy 5 ms/60 s)
+     *   a = polls since the last heartbeat (180000 at a healthy 5 ms/15 min)
      *   b = bit0/1/2 raw GPIO level, bit4/5/6 debounced level, per key       */
     TRC_KEY_ALIVE,
 } trace_code_t;
