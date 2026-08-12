@@ -196,6 +196,61 @@ static void test_reset_timer_restarts_when_trio_recompletes(void)
     TEST_ASSERT_EQUAL(KP_EVT_FACTORY_RESET, kp_on_tick(&s, 4100 + RESET + 10).type);
 }
 
+/* ---- the "works only on the second click" signature ------------------- *
+ *
+ * Characterisation, not a desired behaviour: the release that CLEARS the
+ * in_reset latch is itself suppressed by the same early return that cleared
+ * it, so the first complete press after a three-key gesture is swallowed and
+ * only the second does anything. Reported from the bench 2026-08-12 as "the
+ * function key seems to be effective only second click".
+ */
+static void test_the_release_that_clears_in_reset_is_itself_suppressed(void)
+{
+    init();
+    kp_on_change(&s, KEY_UP,   true, 1000);
+    kp_on_change(&s, KEY_DOWN, true, 1010);
+    kp_on_change(&s, KEY_FN,   true, 1020);
+    TEST_ASSERT_TRUE(s.in_reset);
+
+    kp_on_change(&s, KEY_UP,   false, 1100);
+    kp_on_change(&s, KEY_DOWN, false, 1110);
+    /* The release completing the set clears the latch and is swallowed by the
+     * same early return. Whichever key the operator lets go of last, that
+     * press produced nothing — one click spent on recovery. */
+    TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_FN, false, 1120).type);
+    TEST_ASSERT_FALSE(s.in_reset);
+
+    /* and only the next press does anything */
+    kp_on_change(&s, KEY_FN, true, 2000);
+    TEST_ASSERT_EQUAL(KP_EVT_TAP, kp_on_change(&s, KEY_FN, false, 2100).type);
+}
+
+/* The failure that makes it permanent rather than a one-off: if ONE release
+ * never arrives — swallowed by the filter, or lost — down[] never returns to
+ * all-false, in_reset never clears, and every key stays dead until reboot.
+ * This is the stuck-keypad candidate, and the reason keypad.c now traces the
+ * latch flags: no other record can see this state. */
+static void test_a_missed_release_latches_in_reset_forever(void)
+{
+    init();
+    kp_on_change(&s, KEY_UP,   true, 1000);
+    kp_on_change(&s, KEY_DOWN, true, 1010);
+    kp_on_change(&s, KEY_FN,   true, 1020);
+    kp_on_change(&s, KEY_UP,   false, 1100);
+    kp_on_change(&s, KEY_FN,   false, 1120);
+    /* KEY_DOWN's release never arrives */
+
+    TEST_ASSERT_TRUE(s.in_reset);
+
+    /* every subsequent gesture on every key is silent, indefinitely */
+    for (uint32_t t = 2000; t < 60000; t += 1000) {
+        kp_on_change(&s, KEY_FN, true, t);
+        TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_change(&s, KEY_FN, false, t + 100).type);
+        TEST_ASSERT_EQUAL(KP_EVT_NONE, kp_on_tick(&s, t + 200).type);
+    }
+    TEST_ASSERT_TRUE(s.in_reset);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -214,5 +269,7 @@ int main(void)
     RUN_TEST(test_fn_long_suppressed_while_up_held);
     RUN_TEST(test_reset_gesture_rearms_after_full_release);
     RUN_TEST(test_reset_timer_restarts_when_trio_recompletes);
+    RUN_TEST(test_the_release_that_clears_in_reset_is_itself_suppressed);
+    RUN_TEST(test_a_missed_release_latches_in_reset_forever);
     return UNITY_END();
 }
