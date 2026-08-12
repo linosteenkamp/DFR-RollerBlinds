@@ -80,9 +80,12 @@ static void trace_latches(void)
                 (s_kp.down[KEY_FN]   ? 1 << 2 : 0) |
                 (s_kp.holding[KEY_UP]   ? 1 << 4 : 0) |
                 (s_kp.holding[KEY_DOWN] ? 1 << 5 : 0);
-    int32_t b = (s_kp.in_chord   ? 1 << 0 : 0) |
-                (s_kp.in_reset   ? 1 << 1 : 0) |
-                (s_kp.long_fired ? 1 << 2 : 0);
+    /* Bits 0 and 1 held in_chord and in_reset, the two suppression latches
+     * that could outlive their gesture and strand the keypad. They are gone,
+     * and the bit positions stay reserved so a dump written by older firmware
+     * still decodes: b=1 or b=3 in an old dump is the latch fault. */
+    int32_t b = (s_kp.long_fired ? 1 << 2 : 0) |
+                (s_kp.reset_fired ? 1 << 3 : 0);
 
     /* Only transitions: the flags are steady for whole seconds at a time, and
      * a record per poll would bury everything else 200 times a second. */

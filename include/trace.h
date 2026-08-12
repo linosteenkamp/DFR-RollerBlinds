@@ -44,7 +44,11 @@ typedef enum {
      * with a=0: a latch held with no key down, which is unrecoverable without
      * a reboot and kills every key.
      *   a = bit0/1/2  UP/DOWN/FN down, bit4/5 UP/DOWN holding
-     *   b = bit0 in_chord, bit1 in_reset, bit2 long_fired                    */
+     *   b = bit2 long_fired, bit3 reset_fired.
+     *       Bits 0 and 1 are RESERVED — they carried in_chord and in_reset,
+     *       the suppression latches that could outlive their gesture and leave
+     *       the keypad dead until a power cycle. Both are removed. In a dump
+     *       written by older firmware, b=1 or b=3 with a=0 IS that fault.     */
     TRC_KEY_LATCH,
 
     /* Proof the 5 ms poller is still running, and what it sees. Without it,

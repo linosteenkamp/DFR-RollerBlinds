@@ -206,9 +206,11 @@ Zigbee state and restarts it, so it comes up factory-new and steers.
 `nvs` partition, and the reset erases only `zb_storage`. The device rejoins
 already knowing where its blind is.
 
-The gesture deliberately suppresses the other long-press gestures while all
-three keys are held. In particular the Up+Down reverse chord — which wipes
-calibration — cannot fire on the way to the 5-second mark.
+While all three keys are held, the calibration long-press and hold-to-jog are
+both suppressed so they cannot fire on the way to the 5-second mark. That
+suppression reads the current key state only — release any key and the others
+resume immediately. It is deliberately not a latch: the latches this gesture
+used to carry could outlive it and leave the keypad dead until a power cycle.
 
 **Known limitation:** a device that misses its leave *and* cannot be reached
 at the keypad is still stuck. Detecting that the coordinator is ignoring us
@@ -231,7 +233,7 @@ except the pin mapping.
 - [~] `VCC_IO` sanity check — **skipped deliberately** on the rev 2 built board. The test means lifting `VCC_IO` to confirm the driver goes inert; on a soldered board that costs a desoldering job to prove a failure mode we already understand. It was worth doing on rev 1's breadboard. A sane Vref reading (below) already implies the digital core is powered.
 - [x] Motor bench-run before mounting **2026-08-02** — Vref set to 1.69 V (motor disconnected), motor then spins on both Up and Down holds with the motor free of the geartrain: **quiet and smooth** at `CRUISE_US = 100`. Quiet confirms StealthChop2 is live (the `SPRE` pad is at its factory bridge); smooth confirms the A/B coil pairing. LED double-flashes (`LED_UNCAL`) confirming the D2 harness; keypad holds confirmed through the full keypad → dispatcher → motion path. Direction sense not yet meaningful — deferred to after coupling, then fixed via `motor_reversed` if needed, never by rewiring coils. **Still unproven: torque under real blind load** — free-running quiet says nothing about whether 100 µs holds under the 1:15 reduction and a 2.5 m blind.
 - [x] Join as router **2026-08-02** — joined and published as `lounge-blind-3`, linkquality ~138, exposed via the converter as a cover with `calibrated: false`. The rev 1 converter needed no change (Zigbee identity is unchanged by the hardware swap).
-- [~] `motor_reversed` toggle — z2m side confirmed working **2026-08-02**; the keypad Up+Down chord and the calibration-wipe side effect are **not yet verified** (the wipe can't be observed while the device is already uncalibrated — re-test after a successful calibration).
+- [x] `motor_reversed` toggle — z2m side confirmed working **2026-08-02**. The keypad Up+Down chord that also set it is **retired**; z2m is now the only way to set it.
 - [x] z2m motion commands rejected while uncalibrated **2026-08-02** — open/close pressed in z2m, no motor movement. Lockout is enforced device-side in `zb_goto_request()`, so this holds regardless of what the converter reports.
 - [x] Calibrate via keypad **2026-08-02** — calibrated successfully on the bench rig (17HS4401 + small blind). The deliberate wrong-mark-2 five-flash rejection is **not yet retested** on rev 2.
 - [x] Full travel from keypad taps **2026-08-02** — clean both directions at `CRUISE_US = 150` / Vref 1.92 V. Getting there required correcting Vref for the fitted motor first; see [HARDWARE.md](HARDWARE.md#motion-speed-tuning). Live-position tracking during z2m moves not yet separately checked.

@@ -324,9 +324,11 @@ static void handle_keypad(kp_event_t e)
     case KP_EVT_FN_LONG:
         enter_or_exit_cal();
         break;
-    case KP_EVT_CHORD_REVERSE:
-        toggle_reversed();
-        break;
+    /* KP_EVT_CHORD_REVERSE is retired and no longer emitted. motor_reversed is
+     * a z2m setting now (APP_EVT_ZB_SET_REVERSED, below), which is where it was
+     * always set in practice. The keypad gesture cost a suppression latch that
+     * a single low line could strand, and it wiped the calibration on a 3 s
+     * hold with no confirmation. */
     case KP_EVT_FACTORY_RESET:
         /* Never mid-move: the reset reboots, and rebooting with
          * move_in_progress still set drops the device to Position Unknown,

@@ -46,8 +46,9 @@ via hold-to-jog. Remote control is a privilege calibration unlocks.
 
 **Motor Reversed** — Per-unit installer setting that flips which motor rotation
 direction counts as "Up". Exists because mechanics (front-roll vs back-roll,
-motor orientation) differ per window. One authoritative value per device;
-editable both locally (keypad) and remotely (z2m), and every change is visible
-in both places. All position vocabulary (Open/Closed/Up/Down/Lift) is defined
+motor orientation) differ per window. One authoritative value per device,
+set from z2m. It was once also a keypad gesture (Up+Down held 3 s); that was
+retired because it cost a suppression latch a single stuck key line could
+strand, and because a 3 s hold silently wiped the calibration. All position vocabulary (Open/Closed/Up/Down/Lift) is defined
 *after* this setting is applied — a correctly configured unit always has "Up"
 moving toward Open.
