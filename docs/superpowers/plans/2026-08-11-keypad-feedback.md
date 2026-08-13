@@ -308,15 +308,21 @@ Expected: **three flashes**, no motion.
 
 - [ ] **Step 4: Uncalibrated, tap Up or Down**
 
-Requires an uncalibrated board — either a fresh one, or wipe calibration with
-the Up+Down chord (which sets `motor_reversed` and wipes the span).
-Expected: **five rapid flashes**, no motion.
+Requires an uncalibrated board.
 
-**Warning:** the Up+Down chord also toggles `motor_reversed`. If you use it
-here, toggle the chord back again before continuing to Step 5 onward, or the
-later "ordinary full travel" and calibration checks will run under a flipped
-direction sense. Using a fresh, never-calibrated board instead avoids this
-entirely.
+**This step's original instruction no longer works and has been corrected.** It
+said to wipe the calibration with the Up+Down chord; that gesture was retired
+when the keypad's cross-key latches were removed, because a single low line
+could strand the latch it needed and kill the whole keypad. There is now no
+keypad gesture that wipes a calibration — which is an improvement, since the
+old one did it on a 3 s hold with no confirmation.
+
+Use a fresh, never-calibrated board. Failing that, toggle `motor_reversed` from
+z2m, which still wipes the span (`toggle_reversed()` calls `position_wipe()`),
+then toggle it back before Step 5 — otherwise the later travel and calibration
+checks run under a flipped direction sense.
+
+Expected: **five rapid flashes**, no motion.
 
 - [ ] **Step 5: Idle and calibrated, tap Fn**
 
