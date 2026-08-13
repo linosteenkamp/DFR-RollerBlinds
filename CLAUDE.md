@@ -69,7 +69,7 @@ pio run --target erase
 |---|---|---|---|
 | `position` | `src/position.c` | Pure: steps↔lift %, clamping, calibration/re-home state machine, wipe/unknown transitions | `test/test_position/` |
 | `ramp` | `src/ramp.c` | Pure: trapezoid/triangle step-interval planning | `test/test_ramp/` |
-| `keypad_logic` | `src/keypad_logic.c` | Pure: press/release+time → Tap / Hold / Fn-long / Up+Down-chord | `test/test_keypad/` |
+| `keypad_logic` | `src/keypad_logic.c` | Pure: press/release+time → Tap / Hold / Fn-long / three-key reset. Every key classified independently — no cross-key latches | `test/test_keypad/`, `test/test_press_classification/` |
 | `blind_store` | `src/blind_store.c` | NVS persistence (namespace `blind`) | — |
 | `motion` | `src/motion.c` | GPTimer ISR step generation, DIR/EN, step counter, done-events to queue | — |
 | `status_led` | `src/status_led.c` | LED pattern player (single external LED) | — |

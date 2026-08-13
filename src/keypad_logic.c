@@ -5,14 +5,11 @@
  *        - Hold (jog): Up/Down held >= hold_ms -> HOLD_START, release -> HOLD_END.
  *        - Fn long-press >= long_ms -> FN_LONG (Fn never jogs). Suppressed
  *          while Up or Down is down.
- *        - Up+Down both held >= long_ms (from the second press) -> CHORD_REVERSE.
- *          Suppressed while Fn is down.
- *          A chord attempt (both down together) suppresses the individual keys'
- *          TAP/HOLD events entirely, fired or not — fat-finger safety.
- *        - All three held >= reset_ms (from the third press) -> FACTORY_RESET,
- *          and every other gesture is suppressed while latched. Without that
- *          suppression CHORD_REVERSE fires at long_ms and wipes the
- *          calibration before the reset is ever reached.
+ *        - All three held >= reset_ms -> FACTORY_RESET.
+ *
+ *        Every key is classified independently. See kp_state_t's comment for
+ *        why: the suppression latches this file used to carry could outlive
+ *        the gesture that set them and take the whole keypad with them.
  */
 #include "keypad_logic.h"
 
@@ -27,6 +24,11 @@ static kp_event_t evt(kp_event_type_t t, key_id_t k)
     return (kp_event_t){ .type = t, .key = k };
 }
 
+static bool all_three_down(const kp_state_t *s)
+{
+    return s->down[KEY_UP] && s->down[KEY_DOWN] && s->down[KEY_FN];
+}
+
 kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_ms)
 {
     if (key >= KEY_COUNT) return evt(KP_EVT_NONE, key);
@@ -36,46 +38,25 @@ kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_
         s->t_press[key] = now_ms;
         s->holding[key] = false;
         if (key == KEY_FN) s->long_fired = false;
-        if (s->down[KEY_UP] && s->down[KEY_DOWN] && s->down[KEY_FN]) {
-            s->in_reset    = true;
+        /* Arming is a timestamp, not a latch: nothing downstream consults it
+         * unless all three are still down at the moment kp_on_tick looks. */
+        if (all_three_down(s)) {
             s->reset_fired = false;
             s->t_reset     = now_ms;   /* timed from the press completing the trio */
-        }
-        if ((key == KEY_UP || key == KEY_DOWN) &&
-            s->down[KEY_UP] && s->down[KEY_DOWN] && !s->in_chord) {
-            s->in_chord    = true;   /* latch: suppress both keys until released */
-            s->chord_fired = false;
-            /* chord timing restarts from this (second) press */
-            s->t_press[KEY_UP] = s->t_press[KEY_DOWN] = now_ms;
-            /* if the other key was mid-jog, close that hold before suppressing
-             * it — otherwise the consumer never gets the jog-stop signal */
-            key_id_t other = (key == KEY_UP) ? KEY_DOWN : KEY_UP;
-            if (s->holding[other]) {
-                s->holding[other] = false;
-                return evt(KP_EVT_HOLD_END, other);
-            }
         }
         return evt(KP_EVT_NONE, key);
     }
 
-    /* release */
+    /* Release. Deliberately unconditional on the other keys: a release must
+     * never be swallowed because some other line happens to read low, which is
+     * exactly how a stuck key used to disable the keys around it. A release is
+     * also the only way a jog stops, so swallowing one leaves the motor
+     * running. The cost is that abandoning a multi-key gesture emits a stray
+     * tap per key; that is recoverable, and a dead keypad is not. */
     bool was_down = s->down[key];
     s->down[key] = false;
     if (!was_down) return evt(KP_EVT_NONE, key);
 
-    if (s->in_reset) {
-        if (!s->down[KEY_UP] && !s->down[KEY_DOWN] && !s->down[KEY_FN]) {
-            s->in_reset = false;
-            s->in_chord = false;   /* the chord latch clears with it */
-        }
-        return evt(KP_EVT_NONE, key);   /* reset attempt suppresses everything */
-    }
-    if (s->in_chord && (key == KEY_UP || key == KEY_DOWN)) {
-        if (!s->down[KEY_UP] && !s->down[KEY_DOWN]) {
-            s->in_chord = false;     /* both released: chord attempt over */
-        }
-        return evt(KP_EVT_NONE, key);   /* chord suppresses individual events */
-    }
     if (key == KEY_FN && s->long_fired) {
         return evt(KP_EVT_NONE, key);   /* release after FN_LONG is silent */
     }
@@ -100,39 +81,28 @@ kp_event_t kp_on_change(kp_state_t *s, key_id_t key, bool pressed, uint32_t now_
 
 kp_event_t kp_on_tick(kp_state_t *s, uint32_t now_ms)
 {
-    /* All three keys: the factory-reset gesture. Suppresses every other
-     * gesture while latched — CHORD_REVERSE in particular would wipe the
-     * calibration at long_ms, well before reset_ms. */
-    if (s->in_reset) {
-        if (!s->reset_fired &&
-            s->down[KEY_UP] && s->down[KEY_DOWN] && s->down[KEY_FN] &&
-            now_ms - s->t_reset >= s->reset_ms) {
+    /* The three-key factory reset. Checked first so nothing can starve it.
+     * Every term reads the current down[] state, so letting go of any key
+     * abandons the gesture immediately and leaves nothing behind. */
+    if (all_three_down(s)) {
+        if (!s->reset_fired && now_ms - s->t_reset >= s->reset_ms) {
             s->reset_fired = true;
             return evt(KP_EVT_FACTORY_RESET, KEY_FN);
         }
+        /* Don't also jog while the operator is holding all three down. This
+         * is a guard on the instantaneous state, not a latch — it stops
+         * applying the moment any key comes up. */
         return evt(KP_EVT_NONE, KEY_FN);
     }
 
-    /* Fn is independent of the Up/Down chord — checked first so a chord
-     * attempt can never starve FN_LONG */
+    /* Fn long-press. The Up/Down guard keeps a three-key gesture from also
+     * entering Calibration Mode on its way past long_ms. */
     if (s->down[KEY_FN] && !s->long_fired &&
         !s->down[KEY_UP] && !s->down[KEY_DOWN] &&
         now_ms - s->t_press[KEY_FN] >= s->long_ms) {
         s->long_fired = true;
         return evt(KP_EVT_FN_LONG, KEY_FN);
     }
-
-    /* chord: suppresses Up/Down hold processing */
-    /* The Fn guard is unreachable today (in_reset returns above) and is kept
-     * as defence in depth: it is what stops CHORD_REVERSE wiping the
-     * calibration if the in_reset latch is ever refactored away. */
-    if (s->in_chord && !s->chord_fired && !s->down[KEY_FN] &&
-        s->down[KEY_UP] && s->down[KEY_DOWN] &&
-        now_ms - s->t_press[KEY_UP] >= s->long_ms) {
-        s->chord_fired = true;
-        return evt(KP_EVT_CHORD_REVERSE, KEY_UP);
-    }
-    if (s->in_chord) return evt(KP_EVT_NONE, KEY_UP);
 
     /* Up/Down hold -> jog (Fn never jogs) */
     for (key_id_t k = KEY_UP; k <= KEY_DOWN; k++) {

@@ -40,6 +40,10 @@ static const char *code_name(uint16_t c)
     case TRC_MOVE_DONE:    return "MOVE_DONE";
     case TRC_ZB_CMD:       return "ZB_CMD";
     case TRC_QUEUE_FULL:   return "QUEUE_FULL";
+    case TRC_KEY_SWALLOWED: return "KEY_SWALLOWED";
+    case TRC_KEY_EDGE:      return "KEY_EDGE";
+    case TRC_KEY_LATCH:     return "KEY_LATCH";
+    case TRC_KEY_ALIVE:     return "KEY_ALIVE";
     default: {
         /* Keep the number: an unrecognised code is the one clue that this
          * dump is a stale-layout ring (see TRACE_MAGIC above) rather than a

@@ -22,6 +22,41 @@ typedef enum {
     TRC_MOVE_DONE,     /* a = steps                b = completed            */
     TRC_ZB_CMD,        /* a = pct                  b = 1 if parked pending  */
     TRC_QUEUE_FULL,    /* a = dropped event type   b = -                    */
+
+    /* Keypad telemetry. New codes go at the END: the ring survives resets, so
+     * renumbering would make a dump written by the previous firmware decode as
+     * something else entirely.
+     *
+     * These two cover the blind spot in everything above — every other code
+     * records what the dispatcher DECIDED, and so cannot see a press that
+     * never became an event, nor one that arrived correctly but late. */
+    TRC_KEY_SWALLOWED, /* a = key_id_t             b = deepest excursion
+                                                     | (count << 16), coalesced
+                                                     over one second          */
+    TRC_KEY_EDGE,      /* a = key_id_t | 0x100 if  b = samples the edge took,
+                            this was the make        against FILTER_SAMPLES
+                            edge                     for a clean one          */
+
+    /* The classifier's suppression latches, emitted on every change. A gesture
+     * that keypad_logic suppresses returns KP_EVT_NONE and so reaches nothing
+     * downstream — invisible to KEY_EVENT and to the filter telemetry alike.
+     * The state worth hunting is b=2 (in_reset) or b=1 (in_chord) persisting
+     * with a=0: a latch held with no key down, which is unrecoverable without
+     * a reboot and kills every key.
+     *   a = bit0/1/2  UP/DOWN/FN down, bit4/5 UP/DOWN holding
+     *   b = bit2 long_fired, bit3 reset_fired.
+     *       Bits 0 and 1 are RESERVED — they carried in_chord and in_reset,
+     *       the suppression latches that could outlive their gesture and leave
+     *       the keypad dead until a power cycle. Both are removed. In a dump
+     *       written by older firmware, b=1 or b=3 with a=0 IS that fault.     */
+    TRC_KEY_LATCH,
+
+    /* Proof the 5 ms poller is still running, and what it sees. Without it,
+     * "poller stopped", "line never moved" and "gesture suppressed" are the
+     * same silence in a dump.
+     *   a = polls since the last heartbeat (12000 at a healthy 5 ms/60 s)
+     *   b = bit0/1/2 raw GPIO level, bit4/5/6 debounced level, per key       */
+    TRC_KEY_ALIVE,
 } trace_code_t;
 
 /* Validate the RTC ring; clear it only if this was a cold boot. Emits nothing
