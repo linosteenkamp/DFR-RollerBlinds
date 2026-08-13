@@ -53,14 +53,12 @@ _Static_assert(FILTER_SAMPLES > 0, "integrator needs a non-zero window");
  * could hide the case it was added to find. */
 #define SWALLOW_WINDOW_MS 1000
 
-/* Heartbeat. Sized for an unattended overnight soak: at 60 s it emits 480
- * records across eight hours, which on its own wraps the 256-slot ring nearly
- * twice and erases every event we left it running to catch. At 15 minutes an
- * overnight run costs ~32 slots and the rest of the ring stays available for
- * what actually happened. The cost is that a stalled poller is now located to
- * within fifteen minutes rather than one — acceptable, because the heartbeat's
- * other job, reporting the line levels, is unaffected by the interval. */
-#define ALIVE_PERIOD_MS   (15 * 60 * 1000)
+/* Heartbeat. 60 s suits a session of a couple of hours: 120 records against
+ * 256 slots, leaving room for events while sampling the line levels often
+ * enough to correlate them with motor activity. For an unattended overnight
+ * run raise this — at 60 s, eight hours of heartbeats alone wrap the ring
+ * nearly twice and erase whatever the soak was left running to catch. */
+#define ALIVE_PERIOD_MS   60000
 
 static const char *TAG = "KEYPAD";
 
