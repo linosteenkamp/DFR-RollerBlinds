@@ -324,12 +324,21 @@ checks run under a flipped direction sense.
 
 Expected: **five rapid flashes**, no motion.
 
-- [ ] **Step 5: Idle and calibrated, tap Fn**
+- [ ] **Step 5: Idle and calibrated, tap Fn** — OUTSTANDING
 
 With the blind stopped and not in Calibration Mode, tap Fn.
 Expected: **three flashes**, no motion.
 
-- [ ] **Step 6: Hold about half a second and release**
+**Both preconditions are load-bearing, and an attempt on 2026-08-13 met
+neither.** An Fn tap has three destinations in `handle_mark`, and only one of
+them is this check: tapped while the blind is moving it stops the move and is
+**deliberately silent**; tapped inside Calibration Mode it is a Mark, which
+signals ACK or ERROR by whether the mark was accepted. Only an Fn tap with the
+blind stopped and the LED off reaches the `!s_cal_mode` early return this step
+is about. The `LED_ACK` call itself is known good — the same call fires on a
+successful mark, and three flashes were observed there.
+
+- [x] **Step 6: Hold about half a second and release** — PASSED 2026-08-13
 
 Away from a limit, press and hold for roughly 500 ms, then release.
 Expected: a barely-perceptible jog, then **three flashes** on release.
