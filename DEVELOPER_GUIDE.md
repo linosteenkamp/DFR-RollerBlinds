@@ -98,8 +98,8 @@ no jogging changes nothing.
 | 1 Hz blink | Calibration mode, awaiting mark 1 (Open) |
 | Fast blink (~5 Hz) | Calibration mode, awaiting mark 2 (Closed) |
 | Double-flash every 3 s | Uncalibrated / Position Unknown (z2m motion locked) |
-| Three quick flashes | Ack: mark accepted / direction toggled |
-| Five rapid flashes | Error: mark rejected |
+| Three quick flashes | Ack: mark accepted / direction toggled / already at that limit / Fn tapped with nothing to mark / a jog too small to change the reported position |
+| Five rapid flashes | Error: mark rejected / uncalibrated, refusing to move — needs calibration / move refused by the hard-cap watchdog |
 | Steady rapid blink | Zigbee Identify (0x0003) active |
 | 2 s on, 1 s off | Not joined to a Zigbee network (steering) |
 

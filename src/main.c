@@ -69,6 +69,7 @@ static bool          s_cal_abort_pending; /* timeout hit mid-jog: abort on DONE 
 static bool          s_pending_valid; /* ZB target parked while a move decelerates */
 static uint8_t       s_pending_pct;
 static int32_t       s_raw;           /* raw step counter (valid in cal mode too) */
+static uint8_t       s_move_start_pct;  /* lift % when the current move began */
 static esp_timer_handle_t s_cal_timer;
 static esp_timer_handle_t s_report_timer;
 
@@ -143,16 +144,19 @@ static void start_move(int32_t target, const motion_profile_t *prof)
 {
     if (target == s_raw) {
         TRACE(TRC_MOVE_NOOP, target, s_pos.closed_steps);
+        status_led_flash(LED_ACK);   /* heard you; already there */
         refresh_outputs();   /* already there — keep reports honest, no NVS churn */
         return;
     }
     int32_t cap = hard_cap();          /* hoisted so a refusal can record it */
+    s_move_start_pct = position_lift_pct(&s_pos);
     TRACE(TRC_MOVE_START, s_raw, target);
     blind_store_set_move_flag(true);
     esp_err_t err = motion_start(s_raw, target, prof, cap);
     if (err != ESP_OK) {
         blind_store_set_move_flag(false);
         TRACE(TRC_MOVE_REFUSED, err, cap);
+        status_led_flash(LED_ERROR);   /* refusing — needs attention */
         ESP_LOGW(TAG, "move refused: %s", esp_err_to_name(err));
     } else {
         esp_timer_start_periodic(s_report_timer, REPORT_PERIOD_US);
@@ -226,7 +230,10 @@ static void enter_or_exit_cal(void)
 static void handle_mark(void)
 {
     if (motion_is_moving()) { motion_stop(); return; }   /* Fn tap = stop first */
-    if (!s_cal_mode) return;                             /* idle taps inert */
+    if (!s_cal_mode) {
+        status_led_flash(LED_ACK);   /* heard you; nothing to mark */
+        return;                                          /* idle taps inert */
+    }
     /* NOTE: s_raw stays one continuous frame through the whole calibration —
      * position_cal_mark stores mark 1's raw and computes the span as the
      * difference at mark 2, so the caller must NOT re-anchor between marks. */
@@ -313,7 +320,15 @@ static void handle_keypad(kp_event_t e)
         if (e.key == KEY_FN) { handle_mark(); break; }
         if (cal_dev) {                                       /* full travel */
             goto_pct(e.key == KEY_UP ? 0 : 100);
-        }                                                    /* uncal: inert */
+        } else if (!s_cal_mode) {
+            /* Inside Calibration Mode, cal_dev is always false (position_calibrated
+             * requires cal == POS_CAL_NONE), so this branch would otherwise fire on
+             * every short Up/Down tap while lining up a mark. LED_ERROR there already
+             * means "mark rejected" (handle_mark) — firing it here too would read as
+             * a rejected mark and could send the operator jogging further the wrong
+             * way. Stay quiet; the lockout signal only applies outside the mode. */
+            status_led_flash(LED_ERROR);   /* lockout: needs calibration */
+        }
         break;
     case KP_EVT_HOLD_START:
         if (!motion_is_moving()) jog(e.key == KEY_UP);
@@ -404,6 +419,13 @@ static void dispatcher_task(void *pv)
             } else {
                 position_set_current(&s_pos, position_clamp(&s_pos, ev.steps));
                 perr = blind_store_save_position(s_pos.pos_known, s_pos.cur_steps);
+                /* Dead-zone feedback: a move too small to change the reported
+                 * lift % is invisible to the operator and to z2m alike, so it
+                 * is indistinguishable from a dead key unless we say so. */
+                if (position_calibrated(&s_pos) &&
+                    position_lift_pct(&s_pos) == s_move_start_pct) {
+                    status_led_flash(LED_ACK);
+                }
             }
             if (perr == ESP_OK) {
                 blind_store_set_move_flag(false);
