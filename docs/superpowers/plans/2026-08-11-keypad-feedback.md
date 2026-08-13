@@ -301,12 +301,12 @@ enumerate behind a USB hub: hold **B**, tap **R**, release **B**.
 The board must be **calibrated** for checks 3, 5, 6 and 7. If it is not,
 calibrate it first: Fn long-press, jog to Open, Fn tap, jog to Closed, Fn tap.
 
-- [ ] **Step 3: At a limit, tap toward that limit**
+- [x] **Step 3: At a limit, tap toward that limit** — PASSED
 
 Drive the blind to a limit, then tap the key pointing further into it.
 Expected: **three flashes**, no motion.
 
-- [ ] **Step 4: Uncalibrated, tap Up or Down**
+- [x] **Step 4: Uncalibrated, tap Up or Down** — PASSED (re-confirmed 2026-08-13: five flashes on the lockout taps after an aborted Re-home)
 
 Requires an uncalibrated board.
 
@@ -339,7 +339,7 @@ Expected: a barely-perceptible jog, then **three flashes** on release.
 Away from a limit, quick-tap Up or Down.
 Expected: a full travel and **no flash at all**.
 
-- [ ] **Step 8: Calibration Mode is not disturbed — do not skip this**
+- [x] **Step 8: Calibration Mode is not disturbed — do not skip this** — PASSED 2026-08-13
 
 Enter Calibration Mode (Fn long-press) and jog repeatedly with short holds.
 Expected: **no flashes**, and the `LED_CAL_MARK1` / `LED_CAL_MARK2` blink
@@ -350,6 +350,13 @@ Also, inside Calibration Mode, tap Up and Down **briefly** — well under
 flashes** here either. A tap this short is a natural way to nudge a mark into
 position, and it must not be mistaken for the five-flash "mark rejected"
 signal that `handle_mark` uses for a genuinely too-close mark 2.
+
+**Result 2026-08-13, confirmed in the trace rather than only by eye:** four
+clean jogs (HOLD_START/HOLD_END each producing a real move), then **ten taps —
+five Up, five Down — with no `MOVE_` record after any of them.** Every tap
+reached `handle_keypad` (they are traced), and the dispatcher deliberately did
+nothing: no motion, no flash. `b=0`/`b=1` on those events confirms
+`position_calibrated()` was false throughout, as it must be inside the mode.
 
 This is the regression this change could plausibly introduce, and it would
 damage the workflow that is hardest to recover from. If flashes appear here,
