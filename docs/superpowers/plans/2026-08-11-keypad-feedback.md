@@ -324,13 +324,12 @@ checks run under a flipped direction sense.
 
 Expected: **five rapid flashes**, no motion.
 
-- [ ] **Step 5: Idle and calibrated, tap Fn** — OUTSTANDING
+- [x] **Step 5: Idle and calibrated, tap Fn** — PASSED 2026-08-13
 
 With the blind stopped and not in Calibration Mode, tap Fn.
 Expected: **three flashes**, no motion.
 
-**Both preconditions are load-bearing, and an attempt on 2026-08-13 met
-neither.** An Fn tap has three destinations in `handle_mark`, and only one of
+**Both preconditions are load-bearing, and the first attempt met neither.** An Fn tap has three destinations in `handle_mark`, and only one of
 them is this check: tapped while the blind is moving it stops the move and is
 **deliberately silent**; tapped inside Calibration Mode it is a Mark, which
 signals ACK or ERROR by whether the mark was accepted. Only an Fn tap with the
@@ -343,7 +342,7 @@ successful mark, and three flashes were observed there.
 Away from a limit, press and hold for roughly 500 ms, then release.
 Expected: a barely-perceptible jog, then **three flashes** on release.
 
-- [ ] **Step 7: An ordinary full travel**
+- [x] **Step 7: An ordinary full travel** — PASSED (dozens of travels across 2026-08-13, keypad- and z2m-driven, no stray flashes)
 
 Away from a limit, quick-tap Up or Down.
 Expected: a full travel and **no flash at all**.
@@ -372,7 +371,7 @@ damage the workflow that is hardest to recover from. If flashes appear here,
 the guard placement in Task 2 Step 3 (for the jog case) or the `handle_keypad`
 lockout branch (for the tap case) is wrong — stop and fix it.
 
-- [ ] **Step 9: Merge**
+- [x] **Step 9: Merge** — merged `--no-ff` 2026-08-13, released as v2.3.0
 
 ```bash
 git checkout main

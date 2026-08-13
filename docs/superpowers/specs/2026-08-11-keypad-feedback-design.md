@@ -1,7 +1,11 @@
 # Keypad feedback: telling "nothing to do" apart from "dead"
 
 **Date:** 2026-08-11
-**Status:** approved, not yet implemented
+**Status:** implemented and **fully bench-verified 2026-08-13**; released in
+v2.3.0. All eight acceptance checks pass, including check 8 — the Calibration
+Mode regression gate — which was confirmed in the trace rather than only by
+eye: ten taps inside the mode, none producing a `MOVE_` record, so no motion
+and no flash.
 **Repos:** `DFR-RollerBlinds` only
 
 ## Problem
