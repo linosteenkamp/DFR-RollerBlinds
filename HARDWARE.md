@@ -31,7 +31,9 @@ as settled until measured.
 | Mean Well **LRS-150-24** (24 V, 6.5 A, ~156 W) — *optional, in place of the LRS-50-24 above* | Single shared supply for **3 blind controllers** on one PSU instead of one PSU per unit. See [Multi-unit installations](#multi-unit-installations-shared-psu) for sizing rationale and distribution wiring. |
 | Step-down buck regulator, 24 V → 5 V for the XIAO | Current builds use a **Mini560 Pro**. Rev 1 used a **Pololu** 5 V/2.5 A (VIN 6–38 V). Either works functionally; the Pololu idles considerably more efficiently — see [Idle power draw](#idle-power-draw). |
 | Membrane keypad: 2 arrow keys + function key | Local controls + calibration UX |
-| External status LED (enclosure face) | State annunciator. This revision drops the onboard-LED mirror entirely — the external LED is the only status indicator (frees a GPIO on the XIAO's smaller header; see [GPIO summary](#gpio-summary-srcmainc)). |
+| External status LED (enclosure face) — **Kingbright L-7104SURC-E** + **150 Ω** (Yageo `MF0204FTE52-150R`) | State annunciator. This revision drops the onboard-LED mirror entirely — the external LED is the only status indicator (frees a GPIO on the XIAO's smaller header; see [GPIO summary](#gpio-summary-srcmainc)). See [LED wiring](#led-wiring). |
+| VM bulk capacitor — **220 µF 35 V** electrolytic (100 µF 50 V acceptable) | Across TMC2209 `VM`/`GND` at the pin, mandatory — see [Power chain](#power-chain). |
+| Keypad RC front-end, per unit: **3 × 4.7 kΩ** (`RS-C-4K7-5%-0.5W`), **3 × 150 Ω** (`MF0204FTE52-150R`), **3 × 100 nF** (Vishay `K104K20X7RH5TL2`, 100 V X7R) | Noise immunity on the three key lines — see [Keypad noise immunity](#keypad-noise-immunity-fit-to-every-unit). With the LED resistor that makes **four 150 Ω per unit**. |
 | Multimeter | Required — for Vref, VMOT, and 3V3-rail checks below. Don't skip these. |
 
 ## Recommended bring-up order
@@ -56,9 +58,10 @@ stage is independently testable before moving to the next:
 ## Power chain
 
 ```
-24 V PSU (LRS-50-24) ──┬─── TMC2209 VM  (+ ≥100 µF electrolytic across VM/GND,
+24 V PSU (LRS-50-24) ──┬─── TMC2209 VM  (+ 220 µF 35 V electrolytic across VM/GND,
                         │                  close to the driver — non-negotiable
-                        │                  spike protection)
+                        │                  spike protection; optional 100 nF
+                        │                  ceramic in parallel)
                         │
                         └─── Step-down regulator (5 V / 3.2 A, VIN 5.3–50 V)
                                      │
@@ -70,6 +73,14 @@ stage is independently testable before moving to the next:
   without it, motor-current transients can spike VM high enough to damage
   the driver. (BTT's V1.3 module accepts 4.75–28 V on VM, so 24 V has
   plenty of headroom either direction.)
+- **Capacitor choice:** the stocked part is **220 µF 35 V**; **100 µF 50 V**
+  also meets the ≥100 µF requirement and is fine where it's what's to hand.
+  Rate it at **35 V or more**: 24 V on a 25 V part leaves no margin for the
+  spikes the capacitor is there to absorb. **Mind the polarity**: the stripe
+  marks the negative lead, which goes to GND. Reversed, an electrolytic on a
+  24 V rail can vent. A 100 nF ceramic (`K104K20X7RH5TL2`, 100 V rated)
+  alongside it handles the fast edges the electrolytic is too slow for.
+  That's optional.
 - The same 24 V rail feeds a step-down regulator to 5 V for the XIAO's 5V
   pin. ESP32-C6 peak draw is well under 1 A, so there is large margin.
 - **One common ground.** PSU −, both TMC2209 GND pins (there are usually
@@ -390,17 +401,35 @@ boards.
 3-key membrane keypad (Up / Down / Fn):
 
 ```
-Membrane keypad          XIAO ESP32C6
-┌──────────────┐        ┌──────────────────┐
-│ Common ───────┼────────┤ GND              │
-│ Up     ───────┼────────┤ D4 / GPIO22 (pull-up) │
-│ Down   ───────┼────────┤ D5 / GPIO23 (pull-up) │
-│ Fn     ───────┼────────┤ D6 / GPIO16 (pull-up) │
-└──────────────┘        └──────────────────┘
+Membrane keypad                                  XIAO ESP32C6
+┌──────────┐
+│ Common ──┼──────────────────────────────────── GND
+│ Up     ──┼──── 150 Ω ──┬──────────────────────  D4 / GPIO22
+│ Down   ──┼──── 150 Ω ──┼─ (same per line) ────  D5 / GPIO23
+│ Fn     ──┼──── 150 Ω ──┼─ (same per line) ────  D6 / GPIO16
+└──────────┘             │
+                 each line's node, at the XIAO end:
+                   node ── 4.7 kΩ ── 3V3
+                   node ── 100 nF ── GND
 ```
 
-Common → GND; each key's line goes to its own GPIO configured with the
-internal pull-up, so the pin idles HIGH and reads LOW when pressed. Firmware
+One channel in full:
+
+```
+key ── harness ──┤connector├── 150 Ω ──●── GPIO (internal pull-up left ON)
+                                       │
+                          3V3 ─ 4.7 kΩ ┤
+                                       │
+                                     100 nF
+                                       │
+                                      GND
+```
+
+Common → GND; each key's line goes to its own GPIO, pulled up by 4.7 kΩ
+external in parallel with the internal pull-up, so the pin idles HIGH and
+reads LOW when pressed. Units built before the RC front-end have only the
+internal pull-up and a direct wire: the firmware handles both, see
+[Keypad noise immunity](#keypad-noise-immunity-fit-to-every-unit). Firmware
 debounce is now an integrator filter (`src/key_filter.c`) that requires a
 sustained level change before it registers an edge, replacing the
 `esp-zb-common` `debounce` module — which was a pure change detector that did
@@ -408,9 +437,9 @@ no debouncing at all; a single noisy sample passed straight through as a
 full press-and-release. That gap is what let a keypad harness routed beside
 the stepper cable on an installed unit fake presses and run the blind end to
 end on its own. On an installed unit, the internal pull-up alone proved
-insufficient — external pull-ups and an RC filter are recommended even with
-the firmware fix in place, see
-[Keypad noise immunity](#keypad-noise-immunity-recommended-for-new-builds)
+insufficient, so external pull-ups and an RC filter are now fitted as
+standard, see
+[Keypad noise immunity](#keypad-noise-immunity-fit-to-every-unit)
 below.
 
 **Identify the common pin before wiring**, don't assume it from the tail's
@@ -442,7 +471,7 @@ If a key produces no reaction at all, don't assume firmware first; the
 overwhelming likelihood, based on the first bring-up session, is wiring —
 go through the [Troubleshooting](#troubleshooting) keypad checklist.
 
-### Keypad noise immunity (recommended for new builds)
+### Keypad noise immunity (fit to every unit)
 
 An installed unit ran itself up and down six times in one night — a keypad
 harness routed beside the stepper cable coupled enough noise onto the
@@ -458,9 +487,14 @@ for new builds, in priority order:
    for the same coupled current. **Either value is fine** — 5.1 kΩ gives 9.8×
    against 4.7 kΩ's 10.6×, a difference far inside the tolerance of cable
    length and routing. Use whichever is in the drawer; do not order a part
-   for the sake of the nominal value.
-2. **RC low-pass at the MCU pin**: **220-470 Ω** in series from the connector,
-   100 nF from pin to GND.
+   for the sake of the nominal value. **Stocked (2026-09): 4.7 kΩ 0.5 W
+   carbon film** — it dissipates ~2 mW with a key held, so the 0.5 W rating
+   only costs board space.
+2. **RC low-pass at the MCU pin**: **150-470 Ω** in series from the connector,
+   100 nF from pin to GND. **Stocked (2026-09): 150 Ω** (`MF0204FTE52-150R`,
+   the same part as the LED resistor) and **100 nF 100 V X7R**
+   (`K104K20X7RH5TL2`). Place the pull-up and cap at the XIAO end with short
+   leads, and the series resistor between the connector and that node.
 
    **Do not use 1 kΩ here** (an earlier revision of this document did). With
    a pull-up at the pin, the series resistor forms a divider when a key is
@@ -476,21 +510,26 @@ for new builds, in priority order:
    10-80 kΩ, not a tight 45 kΩ); at the strong end the combined value falls to
    ~3.4 kΩ and V_low climbs to 0.75 V, close enough to the threshold that
    temperature and supply drift matter. Rs = 220 Ω gives V_low ≈ 0.15 V and
-   ample margin.
+   ample margin; the stocked **150 Ω gives 0.11 V** (0.15 V with the internal
+   pull-up at the strong end of its spread).
 
    Shrinking Rs costs nothing in filtering, because the low-pass corner is set
-   by the *pull-up* and the cap, not by Rs: 5.1 kΩ with 100 nF gives ~310 Hz
-   (τ ≈ 510 µs) either way — invisible to a human press, fatal to coupled
-   spikes. The series resistor's real job is pin protection and limiting
-   injected current, which 220 Ω does perfectly well.
+   by the *pull-up* and the cap, not by Rs: 4.7 kΩ ∥ internal with 100 nF
+   gives τ ≈ 0.43 ms (a release reads high ~0.6 ms later, well inside one 5 ms
+   poll), invisible to a human press, fatal to coupled spikes. The series
+   resistor's real job is pin protection and limiting injected current, which
+   150 Ω does perfectly well. For spikes arriving along the harness it also
+   forms an Rs·C low-pass (~10 kHz at 150 Ω) with the same capacitor.
 
-   **Once the external pull-ups are fitted**, also switch `keypad_init`'s
-   `gpio_config` from `GPIO_PULLUP_ENABLE` to `GPIO_PULLUP_DISABLE` in
-   `src/keypad.c`. The pull-up is then exactly the external resistor instead
-   of that resistor in parallel with an unknown 10-80 kΩ, which makes the
-   divider above deterministic. **Only after the resistors are physically
-   installed** — making this change on unmodified hardware leaves the key
-   lines floating.
+   **Leave the internal pull-up enabled.** *(Corrected 2026-09-25 — an earlier
+   revision of this section said to switch `keypad_init` to
+   `GPIO_PULLUP_DISABLE` once the externals were fitted.)* Every unit runs the
+   same OTA image, so that change would also land on units that haven't
+   been modified. Their key lines would then float, and a floating line is
+   exactly the input that fakes presses. Leaving it on costs almost nothing:
+   in parallel with 4.7 kΩ even the strongest 10 kΩ internal only moves V_low
+   from 0.11 V to 0.15 V against a 0.83 V threshold. Revisit only if every
+   unit in the fleet has the front-end fitted.
 3. **Route the keypad harness away from the motor cable.** Separate bundles;
    cross at right angles where they must meet, rather than running parallel
    alongside each other.
@@ -501,6 +540,15 @@ for new builds, in priority order:
    immediately adjacent to `DIR` (D7/GPIO17), with `STEP` (D8) — switching at
    kilohertz with fast edges — two pins over. That's a coupling path on the
    board itself, not only in the harness. D0, D1, D2, and D10 are spare.
+   Needs no parts, only a wire and a firmware pin change, but it's also a
+   pin-map change shared by every unit through the same OTA image. Hold it
+   back until the RC front-end alone has been proved insufficient.
+
+**After fitting**, with the unit powered and idle: meter each of D4/D5/D6
+to GND and expect ~3.3 V. Then hold each key and expect ~0.1 V. A line that
+stays near 3.3 V when pressed isn't reaching the node, so check the harness
+and the series resistor's joints. Finish by holding Up with a meter on `EN̅`
+(D9): 0 V for the whole hold proves the path end to end.
 
 See `docs/superpowers/specs/2026-08-11-keypad-debounce-design.md` for the
 full incident writeup and the residual-risk analysis of what's still
@@ -525,7 +573,7 @@ figure that shows up on some retailer listings is a *pulsed* rating — 1/10
 duty cycle, 0.1ms pulses — not continuous, and doesn't apply to a steady
 status LED), and a genuinely bright 3100mcd typical at 20mA.
 
-**Resistor: 150 Ω.** Working through the full `V_f` tolerance band
+**Resistor: 150 Ω** (Yageo `MF0204FTE52-150R`, 1 %, 0.4 W). Working through the full `V_f` tolerance band
 (`R = (3.3V − V_f) / I_f`) rather than a single nominal value: worst-case
 low `V_f` (1.8V) draws 10.0mA, typical (1.9V) draws 9.3mA, worst-case high
 `V_f` (2.6V) draws 4.7mA — every case stays 3–6× under the 30mA rating, and
