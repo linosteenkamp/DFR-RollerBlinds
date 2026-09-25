@@ -324,6 +324,258 @@ static void test_network_lost_shows_no_network(void)
     TEST_ASSERT_EQUAL_INT32(LED_NO_NETWORK, f_rec(F_LED_SET).a);
 }
 
+/* ---------- calibration (spec §6) ---------- */
+
+static void test_fn_long_from_calibrated_enters_full_calibration(void)
+{
+    boot_cal(5000);
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    TEST_ASSERT_EQUAL(POS_CAL_WAIT_MARK1, C.pos.cal);
+    TEST_ASSERT_EQUAL_INT32(5000, C.raw);
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_CAL_TIMER_START));
+    TEST_ASSERT_EQUAL_INT32(LED_CAL_MARK1, f_rec(F_LED_SET).a);
+    TEST_ASSERT_FALSE(ctl_calibrated(&C));
+    TEST_ASSERT_EQUAL_INT32(false, f_rec(F_MOTION_ALLOWED).a);
+}
+
+static void test_fn_long_with_position_unknown_enters_rehome(void)
+{
+    boot_full(true, SPAN, false, 0, false, 0);
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    TEST_ASSERT_EQUAL(POS_CAL_WAIT_REHOME, C.pos.cal);
+    TEST_ASSERT_EQUAL_INT32(LED_CAL_MARK1, f_rec(F_LED_SET).a);
+}
+
+static void test_fn_long_while_moving_does_not_enter(void)
+{
+    boot_cal(0);
+    kp(KP_EVT_TAP, KEY_DOWN);
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    TEST_ASSERT_EQUAL(POS_CAL_NONE, C.pos.cal);
+    TEST_ASSERT_EQUAL_INT(0, f_count(F_CAL_TIMER_START));
+}
+
+static void test_full_calibration_happy_path(void)
+{
+    boot_uncal();
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    kp(KP_EVT_HOLD_START, KEY_DOWN);
+    TEST_ASSERT_EQUAL_INT(1, f_count_ab(F_MOTION_START, 0, 2000000));
+    kp(KP_EVT_HOLD_END, KEY_DOWN);
+    done(1000, false);
+    TEST_ASSERT_TRUE(C.cal_moved);
+    TEST_ASSERT_EQUAL_INT(1, f_count_ab(F_SAVE_POSITION, false, 0));  /* first jog */
+    kp(KP_EVT_TAP, KEY_FN);                                            /* mark 1 */
+    TEST_ASSERT_EQUAL(POS_CAL_WAIT_MARK2, C.pos.cal);
+    TEST_ASSERT_EQUAL_INT32(LED_CAL_MARK2, f_rec(F_LED_SET).a);
+    kp(KP_EVT_HOLD_START, KEY_DOWN);
+    kp(KP_EVT_HOLD_END, KEY_DOWN);
+    done(25000, false);
+    F.n = 0;
+    kp(KP_EVT_TAP, KEY_FN);                                            /* mark 2 */
+    TEST_ASSERT_TRUE(ctl_calibrated(&C));
+    TEST_ASSERT_EQUAL_INT32(SPAN, C.pos.closed_steps);
+    TEST_ASSERT_EQUAL_INT32(SPAN, C.raw);
+    TEST_ASSERT_EQUAL_INT(1, f_count_ab(F_SAVE_SPAN, true, SPAN));
+    TEST_ASSERT_EQUAL_INT(1, f_count_ab(F_SAVE_POSITION, true, SPAN));
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_CAL_TIMER_STOP));
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_LED_FLASH, LED_ACK));
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_REPORT_TRAVEL));
+}
+
+static void test_mark2_too_short_is_rejected_and_keeps_waiting(void)
+{
+    boot_uncal();
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    kp(KP_EVT_HOLD_START, KEY_DOWN);
+    kp(KP_EVT_HOLD_END, KEY_DOWN);
+    done(1000, false);
+    kp(KP_EVT_TAP, KEY_FN);                 /* mark 1 at 1000 */
+    kp(KP_EVT_HOLD_START, KEY_DOWN);
+    kp(KP_EVT_HOLD_END, KEY_DOWN);
+    done(3000, false);                      /* only 2000 below mark 1 */
+    F.n = 0;
+    kp(KP_EVT_TAP, KEY_FN);
+    TEST_ASSERT_EQUAL(POS_CAL_WAIT_MARK2, C.pos.cal);
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_LED_FLASH, LED_ERROR));
+    TEST_ASSERT_EQUAL_INT(0, f_count(F_SAVE_SPAN));
+}
+
+static void test_rehome_single_mark_restores_calibration(void)
+{
+    boot_full(true, SPAN, false, 0, false, 0);
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    kp(KP_EVT_HOLD_START, KEY_UP);
+    kp(KP_EVT_HOLD_END, KEY_UP);
+    done(-500, false);
+    F.n = 0;
+    kp(KP_EVT_TAP, KEY_FN);
+    TEST_ASSERT_TRUE(ctl_calibrated(&C));
+    TEST_ASSERT_EQUAL_INT32(0, C.pos.cur_steps);
+    TEST_ASSERT_EQUAL_INT32(SPAN, C.pos.closed_steps);
+    TEST_ASSERT_EQUAL_INT(1, f_count_ab(F_SAVE_POSITION, true, 0));
+}
+
+static void test_abort_without_jog_keeps_calibration(void)
+{
+    boot_cal(5000);
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    F.n = 0;
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    TEST_ASSERT_EQUAL(POS_CAL_NONE, C.pos.cal);
+    TEST_ASSERT_TRUE(ctl_calibrated(&C));
+    TEST_ASSERT_EQUAL_INT(0, f_count(F_SAVE_POSITION));
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_CAL_TIMER_STOP));
+}
+
+static void test_abort_after_jog_drops_to_position_unknown(void)
+{
+    boot_cal(5000);
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    kp(KP_EVT_HOLD_START, KEY_DOWN);
+    kp(KP_EVT_HOLD_END, KEY_DOWN);
+    done(7000, false);
+    F.n = 0;
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    TEST_ASSERT_FALSE(ctl_calibrated(&C));
+    TEST_ASSERT_FALSE(C.pos.pos_known);
+    TEST_ASSERT_TRUE(C.pos.span_valid);
+    TEST_ASSERT_EQUAL_INT(1, f_count_ab(F_SAVE_POSITION, false, 0));
+}
+
+static void test_timeout_when_idle_aborts(void)
+{
+    boot_cal(5000);
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    ev_type(APP_EVT_CAL_TIMEOUT);
+    TEST_ASSERT_EQUAL(POS_CAL_NONE, C.pos.cal);
+    TEST_ASSERT_TRUE(ctl_calibrated(&C));
+}
+
+static void test_timeout_mid_jog_defers_abort_until_done(void)
+{
+    boot_cal(5000);
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    kp(KP_EVT_HOLD_START, KEY_DOWN);
+    ev_type(APP_EVT_CAL_TIMEOUT);
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_MOTION_STOP));
+    TEST_ASSERT_NOT_EQUAL(POS_CAL_NONE, C.pos.cal);
+    done(7000, false);
+    TEST_ASSERT_EQUAL(POS_CAL_NONE, C.pos.cal);
+    TEST_ASSERT_FALSE(C.pos.pos_known);
+    TEST_ASSERT_FALSE(ctl_calibrated(&C));
+}
+
+static void test_timeout_outside_calibration_is_ignored(void)
+{
+    boot_cal(5000);
+    ev_type(APP_EVT_CAL_TIMEOUT);
+    TEST_ASSERT_EQUAL_INT(0, F.n);
+}
+
+static void test_fn_tap_outside_calibration_acks(void)
+{
+    boot_cal(5000);
+    kp(KP_EVT_TAP, KEY_FN);
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_LED_FLASH, LED_ACK));
+}
+
+static void test_fn_tap_while_moving_stops(void)
+{
+    boot_cal(0);
+    kp(KP_EVT_TAP, KEY_DOWN);
+    kp(KP_EVT_TAP, KEY_FN);
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_MOTION_STOP));
+}
+
+/* keypad-feedback check 8: brief Up/Down taps inside Calibration Mode are
+ * silent — LED_ERROR there already means "mark rejected". */
+static void test_updown_taps_inside_calibration_do_not_flash(void)
+{
+    boot_uncal();
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    F.n = 0;
+    kp(KP_EVT_TAP, KEY_UP);
+    kp(KP_EVT_TAP, KEY_DOWN);
+    TEST_ASSERT_EQUAL_INT(0, f_count(F_LED_FLASH));
+    TEST_ASSERT_EQUAL_INT(0, f_count(F_MOTION_START));
+}
+
+/* Review Focus 3: Identify inside Calibration Mode returns to the mode's
+ * pattern, not to OFF. */
+static void test_identify_inside_calibration_returns_to_cal_pattern(void)
+{
+    boot_cal(0);
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    ev_on(APP_EVT_IDENTIFY, true);
+    TEST_ASSERT_EQUAL_INT32(LED_IDENTIFY, f_rec(F_LED_SET).a);
+    ev_on(APP_EVT_IDENTIFY, false);
+    TEST_ASSERT_EQUAL_INT32(LED_CAL_MARK1, f_rec(F_LED_SET).a);
+}
+
+/* ---------- Motor Reversed ---------- */
+
+static void test_reverse_from_zigbee_wipes_calibration(void)
+{
+    boot_cal(5000);
+    ev_on(APP_EVT_ZB_SET_REVERSED, true);
+    TEST_ASSERT_TRUE(C.reversed);
+    TEST_ASSERT_FALSE(ctl_calibrated(&C));
+    TEST_ASSERT_FALSE(C.pos.span_valid);
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_SET_REVERSED, true));
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_SAVE_REVERSED, true));
+    TEST_ASSERT_EQUAL_INT(1, f_count_ab(F_SAVE_SPAN, false, 0));
+    TEST_ASSERT_EQUAL_INT(1, f_count_ab(F_SAVE_POSITION, false, 0));
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_REPORT_MODE, true));
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_LED_FLASH, LED_ACK));
+    TEST_ASSERT_EQUAL_INT32(0, C.raw);
+}
+
+static void test_reverse_to_same_value_does_nothing(void)
+{
+    boot_cal(5000);
+    ev_on(APP_EVT_ZB_SET_REVERSED, false);
+    TEST_ASSERT_EQUAL_INT(0, F.n);
+}
+
+static void test_reverse_while_moving_is_rejected(void)
+{
+    boot_cal(0);
+    kp(KP_EVT_TAP, KEY_DOWN);
+    F.n = 0;
+    ev_on(APP_EVT_ZB_SET_REVERSED, true);
+    TEST_ASSERT_FALSE(C.reversed);
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_REPORT_MODE, false));
+    TEST_ASSERT_EQUAL_INT(0, f_count(F_SAVE_REVERSED));
+}
+
+static void test_reverse_inside_calibration_exits_mode(void)
+{
+    boot_cal(5000);
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    F.n = 0;
+    ev_on(APP_EVT_ZB_SET_REVERSED, true);
+    TEST_ASSERT_EQUAL(POS_CAL_NONE, C.pos.cal);
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_CAL_TIMER_STOP));
+}
+
+/* ---------- factory reset ---------- */
+
+static void test_factory_reset_when_idle(void)
+{
+    boot_cal(0);
+    kp(KP_EVT_FACTORY_RESET, KEY_FN);
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_FACTORY_RESET));
+}
+
+static void test_factory_reset_while_moving_is_refused(void)
+{
+    boot_cal(0);
+    kp(KP_EVT_TAP, KEY_DOWN);
+    kp(KP_EVT_FACTORY_RESET, KEY_FN);
+    TEST_ASSERT_EQUAL_INT(0, f_count(F_FACTORY_RESET));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -351,5 +603,26 @@ int main(void)
     RUN_TEST(test_travel_time_write_mid_move_applies_to_next_move);
     RUN_TEST(test_identify_overrides_then_restores_led);
     RUN_TEST(test_network_lost_shows_no_network);
+    RUN_TEST(test_fn_long_from_calibrated_enters_full_calibration);
+    RUN_TEST(test_fn_long_with_position_unknown_enters_rehome);
+    RUN_TEST(test_fn_long_while_moving_does_not_enter);
+    RUN_TEST(test_full_calibration_happy_path);
+    RUN_TEST(test_mark2_too_short_is_rejected_and_keeps_waiting);
+    RUN_TEST(test_rehome_single_mark_restores_calibration);
+    RUN_TEST(test_abort_without_jog_keeps_calibration);
+    RUN_TEST(test_abort_after_jog_drops_to_position_unknown);
+    RUN_TEST(test_timeout_when_idle_aborts);
+    RUN_TEST(test_timeout_mid_jog_defers_abort_until_done);
+    RUN_TEST(test_timeout_outside_calibration_is_ignored);
+    RUN_TEST(test_fn_tap_outside_calibration_acks);
+    RUN_TEST(test_fn_tap_while_moving_stops);
+    RUN_TEST(test_updown_taps_inside_calibration_do_not_flash);
+    RUN_TEST(test_identify_inside_calibration_returns_to_cal_pattern);
+    RUN_TEST(test_reverse_from_zigbee_wipes_calibration);
+    RUN_TEST(test_reverse_to_same_value_does_nothing);
+    RUN_TEST(test_reverse_while_moving_is_rejected);
+    RUN_TEST(test_reverse_inside_calibration_exits_mode);
+    RUN_TEST(test_factory_reset_when_idle);
+    RUN_TEST(test_factory_reset_while_moving_is_refused);
     return UNITY_END();
 }
