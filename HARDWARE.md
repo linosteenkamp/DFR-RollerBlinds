@@ -311,9 +311,17 @@ and the external LED alone was always the primary indicator), and leaves
 
 Assignments follow the **implementation board's physical layout**: the
 three driver signals sit together on `D7`–`D9` at one end of the header,
-the keypad's 3-pin harness on `D4`–`D6` at the other, and the LED on `D3`.
+the keypad's 3-pin harness on `D3`–`D5` at the other, and the LED on `D2`.
 That grouping is the reason for the pin choice — each harness lands on
 contiguous header pins and solders straight down without jumpers.
+
+**Pin map revised 2026-09-25 (v2.4.0 firmware): Fn D6 → D3, LED D3 → D2.**
+The keypad had been on `D4`–`D6`, which put Fn on GPIO16. Inside the C6
+package that pin neighbours DIR's GPIO17, and the carrier board ran both
+traces into the same corner as the kilohertz STEP line. Fn now sits across
+the header from spare `D10`, and `D6` is left empty as a buffer. **Firmware
+and wiring must change together**, see
+[Rewiring for the v2.4.0 pin map](#rewiring-for-the-v240-pin-map).
 
 | Signal | XIAO pin | GPIO | Notes |
 |---|---|---|---|
@@ -322,18 +330,18 @@ contiguous header pins and solders straight down without jumpers.
 | `EN̅` | D9 | GPIO20 | High = driver **disabled**; firmware drives it low only during moves |
 | Keypad Up | D4 | GPIO22 | Internal pull-up (this pin doubles as I²C SDA on XIAO's silkscreen — unused here, plain GPIO input) |
 | Keypad Down | D5 | GPIO23 | Internal pull-up (doubles as I²C SCL — unused here) |
-| Keypad Fn | D6 | GPIO16 | Internal pull-up |
-| External status LED | D3 | GPIO21 | Through a series resistor to the LED, LED to GND. Sole status indicator this revision — no onboard-LED mirror. Moved here from D2/GPIO2 on 2026-08-08 to suit the implementation board layout; confirmed working on hardware the same day. |
-| *(spare)* | D0, D1, D2, D10 | GPIO0, GPIO1, GPIO2, GPIO18 | Unused headroom. `D10` is the suggested pick if `PDN_UART` is ever wired for a future TMC2209 UART upgrade — it neighbours `EN` on D9, keeping the driver harness in one corner. |
+| Keypad Fn | D3 | GPIO21 | Internal pull-up. Was D6/GPIO16 before v2.4.0 |
+| External status LED | D2 | GPIO2 | Through a series resistor to the LED, LED to GND. Sole status indicator this revision — no onboard-LED mirror. History: D2 until 2026-08-08, then D3 for the board layout, back to D2 in v2.4.0 to free D3 for Fn. GPIO2 is not a strapping pin on the C6. |
+| *(spare)* | D0, D1, D6, D10 | GPIO0, GPIO1, GPIO16, GPIO18 | Unused headroom. `D10` is the suggested pick if `PDN_UART` is ever wired for a future TMC2209 UART upgrade — it neighbours `EN` on D9, keeping the driver harness in one corner. |
 
 **`D6`/`D7` are the ESP32-C6's default UART0 TX/RX pins**, and this design
-uses both (Fn button and `DIR`). That is safe *only* because the console
-runs on the built-in USB-Serial-JTAG rather than UART0 —
-`sdkconfig.defaults` sets `CONFIG_ESP_CONSOLE_UART_DEFAULT=n` /
-`CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`, leaving
-`CONFIG_ESP_CONSOLE_UART_NUM = -1`. If anyone ever switches the console
-back to UART0, the console would drive the Fn line and fight its pull-up.
-Don't make that change without moving these two signals first.
+uses `D7` for `DIR` (`D6` is spare since v2.4.0; it carried Fn before). That
+is safe *only* because the console runs on the built-in USB-Serial-JTAG
+rather than UART0 — `sdkconfig.defaults` sets
+`CONFIG_ESP_CONSOLE_UART_DEFAULT=n` / `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`,
+leaving `CONFIG_ESP_CONSOLE_UART_NUM = -1`. If anyone ever switches the
+console back to UART0, it would drive the `DIR` line. Don't make that change
+without moving `DIR` first.
 
 None of the ESP32-C6 strapping pins (GPIO4/5/8/9/15) are exposed on the
 XIAO's header at all, so there's no strapping-pin caution needed here — a
@@ -404,9 +412,9 @@ boards.
 Membrane keypad                                  XIAO ESP32C6
 ┌──────────┐
 │ Common ──┼──────────────────────────────────── GND
-│ Up     ──┼──── 150 Ω ──┬──────────────────────  D4 / GPIO22
+│ Fn     ──┼──── 150 Ω ──┬──────────────────────  D3 / GPIO21
+│ Up     ──┼──── 150 Ω ──┼─ (same per line) ────  D4 / GPIO22
 │ Down   ──┼──── 150 Ω ──┼─ (same per line) ────  D5 / GPIO23
-│ Fn     ──┼──── 150 Ω ──┼─ (same per line) ────  D6 / GPIO16
 └──────────┘             │
                  each line's node, at the XIAO end:
                    node ── 4.7 kΩ ── 3V3
@@ -447,7 +455,7 @@ position — membrane tail pinouts aren't consistent across suppliers, and the
 "common" is sometimes an end pin, sometimes not. With a multimeter on
 continuity: hold one key down and probe pairs on the tail; the pin that
 shows continuity for *every* key (tested one at a time) is the common. That
-one goes to GND; the other three go to D4/D5/D6.
+one goes to GND; the other three go to Fn→D3, Up→D4, Down→D5.
 
 **Breadboards split rows down the centre channel.** A jumper landed on the
 wrong half of a row, or in a neighbouring row entirely, won't show up
@@ -535,16 +543,16 @@ for new builds, in priority order:
    alongside each other.
 4. **Twisted or shielded keypad cable**, with a ground return alongside the
    signals, shield grounded at the MCU end only.
-5. **Move Fn off D6 in the next board revision.** The physical-layout pin map
-   puts the keypad on D4-D6 and the driver on D7-D9, landing Fn (D6/GPIO16)
-   immediately adjacent to `DIR` (D7/GPIO17), with `STEP` (D8) — switching at
-   kilohertz with fast edges — two pins over. That's a coupling path on the
-   board itself, not only in the harness. D0, D1, D2, and D10 are spare.
-   Needs no parts, only a wire and a firmware pin change, but it's also a
-   pin-map change shared by every unit through the same OTA image. Hold it
-   back until the RC front-end alone has been proved insufficient.
+5. **Fn moved off D6 — done in v2.4.0** (Fn → D3, LED → D2). On D6, Fn was
+   GPIO16, which neighbours `DIR`'s GPIO17 on the C6 package, and its trace
+   shared the carrier board's corner with `DIR` (D7) and `STEP` (D8,
+   switching at kilohertz with fast edges). *(On the XIAO header itself D6
+   and D7 face each other across the board rather than sitting side by
+   side; an earlier revision of this section called them "immediately
+   adjacent".)* Done together with the RC front-end, so every unit changes
+   hardware revision once.
 
-**After fitting**, with the unit powered and idle: meter each of D4/D5/D6
+**After fitting**, with the unit powered and idle: meter each of D3/D4/D5
 to GND and expect ~3.3 V. Then hold each key and expect ~0.1 V. A line that
 stays near 3.3 V when pressed isn't reaching the node, so check the harness
 and the series resistor's joints. Finish by holding Up with a meter on `EN̅`
@@ -554,15 +562,39 @@ See `docs/superpowers/specs/2026-08-11-keypad-debounce-design.md` for the
 full incident writeup and the residual-risk analysis of what's still
 accepted without these changes.
 
+### Rewiring for the v2.4.0 pin map
+
+v2.4.0 moves Fn from D6 to D3 and the LED from D3 to D2. **Firmware and
+wiring must match.** The OTA image carries no hardware revision, so the
+device can't tell which wiring it's on.
+
+**What goes wrong on a mismatch:**
+
+| Board wired for | Firmware | Result |
+|---|---|---|
+| old map (Fn D6, LED D3) | v2.4.0+ | **Unsafe.** Fn reads D3, which is the LED line: the pull-up pushes a few µA through the LED and 150 Ω to GND, leaving the pin near 1.5 V, between a valid low and a valid high. Fn can read as held, and 3 s of that enters Calibration Mode. The LED is dark and the real Fn key does nothing. |
+| new map (Fn D3, LED D2) | v2.3.x or older | Old firmware drives D3 as the LED output straight into the Fn key's line, so pressing Fn shorts a driven-high pin through 150 Ω to GND (~20 mA, survivable but wrong). Fn does nothing, and the LED is dark. |
+
+**Procedure, per board:**
+
+1. Power down (24 V off, USB unplugged).
+2. Move the **LED** wire (with its 150 Ω) from D3 to **D2**.
+3. Move the **Fn** wire from D6 to **D3**. Fit its RC front-end at the D3
+   end if you're doing both at once.
+4. Leave D6 empty.
+5. Flash or OTA **v2.4.0 or later** before relying on the keypad.
+6. Check: the LED shows its normal pattern; hold Fn ~3 s from standstill and
+   Calibration Mode's slow pulse appears; hold Fn again to exit.
+
 ## LED wiring
 
 ```
-GPIO 21 (D3) ── resistor (150 Ω) ── LED anode
+GPIO 2 (D2) ── resistor (150 Ω) ── LED anode
                                      LED cathode ── GND
 ```
 
 One external status LED on the enclosure face — **Kingbright L-7104SURC-E**,
-3mm through-hole, Hyper Red (AlGaInP) — driven from D3/GPIO21 through a
+3mm through-hole, Hyper Red (AlGaInP) — driven from D2/GPIO2 (D3/GPIO21 before v2.4.0) through a
 series resistor. **This revision has no onboard-LED mirror** — the external
 LED is the only status indicator, so it needs to be wired and visible before
 doing any bring-up beyond stage 1 (flash + serial log only).
@@ -749,7 +781,7 @@ rather than reaching straight for `CRUISE_US`.
 
 ### One or more keypad keys do nothing
 
-1. **Confirm the physical wiring order.** ▲→D4, ▼→D5, Fn→D6 is the
+1. **Confirm the physical wiring order.** Fn→D3, ▲→D4, ▼→D5 is the
    firmware's expectation; wires landed in rotated or swapped positions will
    make keys register as the *wrong* key rather than not at all (▲ acting
    like Fn, etc.) — if presses do something but the wrong thing, recheck

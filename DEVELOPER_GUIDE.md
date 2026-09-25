@@ -237,7 +237,7 @@ except the pin mapping.
 - [x] z2m motion commands rejected while uncalibrated **2026-08-02** — open/close pressed in z2m, no motor movement. Lockout is enforced device-side in `zb_goto_request()`, so this holds regardless of what the converter reports.
 - [x] Calibrate via keypad **2026-08-02** — calibrated successfully on the bench rig (17HS4401 + small blind). The deliberate wrong-mark-2 five-flash rejection is **not yet retested** on rev 2.
 - [x] Full travel from keypad taps **2026-08-02** — clean both directions at `CRUISE_US = 150` / Vref 1.92 V. Getting there required correcting Vref for the fitted motor first; see [HARDWARE.md](HARDWARE.md#motion-speed-tuning). Live-position tracking during z2m moves not yet separately checked.
-- [ ] Keypad matrix (D4/D5/D6): tap up/down full travel; tap-while-moving stops; hold jogs clamped at limits
+- [ ] Keypad matrix (Fn D3, Up D4, Down D5 since v2.4.0): tap up/down full travel; tap-while-moving stops; hold jogs clamped at limits
 - [ ] Power-cut mid-travel → boots Position Unknown (double-flash, z2m locked) → re-home (Fn 3 s, jog Open, Fn)
 - [~] Clean power cycle at rest → still calibrated **2026-08-02** (observed as part of the OTA persistence check — calibration survived a power cycle at rest). "Taps work immediately afterwards" not separately confirmed.
 - [ ] Idle back-drive watch: leave the blind mid-travel overnight; if it creeps, revisit idle-hold (spec §2 fallback)
@@ -249,7 +249,7 @@ except the pin mapping.
 - [ ] z2m lockout inside calibration mode (motion commands rejected while `s_cal_mode`)
 - [ ] Uncalibrated taps inert (hold-to-jog still works)
 - [ ] Zigbee-down keypad autonomy, then rejoin
-- [ ] Identify → LED (steady rapid blink while Identify is active, D3)
+- [ ] Identify → LED (steady rapid blink while Identify is active, D2 since v2.4.0)
 - [ ] ≥10 consecutive full-travel cycles, checking both physical marks each time (open-loop drift)
 - [ ] TMC2209 thermal soak in enclosure (built-in thermal shutdown is a backstop, not a substitute for adequate airflow — confirm temps stay reasonable under sustained cycling)
 - [ ] Power-cycle during a jogged calibration session
