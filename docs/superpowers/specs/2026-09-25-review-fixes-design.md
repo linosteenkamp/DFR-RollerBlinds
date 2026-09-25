@@ -1,7 +1,7 @@
 # Review fixes: one owner for every motion decision
 
 **Date:** 2026-09-25
-**Status:** draft, awaiting approval
+**Status:** approved 2026-09-25; implementation plan to follow
 **Repos:** `DFR-RollerBlinds` only (the OTA deferral that would need
 `esp-zb-common` is deliberately out of scope, see [Deferred](#deferred))
 **Ships as:** v2.4.0, on the current pin map. The Fn/LED pin move on branch
