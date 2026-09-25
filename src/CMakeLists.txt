@@ -1,5 +1,6 @@
 set(SRCS
     "main.c"
+    "ctl.c"
     "position.c"
     "ramp.c"
     "keypad_logic.c"
