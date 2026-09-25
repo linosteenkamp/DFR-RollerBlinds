@@ -6,18 +6,13 @@
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "motion_profile.h"
 
 typedef struct {
     int gpio_step;
     int gpio_dir;
     int gpio_en;      /* TMC2209 EN̅: high = driver DISABLED */
 } motion_pins_t;
-
-typedef struct {
-    uint32_t cruise_us;   /* step interval at cruise (e.g. 300 = ~3.3 kHz) */
-    uint32_t start_us;    /* first/last-step interval (e.g. 500 = 2 kHz) */
-    int32_t  accel_steps; /* ramp length in steps (e.g. 800) */
-} motion_profile_t;
 
 /* Configure GPIOs (EN̅ high), create the GPTimer. done-events are posted to q
  * as APP_EVT_MOTION_DONE {steps=final absolute position, completed}. */
