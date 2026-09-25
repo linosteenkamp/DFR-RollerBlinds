@@ -233,6 +233,30 @@ TMC2209 pin-designation manual (their V1.2 and V1.3 modules share this same
 layout) — still **read the silkscreen on your specific board** before
 wiring, since clones vary.
 
+**Physical layout** (top view, trimpot and `DIAG`/`INDEX`/`VREF` at the top
+edge), as printed on the pin card that ships with the V1.3 module:
+
+```
+            DIAG · INDEX · VREF
+          ┌───────────────────┐
+  EN    ──┤ 1              16 ├── VM      ← 24 V (+ 220 µF, 100 nF)
+  MS1   ──┤ 2              15 ├── GND     ← PSU −
+  MS2   ──┤ 3              14 ├── A2  ┐
+  PDN   ──┤ 4              13 ├── A1  ┘ coil A
+  PDN   ──┤ 5              12 ├── B1  ┐
+  CLK   ──┤ 6              11 ├── B2  ┘ coil B
+  STEP  ──┤ 7              10 ├── VDD     ← XIAO 3V3  (= VCC_IO)
+  DIR   ──┤ 8               9 ├── GND     ← XIAO GND
+          └───────────────────┘
+```
+
+**The card labels the logic-supply pin `VDD`; BTT's manual and this document
+call it `VCC_IO`.** Same pin: right column, second from the bottom, beside
+the logic-side `GND`. Logic signals are all on the left column. Power and
+motor are all on the right. The two `GND` pins are on the right, at the top
+(power) and bottom (logic). Pin numbers above are this document's, for
+reference only; the module isn't marked with them.
+
 | TMC2209 pin | Wire to | Notes |
 |---|---|---|
 | `EN` (ENABLE) | XIAO **D9 / GPIO20** | Active-low enable, same convention as the DRV8825 this replaces. Firmware drives it high (disabled) at idle, low only during a move. |
@@ -244,9 +268,9 @@ wiring, since clones vary.
 | `DIR` | XIAO **D7 / GPIO17** | Direction level, set before each move |
 | `VM` | 24 V PSU **+** | Plus the ≥100 µF capacitor to the adjacent GND, right at the pin |
 | `GND` (power side, next to VM) | 24 V PSU **−** | |
-| `A1`, `A2` | Motor coil **A** (one pair) | See coil identification below |
+| `A1`, `A2` | Motor coil **A** (one pair) | See coil identification below. On the header `A2` is above `A1`. |
 | `B1`, `B2` | Motor coil **B** (the other pair) | |
-| `VCC_IO` | **XIAO 3V3** | **This is the pin the DRV8825 never had.** DRV8825 self-derives its logic reference from VMOT; the TMC2209's digital core needs its own 3–5 V logic supply here, or `STEP`/`DIR`/`EN` won't be recognized at all. Tie to the XIAO's 3.3 V rail (not 5V) so the logic threshold matches what the XIAO's GPIOs actually drive. |
+| `VCC_IO` (silkscreened **`VDD`** on the V1.3 pin card) | **XIAO 3V3** | **This is the pin the DRV8825 never had.** DRV8825 self-derives its logic reference from VMOT; the TMC2209's digital core needs its own 3–5 V logic supply here, or `STEP`/`DIR`/`EN` won't be recognized at all. Tie to the XIAO's 3.3 V rail (not 5V) so the logic threshold matches what the XIAO's GPIOs actually drive. |
 | `GND` (logic side, next to `VCC_IO`) | XIAO GND | Common ground — see power chain note above |
 | `DIAG`, `INDEX`, `VREF` | `DIAG`/`INDEX` unconnected; `VREF` is the trimpot test point | `DIAG`/`INDEX` are stall-detection / step-position outputs, not used by this firmware (no closed-loop features, spec §11 out of scope). `VREF` is where you measure current limit — see below. |
 
