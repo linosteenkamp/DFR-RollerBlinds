@@ -123,12 +123,21 @@ onboard LED this feature was built around).
 | Pattern | Meaning |
 |---|---|
 | Off | Normal: calibrated, idle |
-| 1 Hz blink | Calibration mode, awaiting mark 1 (Open) |
+| 500 ms on / 1 s off | Calibration mode, awaiting mark 1 (Open) |
 | Fast blink (~5 Hz) | Calibration mode, awaiting mark 2 (Closed) |
 | Double-flash every 3 s | Uncalibrated / Position Unknown (z2m motion locked) |
 | Three quick flashes | Ack: mark accepted / direction toggled |
 | Five rapid flashes | Error: mark rejected (§6 validation) |
 | Steady rapid blink | Zigbee Identify (0x0003) active |
+
+The mark-1 pattern is **asymmetric on purpose** (revised from the original
+"1 Hz blink"). Against mark 2's ~5 Hz *50% square*, an even 50% mark-1 blink
+differed only in **rate**, which the operator can judge only by watching several
+cycles and comparing against remembered speed. A long dark gap differs in
+**shape**, which reads instantly and needs no reference. This is the pair where
+confusion is expensive — mark 1 is Open, mark 2 is Closed, and marking them out
+of order gets mark 2 rejected by §6 validation. A sparse pulse also reads as
+"waiting", which is what the state is.
 
 GPIO budget: 7 used (STEP, DIR, EN, BTN_UP, BTN_DOWN, BTN_FN, LED) + 1
 reserved-but-unwired (TMC2209 `PDN_UART`, for a possible future UART
@@ -260,8 +269,8 @@ mode; motion is hold-to-jog only; z2m motion commands are rejected (§5). The
 mode has two automatic entry variants — no extra gestures to learn:
 
 **Full calibration** (entered while calibrated, or never calibrated):
-1. Jog to **fully open**, tap Fn → mark 1 (zero reference). LED goes 1 Hz →
-   fast (~5 Hz).
+1. Jog to **fully open**, tap Fn → mark 1 (zero reference). LED goes from the slow
+   pulse (500 ms on / 1 s off) → fast (~5 Hz).
 2. Jog to **fully closed**, tap Fn → mark 2. **Validation:** mark 2 must lie
    *below* mark 1 by a minimum sane travel (constant, ~¼ output rev). Invalid →
    five-flash error, mark rejected, mode stays waiting for mark 2. Valid →

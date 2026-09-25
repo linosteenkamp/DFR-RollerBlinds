@@ -58,7 +58,7 @@ stop it first (any tap stops motion).
 **Full calibration** (device is calibrated, or has never been calibrated):
 
 1. **Hold Fn ~3 s** → enters calibration mode, awaiting mark 1 (Open).
-   LED: **1 Hz blink**.
+   LED: **slow pulse — 500 ms on / 1 s off**.
 2. **Jog** (hold Up/Down) the blind to fully **open**.
 3. **Tap Fn** → records mark 1 (the zero reference). LED switches to
    **~5 Hz blink** (awaiting mark 2), plus a three-flash ack.
@@ -76,7 +76,7 @@ trust in current position was lost, e.g. after a power cut mid-move):
 
 1. **Hold Fn ~3 s** → enters calibration mode; because the span is already
    known, this automatically selects the one-mark Re-home variant. LED:
-   **1 Hz blink**.
+   **slow pulse — 500 ms on / 1 s off**.
 2. **Jog** to fully **open**.
 3. **Tap Fn** → re-zeroes position against the kept span, mode exits, device
    is calibrated again. LED returns to **off**, three-flash ack.
@@ -95,7 +95,7 @@ no jogging changes nothing.
 | Pattern | Meaning |
 |---|---|
 | Off | Normal: calibrated, idle |
-| 1 Hz blink | Calibration mode, awaiting mark 1 (Open) |
+| 500 ms on / 1 s off | Calibration mode, awaiting mark 1 (Open) |
 | Fast blink (~5 Hz) | Calibration mode, awaiting mark 2 (Closed) |
 | Double-flash every 3 s | Uncalibrated / Position Unknown (z2m motion locked) |
 | Three quick flashes | Ack: mark accepted / direction toggled / already at that limit / Fn tapped with nothing to mark / a jog too small to change the reported position |

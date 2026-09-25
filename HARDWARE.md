@@ -540,7 +540,7 @@ two wires ever short together along the run, a resistor at the LED still
 protects the GPIO pin, whereas one back at the board would be bypassed by
 the short.
 
-See the design spec §2 for the full LED pattern table (off / 1 Hz / ~5 Hz /
+See the design spec §2 for the full LED pattern table (off / slow pulse / ~5 Hz /
 double-flash / ack / error / identify) and [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)
 for what each pattern means during calibration.
 

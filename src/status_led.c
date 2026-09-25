@@ -24,7 +24,14 @@ static esp_timer_handle_t s_timer;
 static bool pattern_level(led_pattern_t p, int t)
 {
     switch (p) {
-    case LED_CAL_MARK1: return (t / 10) % 2 == 0;          /* 1 Hz */
+    case LED_CAL_MARK1: return (t % 30) < 10;              /* 500 on / 1000 off:
+                                                            * deliberately NOT a 50%
+                                                            * square like MARK2 — the
+                                                            * pair then differs in shape,
+                                                            * not just rate, and a sparse
+                                                            * pulse reads as "waiting".
+                                                            * 30-tick period: 2 whole
+                                                            * cycles per 60-tick frame. */
     case LED_CAL_MARK2: return (t / 2)  % 2 == 0;          /* fast, 5 Hz (spec: ~5 Hz) */
     case LED_UNCAL:     return t == 0 || t == 1 || t == 4 || t == 5; /* dbl flash / 3 s */
     case LED_IDENTIFY:  return t % 2 == 0;                 /* rapid 10 Hz */
