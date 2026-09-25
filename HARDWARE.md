@@ -347,6 +347,36 @@ the header from spare `D10`, and `D6` is left empty as a buffer. **Firmware
 and wiring must change together**, see
 [Rewiring for the v2.4.0 pin map](#rewiring-for-the-v240-pin-map).
 
+**Physical layout** (top view, USB-C at the top), per Seeed's
+[XIAO ESP32C6 getting-started pin table](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/)
+and [pin-multiplexing page](https://wiki.seeedstudio.com/xiao_pin_multiplexing_esp32c6/),
+with this project's v2.4.0 assignments:
+
+```
+                          ┌──[ USB-C ]──┐
+   spare      GPIO0   D0 ─┤ •         • ├─ 5V              ← buck 5 V out
+   spare      GPIO1   D1 ─┤ •         • ├─ GND             ← common ground
+   LED        GPIO2   D2 ─┤ •         • ├─ 3V3             → TMC VDD, key pull-ups
+   Fn         GPIO21  D3 ─┤ •         • ├─ D10  GPIO18     spare (PDN_UART later)
+   Up         GPIO22  D4 ─┤ •         • ├─ D9   GPIO20     EN̅
+   Down       GPIO23  D5 ─┤ •         • ├─ D8   GPIO19     STEP
+   spare      GPIO16  D6 ─┤ •         • ├─ D7   GPIO17     DIR
+                          └─────────────┘
+```
+
+Seeed's alternate functions, for context: D0–D2 are ADC-capable (and
+LP_GPIO); D4/D5 are the default I²C SDA/SCL; D6/D7 are UART0 TX/RX; D8/D9/D10
+are SPI SCK/MISO/MOSI. None of those peripherals is used here. Driving
+`STEP`/`EN̅` from the SPI pins is fine, since they're plain GPIOs when SPI
+isn't configured.
+
+**Not on the header** (so not available for wiring): the JTAG pads on the
+back (MTMS GPIO4, MTDI GPIO5, MTCK GPIO6, MTDO GPIO7), BOOT on GPIO9, the
+onboard user LED on GPIO15, and the RF switch on GPIO3 (switch power) and
+GPIO14 (onboard vs U.FL antenna select). Battery pads are on the back:
+negative near the `D8` silkscreen, positive near `D5`. Don't repurpose
+GPIO3/GPIO14 in firmware: the radio depends on them.
+
 | Signal | XIAO pin | GPIO | Notes |
 |---|---|---|---|
 | `STEP` | D8 | GPIO19 | Pulse train from `motion.c`'s GPTimer ISR |
@@ -372,10 +402,12 @@ XIAO's header at all, so there's no strapping-pin caution needed here — a
 simplification versus the FireBeetle, where the onboard-LED mirror had to
 share a strapping pin deliberately.
 
-**Before wiring, confirm this D-number → GPIO-number mapping against your
-specific XIAO board's silkscreen/schematic.** It's sourced from Seeed's
-published pin-multiplexing reference, not yet cross-checked against a
-physical board in hand.
+**The D-number → GPIO mapping is verified on hardware**, with
+`tools/pinwalk` on 2026-08-02 (all pins then in use, including D2 and D6)
+plus the LED on D3/GPIO21 on 2026-08-08. *(An earlier revision of this
+paragraph said it was not yet cross-checked; that was stale.)* The
+silkscreen prints only D-numbers, never GPIO numbers, so run `tools/pinwalk`
+on any board from a new batch rather than trusting the table.
 
 ## Setting Vref (current limit)
 
