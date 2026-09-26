@@ -206,7 +206,19 @@ static void handle_mark(ctl_t *c)
             /* Span first: if the position save then fails, flash holds the
              * new span with whatever position this session's jog(s) already
              * invalidated (cal_pos_invalidated, retried every DONE until it
-             * lands) — a Re-home, never a wrong Calibrated. */
+             * lands) — a Re-home, never a wrong Calibrated. If that
+             * invalidation never landed this session, the still-set move
+             * flag (set at the jog's move start, never cleared without a
+             * successful position save) is the backstop: next boot drops to
+             * Position Unknown regardless.
+             *
+             * Accepted outcome of this branch: span save OK, position save
+             * failed. Flash keeps the new span; RAM rolls back to `before`
+             * (span AND position, matching what's actually on flash) rather
+             * than run with a span flash doesn't have. Flash is still on the
+             * safe side either way — position untrusted, or the move flag
+             * left set — and a later successful calibration or Re-home
+             * rewrites both. */
             if (c->io->save_span(c->pos.span_valid, c->pos.closed_steps) != CTL_OK ||
                 c->io->save_position(c->pos.pos_known, c->pos.cur_steps) != CTL_OK) {
                 c->pos = before;                        /* treat as a rejected mark */
