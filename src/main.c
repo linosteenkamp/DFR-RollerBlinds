@@ -61,6 +61,8 @@ static const char *TAG = "BLINDS";
 #define REPORT_PERIOD_US (1LL * 1000000)
 
 static QueueHandle_t      s_queue;
+static QueueHandle_t      s_done_q;       /* MOTION_DONE only, one slot */
+static QueueSetHandle_t   s_qset;         /* s_queue + s_done_q */
 static ctl_t              s_ctl;          /* owned by the dispatcher task */
 static esp_timer_handle_t s_cal_timer;
 static esp_timer_handle_t s_report_timer;
@@ -144,9 +146,19 @@ static void dispatcher_task(void *pv)
 {
     (void)pv;
     app_event_t ev;
+    uint32_t done_fail_seen = 0;
     for (;;) {
-        if (xQueueReceive(s_queue, &ev, portMAX_DELAY) != pdTRUE) continue;
+        /* The set hands back queues in the order their items arrived, so
+         * event order is unchanged by MOTION_DONE having its own queue. */
+        QueueSetMemberHandle_t q = xQueueSelectFromSet(s_qset, portMAX_DELAY);
+        if (q == NULL || xQueueReceive(q, &ev, 0) != pdTRUE) continue;
         ctl_handle(&s_ctl, &ev);
+        uint32_t f = motion_done_post_failures();
+        if (f != done_fail_seen) {
+            done_fail_seen = f;
+            TRACE(TRC_DONE_POST_FAILED, f, 0);
+            ESP_LOGE(TAG, "MOTION_DONE post failed (%lu)", (unsigned long)f);
+        }
     }
 }
 
@@ -167,13 +179,19 @@ void app_main(void)
 
     s_queue = xQueueCreate(16, sizeof(app_event_t));
     configASSERT(s_queue);
+    s_done_q = xQueueCreate(1, sizeof(app_event_t));
+    configASSERT(s_done_q);
+    s_qset = xQueueCreateSet(16 + 1);        /* sum of the member lengths */
+    configASSERT(s_qset);
+    xQueueAddToSet(s_queue, s_qset);         /* both empty here, as required */
+    xQueueAddToSet(s_done_q, s_qset);
 
     blind_store_data_t st;
     ESP_ERROR_CHECK(blind_store_init(&st));
     ctl_init(&s_ctl, &PORTS, &CFG, &st);   /* single task so far: safe */
 
     motion_pins_t pins = { .gpio_step = PIN_STEP, .gpio_dir = PIN_DIR, .gpio_en = PIN_EN };
-    ESP_ERROR_CHECK(motion_init(&pins, s_queue));
+    ESP_ERROR_CHECK(motion_init(&pins, s_done_q));
     motion_set_reversed(s_ctl.reversed);
     ESP_ERROR_CHECK(status_led_init(PIN_LED_EXT));
     ESP_ERROR_CHECK(keypad_init(PIN_BTN_UP, PIN_BTN_DOWN, PIN_BTN_FN, s_queue));

@@ -62,6 +62,12 @@ typedef enum {
      * HOLD_END arrived (dropped on a full queue).
      *   a = key_id_t   b = -                                                  */
     TRC_DEADMAN_STOP,
+
+    /* The motion ISR could not post MOTION_DONE. Cannot happen while the
+     * dispatcher keeps at most one move outstanding (the done queue has one
+     * slot); recorded so a broken invariant is visible, not silent.
+     *   a = failures so far   b = -                                         */
+    TRC_DONE_POST_FAILED,
 } trace_code_t;
 
 /* Validate the RTC ring; clear it only if this was a cold boot. Emits nothing

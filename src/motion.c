@@ -38,6 +38,7 @@ static DRAM_ATTR volatile int8_t  s_dir;          /* +1 toward Closed, -1 toward
 static DRAM_ATTR volatile bool    s_moving;
 static DRAM_ATTR volatile bool    s_stop_req;     /* decel-stop latch */
 static DRAM_ATTR volatile int32_t s_stop_at_idx;  /* index to halt at after stop req */
+static DRAM_ATTR volatile uint32_t s_done_post_failed;   /* see TRC_DONE_POST_FAILED */
 
 /* interval_at() duplicated from ramp.c's math in IRAM-safe form: the ISR must
  * not call flash-resident code. ramp_interval_us is small; we inline the same
@@ -80,7 +81,9 @@ static IRAM_ATTR bool timer_cb(gptimer_handle_t timer,
         s_moving = false;
         app_event_t ev = { .type = APP_EVT_MOTION_DONE,
                            .steps = s_pos, .completed = !s_stop_req };
-        xQueueSendFromISR(s_queue, &ev, &hpw);
+        /* The ISR runs from IRAM and may not call the (flash-resident) trace;
+         * count here, and the dispatcher reports it. */
+        if (xQueueSendFromISR(s_queue, &ev, &hpw) != pdTRUE) s_done_post_failed++;
     } else {
         gptimer_alarm_config_t al = {
             .alarm_count = isr_interval(s_step_idx),
@@ -132,7 +135,7 @@ esp_err_t motion_start(int32_t from_steps, int32_t to_steps,
     if (delta == 0) {
         app_event_t ev = { .type = APP_EVT_MOTION_DONE,
                            .steps = from_steps, .completed = true };
-        xQueueSend(s_queue, &ev, 0);
+        if (xQueueSend(s_queue, &ev, 0) != pdTRUE) s_done_post_failed++;
         return ESP_OK;
     }
     int32_t dist = delta > 0 ? delta : -delta;
@@ -183,3 +186,5 @@ void motion_stop(void)
 bool motion_is_moving(void) { return s_moving; }
 
 int32_t motion_current_steps(void) { return s_pos; }
+
+uint32_t motion_done_post_failures(void) { return s_done_post_failed; }
