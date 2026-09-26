@@ -1766,6 +1766,45 @@ Do not start Task 5 until the owner reports all seven pass.
 
 ---
 
+### Task 4b: Remove the GPIO glitch filter (added 2026-09-26 from the bench gate)
+
+**Why:** during Task 4's bench gate on a fresh board (`bench3`), a key held while the motor jogged stayed "pressed" in firmware for 18 s after release (trace `KEY_ALIVE b=85`: GPIO23 read low) while a meter on the pin read **3.3 V**. Rebuilt with only `install_glitch_filters()` disabled, 30 of 30 jogs stopped on release and every tap flashed ERROR. The C6 flex glitch filter was latching its output. This is the runaway-jog / "stuck line that moves between keys" fault seen since August.
+
+**Files:**
+- Modify: `src/keypad.c`
+
+- [ ] **Step 1:** In `src/keypad.c`, delete the `install_glitch_filters()` function and the comment block above it, delete its call in `keypad_init()`, and delete `#include "driver/gpio_filter.h"`. Where the call was, put:
+
+```c
+    /* No GPIO glitch filter on the key pins. The C6's flex glitch filter was
+     * enabled here until 2026-09-26, when a bench A/B on a fresh board proved
+     * it latching a released key "pressed" while the motor ran: the pin
+     * measured 3.3 V, the firmware read it low for 18 s, and the jog never
+     * stopped. With only the filter removed, 30 of 30 jogs stopped on
+     * release. The RC front end and the key_filter integrator reject noise. */
+```
+
+- [ ] **Step 2:** `grep -n "glitch" src/keypad.c` shows only the new comment.
+- [ ] **Step 3:** `pio run -e seeed_xiao_esp32c6_zigbee && pio test -e native` → firmware `SUCCESS`; `119 test cases: 119 succeeded`.
+- [ ] **Step 4:** Commit:
+
+```bash
+git add src/keypad.c
+git commit -m "keypad: remove the GPIO glitch filter — it latched keys pressed
+
+On a fresh bench board a key held while the motor jogged stayed pressed
+in firmware for 18 s after release, with the pin measuring 3.3 V: the
+C6 flex glitch filter's output was stuck low, so the jog never stopped
+and only another key's tap could stop it. With only the filter removed,
+30 of 30 jogs stopped on release. This is the runaway jog and the stuck
+line that moved between keys since August, previously blamed on cables
+and membranes. The RC front end and the integrator reject noise.
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
 ## Phase 2: fixes in the core, test-first
 
 ### Task 5: Dispatcher owns "move in progress" (S1, S1b)
@@ -3015,6 +3054,8 @@ Deployment to the z2m box is **not** part of this task: it restarts zigbee2mqtt.
   - Concurrency section: replace "happens in `dispatcher_task` (`src/main.c`), which owns `s_pos` and all mutable state and processes one `app_event_t` at a time off a single FreeRTOS queue" with "happens in `ctl_handle()` (`src/ctl.c`), called only by `dispatcher_task` (`src/main.c`), one `app_event_t` at a time. The dispatcher waits on a FreeRTOS queue set: the main queue plus a one-slot queue for `MOTION_DONE`, which cannot overflow because ctl never starts a move while one is outstanding. ctl owns \"move in progress\" (`move_active`): the ISR's own flag clears at the last step, before the final position reaches the dispatcher, so it must not be used to decide anything."
   - Architecture step list: step 6 becomes "`ctl_init()` restores state (an unclean mid-move shutdown drops to Position Unknown here); `app_main` sets the LED from `ctl_led_pattern()`, creates the dispatcher, waits for the join, then posts `APP_EVT_BOOT_SYNC`."
   - Re-copy the "Key Configuration Constants" block verbatim from `src/main.c` (GPIO map and motion tuning `#define`s with their comments exactly).
+
+- [ ] **Step 3b: `HARDWARE.md` — Schottky diode (added 2026-09-26).** On bench3, USB alone put 4.47 V on `VM` (USB VBUS → XIAO 5V pin → backwards through the buck) and ran the motor with 24 V off. In the power-chain diagram and text, add a Schottky diode in series from the buck's 5 V output to the XIAO 5V pin (anode at the buck, cathode/band at the XIAO; 1N5817/SS14, or 1N5822 — oversized, DO-201AD leads ~1.3 mm), with that reason; add it to the BOM; and add a Troubleshooting entry "Motor turns with 24 V off" pointing at it. Until it is fitted: flash with USB only and the motor disconnected; run on 24 V only.
 
 - [ ] **Step 4: `CONTEXT.md` vocabulary.**
   - Span entry: add "Also wiped by a Motor Reversed toggle."
