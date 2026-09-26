@@ -246,6 +246,13 @@ never stall stepping mid-move.
   idle:** if a download finishes mid-move, mark upgrade-pending, complete the
   move, persist position, then reboot — OTA can never cause Position Unknown.
 
+> **Known deviation (2026-09-25).** `esp-zb-common`'s `ota_client` reboots as
+> soon as a download finishes, even mid-move, and the app has no hook to defer
+> it. A reboot that lands mid-move leaves `moving` set, so the unit boots to
+> Position Unknown and needs a Re-home. Deferring the reboot until idle needs a
+> library change and is future work; see
+> [2026-09-25-review-fixes-design.md](2026-09-25-review-fixes-design.md#deferred).
+
 ## 6. Motion Control, Calibration & Recovery
 
 ### Motion profile
@@ -281,7 +288,9 @@ mode has two automatic entry variants — no extra gestures to learn:
 1. Jog to **fully open**, tap Fn → re-zeroed against the kept span, mode exits,
    device calibrated again. One mark instead of two.
 
-Abort either variant: second Fn long-press, or 5-minute timeout — no save.
+Abort either variant: second Fn long-press, or 10-minute timeout — no save.
+Raised from 5 min in commit 747e2fc so a full-span calibration jog can never
+outlive it.
 The span is untouched, but if the blind was **jogged** during the aborted
 session the stored position no longer matches reality: the device drops to
 Position Unknown (Re-home required) rather than trusting stale state. An

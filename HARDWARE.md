@@ -30,6 +30,7 @@ as settled until measured.
 | Mean Well 24 V DC PSU — **recommend LRS-50-24** (LRS-35-24 acceptable) for a single unit | System supply. See [Multi-unit installations](#multi-unit-installations-shared-psu) for sharing one PSU across several controllers. |
 | Mean Well **LRS-150-24** (24 V, 6.5 A, ~156 W) — *optional, in place of the LRS-50-24 above* | Single shared supply for **3 blind controllers** on one PSU instead of one PSU per unit. See [Multi-unit installations](#multi-unit-installations-shared-psu) for sizing rationale and distribution wiring. |
 | Step-down buck regulator, 24 V → 5 V for the XIAO | Current builds use a **Mini560 Pro**. Rev 1 used a **Pololu** 5 V/2.5 A (VIN 6–38 V). Either works functionally; the Pololu idles considerably more efficiently — see [Idle power draw](#idle-power-draw). |
+| Schottky diode, buck 5 V output → XIAO 5V pin (1N5817/SS14, or 1N5822 — oversized, DO-201AD leads ~1.3 mm) | Blocks USB VBUS from feeding backwards through the buck onto its 5 V output when the board is powered from USB alone — see [Power chain](#power-chain) and [Troubleshooting](#motor-turns-with-24-v-off) |
 | Membrane keypad: 2 arrow keys + function key | Local controls + calibration UX |
 | External status LED (enclosure face) | State annunciator. This revision drops the onboard-LED mirror entirely — the external LED is the only status indicator (frees a GPIO on the XIAO's smaller header; see [GPIO summary](#gpio-summary-srcmainc)). |
 | Multimeter | Required — for Vref, VMOT, and 3V3-rail checks below. Don't skip these. |
@@ -62,7 +63,10 @@ stage is independently testable before moving to the next:
                         │
                         └─── Step-down regulator (5 V / 3.2 A, VIN 5.3–50 V)
                                      │
-                                     └─── XIAO ESP32C6 5V pin
+                                     └─── Schottky diode (anode at buck,
+                                          cathode/band at XIAO) ── XIAO ESP32C6 5V pin
+                                                                          │
+                                                  USB VBUS (when plugged) ┘
 ```
 
 - 24 V feeds the TMC2209's **VM** pin directly. The **≥100 µF electrolytic
@@ -72,6 +76,19 @@ stage is independently testable before moving to the next:
   plenty of headroom either direction.)
 - The same 24 V rail feeds a step-down regulator to 5 V for the XIAO's 5V
   pin. ESP32-C6 peak draw is well under 1 A, so there is large margin.
+- **Schottky diode required in series from the buck's 5 V output to the
+  XIAO 5V pin** (anode at the buck, cathode/band at the XIAO; 1N5817/SS14,
+  or 1N5822 — oversized, DO-201AD leads ~1.3 mm). The XIAO's 5V pin is also
+  fed by USB VBUS when a cable is plugged in, and without a blocking diode
+  that path runs backwards through the buck: on bench3, 2026-09-26, USB
+  alone (24 V off) put 4.47 V on the driver's `VM` — enough to run the
+  motor with the 24 V rail unpowered. See
+  [Troubleshooting: Motor turns with 24 V off](#motor-turns-with-24-v-off).
+  **Until the diode is fitted**, avoid having both supplies present at
+  once: flash and bench-test with USB only and the motor disconnected; run
+  installed units on 24 V only; or, to use USB and 24 V together (e.g. to
+  watch the serial log during a real move), temporarily disconnect the
+  buck-5V→XIAO-5V wire (grounds stay tied) for that session.
 - **One common ground.** PSU −, both TMC2209 GND pins (there are usually
   two — one on the power side, one on the logic side), the step-down
   regulator's ground, and the XIAO GND must all tie together. If they
@@ -715,6 +732,21 @@ rather than reaching straight for `CRUISE_US`.
    don't assume from tail position.
 4. Watch the serial monitor while pressing — a GPIO level that never
    changes on press confirms a wiring problem (not firmware) immediately.
+
+### Motor turns with 24 V off
+
+If the motor runs (or twitches) while the 24 V PSU is confirmed off and only
+USB is connected, check `VM` with a meter before assuming a firmware or
+wiring fault — this is USB VBUS feeding backwards through the buck regulator
+onto its 5 V output and from there onto `VM`, not the driver misbehaving.
+Found on bench3, 2026-09-26: USB alone put **4.47 V on `VM`**, enough to run
+the motor with the 24 V rail unpowered. The fix is a **Schottky diode** in
+series from the buck's 5 V output to the XIAO's 5V pin (see
+[Power chain](#power-chain)) — without it fitted, don't power the board from
+USB and 24 V at the same time. Until it's fitted: flash with USB only and
+the motor disconnected; run installed units on 24 V only; or temporarily
+disconnect the buck-5V→XIAO-5V wire (grounds stay tied) to run USB and 24 V
+together for a session.
 
 ### Motor doesn't turn (or doesn't even hum/resist)
 

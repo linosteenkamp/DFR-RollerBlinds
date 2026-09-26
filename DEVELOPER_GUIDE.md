@@ -81,7 +81,7 @@ trust in current position was lost, e.g. after a power cut mid-move):
 3. **Tap Fn** → re-zeroes position against the kept span, mode exits, device
    is calibrated again. LED returns to **off**, three-flash ack.
 
-**Abort**: a second **Fn long-press** (~3 s) inside the mode, or a **5-minute
+**Abort**: a second **Fn long-press** (~3 s) inside the mode, or a **10-minute
 timeout** since entering the mode, aborts with no save — the timeout fires
 regardless of whether a mark has already been recorded (e.g. mid-way through
 a full calibration, awaiting mark 2). The span is left untouched — but if
@@ -254,6 +254,16 @@ except the pin mapping.
 - [ ] TMC2209 thermal soak in enclosure (built-in thermal shutdown is a backstop, not a substitute for adequate airflow — confirm temps stay reasonable under sustained cycling)
 - [ ] Power-cycle during a jogged calibration session
 - [ ] z2m Mode write while moving is rejected and stays in sync
+
+**v2.4.0 (review fixes) bench checks**
+- [ ] Calibrated unit powered with the coordinator off: LED shows NO_NETWORK from power-on
+- [ ] Tap exactly as a full travel ends: no second travel from the old position
+- [ ] Hold a jog, release: stops; hold during heavy z2m traffic, release: stops
+- [ ] Motor Reversed toggled from z2m while idle: ACK, calibration wiped, z2m shows the new value
+- [ ] Motor Reversed toggled from z2m while moving: refused, z2m shows the unchanged value
+- [ ] Fn held 3 s during a travel: ERROR flash, no Calibration Mode
+- [ ] Three-key reset during a travel: ERROR flash, no reset
+- [ ] `riscv32-esp-elf-nm` shows the ramp functions and timer_cb at 0x408… (IRAM)
 
 ## Known issues
 
