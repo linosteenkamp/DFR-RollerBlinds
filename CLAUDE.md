@@ -39,7 +39,7 @@ pio run -e seeed_xiao_esp32c6_zigbee -t upload -t monitor
 # Bench build (identical; named env kept for sibling symmetry)
 pio run -e seeed_xiao_esp32c6_zigbee_test -t upload -t monitor
 
-# Host tests (position / ramp / keypad_logic / key_filter / trace_ring — pure C, Unity)
+# Host tests (position / ramp / keypad_logic / key_filter / trace_ring / ctl — pure C, Unity)
 pio test -e native
 
 # Clean / erase flash (before re-provisioning in development)

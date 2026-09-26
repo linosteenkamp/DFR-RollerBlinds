@@ -59,6 +59,10 @@ const tzMotorReversed = {
         // Deliberately no optimistic state: the device refuses the toggle
         // while the blind moves (and on an NVS failure), and Mode cannot be
         // reported, so read back what it actually holds.
+        // (In principle this read-back could race a refusal the device is
+        // still rewriting, but the air round-trip here far exceeds the
+        // dispatcher's own turnaround, so the read always sees the settled
+        // value.)
         await entity.read('closuresWindowCovering', ['windowCoveringMode']);
         return {};
     },
