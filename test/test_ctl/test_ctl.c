@@ -100,6 +100,22 @@ static void test_boot_with_move_flag_drops_to_position_unknown(void)
     TEST_ASSERT_EQUAL_INT32(0, C.raw);
 }
 
+/* Review finding 1: if the boot-time invalidation's position save fails, the
+ * move flag must stay set — clearing it anyway would let flash hold
+ * pos_ok=1 with a stale position and moving=0, so the next reboot would
+ * trust Calibrated at the wrong position instead of demanding a re-home. */
+static void test_boot_invalidation_failure_keeps_move_flag_set(void)
+{
+    fake_reset();
+    F.fail[F_SAVE_POSITION] = 0x105;
+    blind_store_data_t b = { .span_valid = true, .closed_steps = SPAN,
+                             .pos_known = true, .cur_steps = 5000,
+                             .move_in_progress = true };
+    ctl_init(&C, &FAKE_PORTS, &CFG, &b);
+    TEST_ASSERT_EQUAL_INT(0, f_count_a(F_SAVE_MOVE_FLAG, false));
+    TEST_ASSERT_FALSE(ctl_calibrated(&C));
+}
+
 static void test_boot_travel_time_sets_cruise(void)
 {
     boot_full(true, 300000, true, 0, false, 30);   /* 30 s over 300 000 steps */
@@ -828,6 +844,7 @@ int main(void)
     UNITY_BEGIN();
     RUN_TEST(test_boot_clean_calibrated_restores_without_saving);
     RUN_TEST(test_boot_with_move_flag_drops_to_position_unknown);
+    RUN_TEST(test_boot_invalidation_failure_keeps_move_flag_set);
     RUN_TEST(test_boot_travel_time_sets_cruise);
     RUN_TEST(test_boot_sync_reports_mode_travel_and_outputs);
     RUN_TEST(test_boot_led_for_calibrated_unjoined_unit_is_no_network);

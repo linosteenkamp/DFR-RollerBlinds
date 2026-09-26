@@ -451,8 +451,17 @@ void ctl_init(ctl_t *c, const ctl_ports_t *io, const ctl_config_t *cfg,
     if (boot->move_in_progress) {
         /* power died mid-move: position no longer trusted (spec §6) */
         position_mark_unknown(&c->pos);
-        io->save_position(false, 0);
-        io->save_move_flag(false);
+        /* Clear the move flag only once the invalidation actually lands on
+         * flash. If save_position fails here, flash still holds pos_ok=1
+         * with the stale pre-crash position; clearing the flag regardless
+         * would let a second power loss boot straight into a confidently
+         * wrong Calibrated state. Leaving it set is the backstop: it forces
+         * Position Unknown again next boot until a save succeeds. */
+        if (io->save_position(false, 0) == CTL_OK) {
+            io->save_move_flag(false);
+        } else {
+            io->log("boot: position invalidation failed; move flag left set");
+        }
         io->log("unclean shutdown mid-move -> Position Unknown, re-home needed");
     }
     c->reversed    = boot->motor_reversed;
