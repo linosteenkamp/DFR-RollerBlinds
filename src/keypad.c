@@ -14,7 +14,6 @@
 #include "motion.h"
 
 #include "driver/gpio.h"
-#include "driver/gpio_filter.h"
 #include "esp_timer.h"
 #include "esp_log.h"
 
@@ -96,50 +95,6 @@ static void trace_latches(void)
         s_latch_a = a;
         s_latch_b = b;
         TRACE(TRC_KEY_LATCH, a, b);
-    }
-}
-
-/* Kills sub-microsecond coupled spikes in silicon, but be honest about what
- * that buys a 5 ms *polled* consumer: a spike well under the 1500 ns window
- * has maybe a 0.03% chance of landing on the instant `poll_cb` happens to
- * sample (1.5 us against a 5 ms period) even with no filter at all. The
- * integrator is what actually rejects noise here; this is cheap insurance
- * under it, not the reason the bug is fixed. Opportunistic, not load-bearing:
- * a device that cannot allocate a filter must still come up with working
- * keys rather than fail init and leave the blind with no local control.
- *
- * The clock source is not the default on purpose. The C6 caps the window at
- * 63 ticks, and GLITCH_FILTER_CLK_SRC_DEFAULT is PLL_F80M at 12.5 ns/tick —
- * that caps the window at 787 ns and rejects anything longer outright. XTAL
- * is 40 MHz / 25 ns per tick, so 1500 ns is 60 ticks: inside the limit, and
- * a wider window than the default clock can express at all. Side effect:
- * gpio_new_flex_glitch_filter() switches the IO MUX clock source to XTAL
- * process-wide (refcounted internally, no unwind on our side) — a future
- * consumer elsewhere in the image that wants the default clock source back
- * would get ESP_ERR_INVALID_STATE, not a silent fallback. */
-static void install_glitch_filters(void)
-{
-    for (int k = 0; k < KEY_COUNT; k++) {
-        gpio_flex_glitch_filter_config_t fcfg = {
-            .clk_src         = GLITCH_FILTER_CLK_SRC_XTAL,
-            .gpio_num        = (gpio_num_t)s_gpio[k],
-            .window_width_ns = 1500,
-            .window_thres_ns = 1500,
-        };
-        gpio_glitch_filter_handle_t h;
-        esp_err_t err = gpio_new_flex_glitch_filter(&fcfg, &h);
-        if (err == ESP_OK) {
-            err = gpio_glitch_filter_enable(h);
-            if (err != ESP_OK) {
-                /* Created but wouldn't enable: don't orphan the channel, the
-                 * C6 only has SOC_GPIO_FLEX_GLITCH_FILTER_NUM (8) of them. */
-                gpio_del_glitch_filter(h);
-            }
-        }
-        if (err != ESP_OK) {
-            ESP_LOGW(TAG, "glitch filter on gpio %d unavailable (%s) — integrator still active",
-                     s_gpio[k], esp_err_to_name(err));
-        }
     }
 }
 
@@ -230,7 +185,12 @@ esp_err_t keypad_init(int gpio_up, int gpio_down, int gpio_fn, QueueHandle_t q)
     esp_err_t err = gpio_config(&io);
     if (err != ESP_OK) return err;
 
-    install_glitch_filters();
+    /* No GPIO glitch filter on the key pins. The C6's flex glitch filter was
+     * enabled here until 2026-09-26, when a bench A/B on a fresh board proved
+     * it latching a released key "pressed" while the motor ran: the pin
+     * measured 3.3 V, the firmware read it low for 18 s, and the jog never
+     * stopped. With only the filter removed, 30 of 30 jogs stopped on
+     * release. The RC front end and the key_filter integrator reject noise. */
 
     for (int k = 0; k < KEY_COUNT; k++) {
         key_filter_init(&s_filt[k], FILTER_SAMPLES, gpio_get_level(s_gpio[k]));
