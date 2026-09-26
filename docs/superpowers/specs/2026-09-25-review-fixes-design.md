@@ -4,8 +4,7 @@
 **Status:** approved 2026-09-25; implementation plan to follow
 **Repos:** `DFR-RollerBlinds` only (the OTA deferral that would need
 `esp-zb-common` is deliberately out of scope, see [Deferred](#deferred))
-**Ships as:** v2.4.0, on the current pin map. The Fn/LED pin move on branch
-`fn-to-d3` becomes v2.5.0 and is rebased on top of this work.
+**Ships as:** v2.4.0, **including the Fn/LED pin move** (Fn D3/GPIO21, LED D2/GPIO2). *Revised 2026-09-26: originally the pin move was to follow as v2.5.0 on the old map's behalf; the owner ruled no hardware stays on the old map, so `fn-to-d3` was folded into this release. Every board is rewired before it takes v2.4.0.*
 
 ## Problem
 

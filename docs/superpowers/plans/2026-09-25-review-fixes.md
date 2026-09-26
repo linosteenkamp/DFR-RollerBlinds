@@ -3117,7 +3117,7 @@ git push
 
 Every step here needs the owner present and saying go.
 
-- [ ] **Step 1: Bench `bench2`.** Owner flashes (as Task 4 Step 6) and runs Task 4's seven checks plus the v2.4.0 checklist in `DEVELOPER_GUIDE.md`.
+- [ ] **Step 1: Bench `bench3`** (already on the v2.4.0 pin map). *(Revised 2026-09-26: the pin move now ships in v2.4.0, so `bench2` is on the OLD map and must be rewired — `HARDWARE.md` § Rewiring for the v2.4.0 pin map — before it takes this image.)* Owner flashes and runs Task 4's seven checks plus the v2.4.0 checklist in `DEVELOPER_GUIDE.md`.
 - [ ] **Step 2: Deploy the converter** (owner's go-ahead; restarts zigbee2mqtt). On the z2m box: back up `data/external_converters/dfr_roller_blinds.js` to `dfr_roller_blinds.js.bak-2026-09-25`, `scp` the new file over it, `sudo systemctl restart zigbee2mqtt`, then toggle `motor_reversed` on `bench2` while it moves and confirm z2m shows the unchanged value.
 - [ ] **Step 3: Unattended soak** on `bench2`: owner notes the start time and leaves the rig untouched; afterwards check z2m for travels with no preceding `/set`, and dump the trace (press RESET, do not unplug) if any appear.
 - [ ] **Step 4: Merge and tag** (owner's go-ahead): merge `review-fixes` into `main` with `--no-ff`, delete the branch, then `git tag -a v2.4.0 -m "v2.4.0: review fixes" && git push origin main v2.4.0`. Watch the `Release OTA` workflow to success and confirm `ota/index.json` on `main` lists `fileVersion` `0x24000000` (603979776).
@@ -3125,7 +3125,9 @@ Every step here needs the owner present and saying go.
 
 ---
 
-### Task 17: Follow-up on branch `fn-to-d3`
+### Task 17: ~~Follow-up on branch `fn-to-d3`~~ — SUPERSEDED 2026-09-26
+
+The owner ruled that no hardware stays on the old pin map, so the pin move was folded into v2.4.0 instead: `fn-to-d3`'s four commits were cherry-picked onto `review-fixes` (e35edf6, 2d25719, b26b117, 17e7be7) and 39aca45 fixed the stale references. Nothing is renumbered to v2.5.0. `bench2` and `blinds lounge side` must be rewired before taking v2.4.0. The original steps below are kept for the record only.
 
 Run only after Task 16 Step 4 (so the rebase has a target).
 

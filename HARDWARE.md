@@ -421,7 +421,7 @@ share a strapping pin deliberately.
 
 **The D-number → GPIO mapping is verified on hardware**, with
 `tools/pinwalk` on 2026-08-02 (all pins then in use, including D2 and D6)
-plus the LED on D3/GPIO21 on 2026-08-08. *(An earlier revision of this
+plus the LED on D3/GPIO21 on 2026-08-08. The v2.4.0 combination (Fn D3/GPIO21, LED D2/GPIO2) ran on `bench3` on 2026-09-26. *(An earlier revision of this
 paragraph said it was not yet cross-checked; that was stale.)* The
 silkscreen prints only D-numbers, never GPIO numbers, so run `tools/pinwalk`
 on any board from a new batch rather than trusting the table.
