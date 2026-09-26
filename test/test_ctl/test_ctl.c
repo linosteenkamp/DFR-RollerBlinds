@@ -395,6 +395,32 @@ static void test_full_calibration_happy_path(void)
     TEST_ASSERT_EQUAL_INT(1, f_count(F_REPORT_TRAVEL));
 }
 
+/* Fix round 1 (S3/S8/T8 review): a jog's invalidation save must be retried
+ * until it actually lands on flash — cal_moved alone is not proof of that. */
+static void test_failed_cal_invalidation_is_retried_and_flash_never_trusts_stale_position(void)
+{
+    boot_cal(5000);
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    F.fail[F_SAVE_POSITION] = 0x105;
+    kp(KP_EVT_HOLD_START, KEY_DOWN);
+    kp(KP_EVT_HOLD_END, KEY_DOWN);
+    F.n = 0;
+    done(7000, false);
+    TEST_ASSERT_EQUAL_INT(1, f_count_ab(F_SAVE_POSITION, false, 0));
+    /* invalidation failed: flash still holds the pre-session position, so the
+     * move flag must stay set (owed a retry), not be cleared */
+    TEST_ASSERT_EQUAL_INT(0, f_count_a(F_SAVE_MOVE_FLAG, false));
+
+    F.fail[F_SAVE_POSITION] = 0;
+    kp(KP_EVT_HOLD_START, KEY_DOWN);
+    kp(KP_EVT_HOLD_END, KEY_DOWN);
+    F.n = 0;
+    done(9000, false);
+    /* the retry actually happens on this DONE, and only now does it clear */
+    TEST_ASSERT_EQUAL_INT(1, f_count_ab(F_SAVE_POSITION, false, 0));
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_SAVE_MOVE_FLAG, false));
+}
+
 static void test_mark2_too_short_is_rejected_and_keeps_waiting(void)
 {
     boot_uncal();
@@ -808,6 +834,7 @@ int main(void)
     RUN_TEST(test_fn_long_with_position_unknown_enters_rehome);
     RUN_TEST(test_fn_long_while_moving_does_not_enter);
     RUN_TEST(test_full_calibration_happy_path);
+    RUN_TEST(test_failed_cal_invalidation_is_retried_and_flash_never_trusts_stale_position);
     RUN_TEST(test_mark2_too_short_is_rejected_and_keeps_waiting);
     RUN_TEST(test_mark2_span_save_failure_keeps_waiting_for_mark2);
     RUN_TEST(test_mark2_position_save_failure_boots_needing_rehome);

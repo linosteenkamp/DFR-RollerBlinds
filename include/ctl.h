@@ -73,6 +73,8 @@ typedef struct {
     uint16_t travel_secs;      /* requested full-travel time; 0 = unset */
     bool     identifying;      /* Zigbee Identify in progress */
     bool     cal_moved;        /* jogged during this Calibration Mode session */
+    bool     cal_pos_invalidated; /* the "position untrusted" save for this
+                                * session has actually landed on flash */
     bool     cal_abort_pending;/* timeout arrived mid-move: abort on MOTION_DONE */
     bool     pending_valid;    /* Zigbee goto parked while a move decelerates */
     uint8_t  pending_pct;

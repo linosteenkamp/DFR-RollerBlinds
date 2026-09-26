@@ -161,8 +161,11 @@ static void cal_abort(ctl_t *c)
     if (c->cal_moved && c->pos.span_valid) {
         position_mark_unknown(&c->pos);
         if (c->io->save_position(false, 0) != CTL_OK) {
-            /* the session's first jog already saved the position untrusted,
-             * so flash is on the safe side; record it and carry on */
+            /* if cal_pos_invalidated is already true, an earlier jog this
+             * session already got position untrusted onto flash, so flash
+             * is on the safe side regardless of this call; if it is still
+             * false, RAM has still dropped to Position Unknown here — just
+             * log the failure and carry on */
             c->io->log("abort: position save failed (already untrusted on flash)");
         }
     }
@@ -176,6 +179,7 @@ static void enter_or_exit_cal(ctl_t *c)
     } else {
         position_cal_enter(&c->pos);
         c->cal_moved = false;
+        c->cal_pos_invalidated = false;
         c->cal_abort_pending = false;
         c->raw = c->pos.pos_known ? c->pos.cur_steps : 0;   /* fresh raw frame */
         c->io->cal_timer_start();
@@ -197,8 +201,9 @@ static void handle_mark(ctl_t *c)
     if (position_cal_mark(&c->pos, c->raw, c->cfg.min_span_steps)) {
         if (!in_cal(c)) {                               /* calibration finished */
             /* Span first: if the position save then fails, flash holds the
-             * new span with the position the session's first jog already
-             * saved as untrusted — a Re-home, never a wrong Calibrated. */
+             * new span with whatever position this session's jog(s) already
+             * invalidated (cal_pos_invalidated, retried every DONE until it
+             * lands) — a Re-home, never a wrong Calibrated. */
             if (c->io->save_span(c->pos.span_valid, c->pos.closed_steps) != CTL_OK ||
                 c->io->save_position(c->pos.pos_known, c->pos.cur_steps) != CTL_OK) {
                 c->pos = before;                        /* treat as a rejected mark */
@@ -330,11 +335,13 @@ static void on_motion_done(ctl_t *c, int32_t steps, bool completed)
     c->raw = steps;
     ctl_err_t perr = CTL_OK;
     if (in_cal(c)) {
-        if (!c->cal_moved) {
-            /* first jog of this session: position on disk is now stale —
-             * persist untrusted so a power blip can't boot back into a
-             * confidently wrong Calibrated state */
+        if (!c->cal_pos_invalidated) {
+            /* position on disk is now stale — persist untrusted so a power
+             * blip can't boot back into a confidently wrong Calibrated
+             * state. cal_moved alone isn't proof this landed: retry every
+             * DONE until a save actually succeeds. */
             perr = c->io->save_position(false, 0);
+            if (perr == CTL_OK) c->cal_pos_invalidated = true;
         }
         c->cal_moved = true;
         if (c->cal_abort_pending) cal_abort(c);   /* timeout hit mid-jog */
