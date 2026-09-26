@@ -63,7 +63,13 @@ const tzMotorReversed = {
         // still rewriting, but the air round-trip here far exceeds the
         // dispatcher's own turnaround, so the read always sees the settled
         // value.)
-        await entity.read('closuresWindowCovering', ['windowCoveringMode']);
+        // configStatus rides along because an accepted toggle wipes the
+        // calibration, and the device's lift=0xFF report that normally tells
+        // z2m so was seen NOT to arrive after a toggle (bench3, 2026-09-26).
+        // Reading Operational here makes `calibrated` correct regardless.
+        // Not lift: a 255 lift would also reach the stock position converter.
+        await entity.read('closuresWindowCovering',
+                          ['windowCoveringMode', 'configStatus']);
         return {};
     },
     convertGet: async (entity, key, meta) => {
