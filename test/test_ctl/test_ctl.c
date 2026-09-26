@@ -212,6 +212,18 @@ static void test_refused_move_flashes_error_and_clears_flag(void)
     TEST_ASSERT_EQUAL_INT(0, f_count(F_REPORT_TIMER_START));
 }
 
+/* ---------- S3 / S8: persistence ---------- */
+
+static void test_move_refused_when_move_flag_cannot_be_saved(void)
+{
+    boot_cal(0);
+    F.fail[F_SAVE_MOVE_FLAG] = 0x105;
+    kp(KP_EVT_TAP, KEY_DOWN);
+    TEST_ASSERT_EQUAL_INT(0, f_count(F_MOTION_START));
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_LED_FLASH, LED_ERROR));
+    TEST_ASSERT_FALSE(C.move_active);
+}
+
 static void test_uncalibrated_jog_is_unbounded_and_uncapped(void)
 {
     boot_uncal();
@@ -401,6 +413,48 @@ static void test_mark2_too_short_is_rejected_and_keeps_waiting(void)
     TEST_ASSERT_EQUAL_INT(0, f_count(F_SAVE_SPAN));
 }
 
+static void calibrate_to_mark2(void)
+{
+    boot_uncal();
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    kp(KP_EVT_HOLD_START, KEY_DOWN);
+    kp(KP_EVT_HOLD_END, KEY_DOWN);
+    done(1000, false);
+    kp(KP_EVT_TAP, KEY_FN);
+    kp(KP_EVT_HOLD_START, KEY_DOWN);
+    kp(KP_EVT_HOLD_END, KEY_DOWN);
+    done(25000, false);
+    F.n = 0;
+}
+
+static void test_mark2_span_save_failure_keeps_waiting_for_mark2(void)
+{
+    calibrate_to_mark2();
+    F.fail[F_SAVE_SPAN] = 0x105;
+    kp(KP_EVT_TAP, KEY_FN);
+    TEST_ASSERT_EQUAL(POS_CAL_WAIT_MARK2, C.pos.cal);
+    TEST_ASSERT_FALSE(ctl_calibrated(&C));
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_LED_FLASH, LED_ERROR));
+    TEST_ASSERT_EQUAL_INT(0, f_count(F_CAL_TIMER_STOP));
+}
+
+/* Review Focus 5: span saved, position save failed. What flash now holds
+ * must boot as "needs Re-home", never Calibrated. */
+static void test_mark2_position_save_failure_boots_needing_rehome(void)
+{
+    calibrate_to_mark2();
+    F.fail[F_SAVE_POSITION] = 0x105;
+    kp(KP_EVT_TAP, KEY_FN);
+    TEST_ASSERT_EQUAL(POS_CAL_WAIT_MARK2, C.pos.cal);
+    frec_t span = f_rec(F_SAVE_SPAN);
+    TEST_ASSERT_EQUAL_INT32(true, span.a);
+    /* flash: new span valid; position last saved untrusted by the first jog */
+    boot_full(true, span.b, false, 0, false, 0);
+    TEST_ASSERT_FALSE(ctl_calibrated(&C));
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    TEST_ASSERT_EQUAL(POS_CAL_WAIT_REHOME, C.pos.cal);
+}
+
 static void test_rehome_single_mark_restores_calibration(void)
 {
     boot_full(true, SPAN, false, 0, false, 0);
@@ -559,6 +613,41 @@ static void test_reverse_inside_calibration_exits_mode(void)
     TEST_ASSERT_EQUAL_INT(1, f_count(F_CAL_TIMER_STOP));
 }
 
+static void test_reverse_invalidates_calibration_before_saving_direction(void)
+{
+    boot_cal(5000);
+    ev_on(APP_EVT_ZB_SET_REVERSED, true);
+    int span = f_first(F_SAVE_SPAN), pos = f_first(F_SAVE_POSITION);
+    int rev  = f_first(F_SAVE_REVERSED);
+    TEST_ASSERT_TRUE(span >= 0 && pos >= 0 && rev >= 0);
+    TEST_ASSERT_TRUE(span < rev);
+    TEST_ASSERT_TRUE(pos < rev);
+}
+
+static void test_reverse_refused_when_invalidation_fails(void)
+{
+    boot_cal(5000);
+    F.fail[F_SAVE_SPAN] = 0x105;
+    ev_on(APP_EVT_ZB_SET_REVERSED, true);
+    TEST_ASSERT_FALSE(C.reversed);
+    TEST_ASSERT_EQUAL_INT(0, f_count(F_SAVE_REVERSED));
+    TEST_ASSERT_EQUAL_INT(0, f_count(F_SET_REVERSED));
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_LED_FLASH, LED_ERROR));
+    TEST_ASSERT_EQUAL_INT32(false, f_rec(F_REPORT_MODE).a);   /* z2m told the truth */
+}
+
+static void test_reverse_keeps_old_direction_when_direction_save_fails(void)
+{
+    boot_cal(5000);
+    F.fail[F_SAVE_REVERSED] = 0x105;
+    ev_on(APP_EVT_ZB_SET_REVERSED, true);
+    TEST_ASSERT_FALSE(C.reversed);
+    TEST_ASSERT_EQUAL_INT(0, f_count(F_SET_REVERSED));
+    TEST_ASSERT_FALSE(ctl_calibrated(&C));          /* wiped either way */
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_LED_FLASH, LED_ERROR));
+    TEST_ASSERT_EQUAL_INT32(false, f_rec(F_REPORT_MODE).a);
+}
+
 /* ---------- factory reset ---------- */
 
 static void test_factory_reset_when_idle(void)
@@ -702,6 +791,7 @@ int main(void)
     RUN_TEST(test_position_save_failure_leaves_move_flag_set);
     RUN_TEST(test_dead_zone_move_acks);
     RUN_TEST(test_refused_move_flashes_error_and_clears_flag);
+    RUN_TEST(test_move_refused_when_move_flag_cannot_be_saved);
     RUN_TEST(test_uncalibrated_jog_is_unbounded_and_uncapped);
     RUN_TEST(test_calibrated_jog_is_clamped_to_limits);
     RUN_TEST(test_zb_goto_idle_moves);
@@ -719,6 +809,8 @@ int main(void)
     RUN_TEST(test_fn_long_while_moving_does_not_enter);
     RUN_TEST(test_full_calibration_happy_path);
     RUN_TEST(test_mark2_too_short_is_rejected_and_keeps_waiting);
+    RUN_TEST(test_mark2_span_save_failure_keeps_waiting_for_mark2);
+    RUN_TEST(test_mark2_position_save_failure_boots_needing_rehome);
     RUN_TEST(test_rehome_single_mark_restores_calibration);
     RUN_TEST(test_abort_without_jog_keeps_calibration);
     RUN_TEST(test_abort_after_jog_drops_to_position_unknown);
@@ -733,6 +825,9 @@ int main(void)
     RUN_TEST(test_reverse_to_same_value_does_nothing);
     RUN_TEST(test_reverse_while_moving_is_rejected);
     RUN_TEST(test_reverse_inside_calibration_exits_mode);
+    RUN_TEST(test_reverse_invalidates_calibration_before_saving_direction);
+    RUN_TEST(test_reverse_refused_when_invalidation_fails);
+    RUN_TEST(test_reverse_keeps_old_direction_when_direction_save_fails);
     RUN_TEST(test_factory_reset_when_idle);
     RUN_TEST(test_factory_reset_while_moving_is_refused);
     RUN_TEST(test_tap_in_end_of_move_gap_is_a_stop_not_a_new_move);

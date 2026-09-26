@@ -90,7 +90,14 @@ static bool start_move(ctl_t *c, int32_t target, const motion_profile_t *prof)
     int32_t cap = hard_cap(c);       /* hoisted so a refusal can record it */
     c->move_start_pct = position_lift_pct(&c->pos);
     c->io->trace(TRC_MOVE_START, c->raw, target);
-    c->io->save_move_flag(true);
+    /* Without the flag a power cut mid-move would boot Calibrated with a
+     * wrong position — exactly what the flag exists to prevent. */
+    if (c->io->save_move_flag(true) != CTL_OK) {
+        c->io->trace(TRC_MOVE_REFUSED, -1, cap);
+        c->io->led_flash(LED_ERROR);
+        c->io->log("move refused: move flag not saved");
+        return false;
+    }
     ctl_err_t err = c->io->motion_start(c->raw, target, prof, cap);
     if (err != CTL_OK) {
         c->io->save_move_flag(false);
@@ -153,7 +160,11 @@ static void cal_abort(ctl_t *c)
     c->io->cal_timer_stop();
     if (c->cal_moved && c->pos.span_valid) {
         position_mark_unknown(&c->pos);
-        c->io->save_position(false, 0);
+        if (c->io->save_position(false, 0) != CTL_OK) {
+            /* the session's first jog already saved the position untrusted,
+             * so flash is on the safe side; record it and carry on */
+            c->io->log("abort: position save failed (already untrusted on flash)");
+        }
     }
 }
 
@@ -182,11 +193,21 @@ static void handle_mark(ctl_t *c)
     /* raw stays one continuous frame through the whole calibration —
      * position_cal_mark stores mark 1's raw and computes the span as the
      * difference at mark 2, so the caller must NOT re-anchor between marks. */
+    position_t before = c->pos;
     if (position_cal_mark(&c->pos, c->raw, c->cfg.min_span_steps)) {
         if (!in_cal(c)) {                               /* calibration finished */
+            /* Span first: if the position save then fails, flash holds the
+             * new span with the position the session's first jog already
+             * saved as untrusted — a Re-home, never a wrong Calibrated. */
+            if (c->io->save_span(c->pos.span_valid, c->pos.closed_steps) != CTL_OK ||
+                c->io->save_position(c->pos.pos_known, c->pos.cur_steps) != CTL_OK) {
+                c->pos = before;                        /* treat as a rejected mark */
+                c->io->led_flash(LED_ERROR);
+                c->io->log("calibration not saved: mark rejected, try again");
+                ctl_refresh_outputs(c);
+                return;
+            }
             c->io->cal_timer_stop();
-            c->io->save_span(c->pos.span_valid, c->pos.closed_steps);
-            c->io->save_position(c->pos.pos_known, c->pos.cur_steps);
             c->raw = c->pos.cur_steps;                  /* re-anchor raw frame */
             apply_travel_time(c);   /* new span -> same duration, new interval */
         }
@@ -197,21 +218,35 @@ static void handle_mark(ctl_t *c)
     ctl_refresh_outputs(c);
 }
 
+/* Invalidate before flipping: if power is lost between the saves, flash must
+ * hold "uncalibrated", never the new direction with the old calibration —
+ * that would drive past the limits with full confidence (spec §6). Flash
+ * never trusts more than RAM. */
 static void toggle_reversed(ctl_t *c)
 {
     if (moving(c)) return;
-    c->reversed = !c->reversed;
-    c->io->motion_set_reversed(c->reversed);
-    c->io->save_reversed(c->reversed);
-    /* direction sense changed -> all stored steps are meaningless (spec §6) */
+    if (c->io->save_span(false, 0) != CTL_OK ||
+        c->io->save_position(false, 0) != CTL_OK) {
+        c->io->led_flash(LED_ERROR);
+        c->io->log("motor_reversed refused: calibration could not be invalidated");
+        c->io->report_mode(c->reversed);    /* z2m sees the unchanged truth */
+        return;
+    }
     bool was_cal = in_cal(c);
-    position_wipe(&c->pos);
+    position_wipe(&c->pos);                 /* direction changes -> steps meaningless */
     if (was_cal) c->io->cal_timer_stop();
-    c->io->save_span(false, 0);
-    c->io->save_position(false, 0);
     c->raw = 0;
+    bool want = !c->reversed;
+    if (c->io->save_reversed(want) == CTL_OK) {
+        c->reversed = want;
+        c->io->motion_set_reversed(want);
+        c->io->led_flash(LED_ACK);
+    } else {
+        /* calibration is gone either way; the old direction is the safe one */
+        c->io->led_flash(LED_ERROR);
+        c->io->log("motor_reversed not saved: direction unchanged");
+    }
     c->io->report_mode(c->reversed);
-    c->io->led_flash(LED_ACK);
     apply_travel_time(c);   /* span was wiped: fall back until recalibrated */
     ctl_refresh_outputs(c);
 }
