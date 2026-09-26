@@ -26,7 +26,6 @@ typedef struct {
     ctl_err_t (*motion_start)(int32_t from_steps, int32_t to_steps,
                               const motion_profile_t *prof, int32_t hard_cap);
     void      (*motion_stop)(void);
-    bool      (*motion_is_moving)(void);   /* removed in Task 5 */
     int32_t   (*motion_steps)(void);
     void      (*motion_set_reversed)(bool reversed);
     /* persistence (NVS namespace "blind") */
@@ -77,6 +76,10 @@ typedef struct {
     bool     pending_valid;    /* Zigbee goto parked while a move decelerates */
     uint8_t  pending_pct;
     uint8_t  move_start_pct;   /* lift % when the current move began */
+    bool     move_active;      /* set when motion_start succeeds, cleared only
+                                * when this core handles MOTION_DONE. The ISR's
+                                * own flag clears earlier, at the last step, so
+                                * it cannot answer "may I start a move?" */
 } ctl_t;
 
 void ctl_init(ctl_t *c, const ctl_ports_t *io, const ctl_config_t *cfg,

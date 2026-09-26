@@ -12,7 +12,7 @@
 
 static bool in_cal(const ctl_t *c) { return c->pos.cal != POS_CAL_NONE; }
 
-static bool moving(const ctl_t *c) { return c->io->motion_is_moving(); }
+static bool moving(const ctl_t *c) { return c->move_active; }
 
 bool ctl_calibrated(const ctl_t *c)  { return position_calibrated(&c->pos); }
 bool ctl_in_cal_mode(const ctl_t *c) { return in_cal(c); }
@@ -79,13 +79,13 @@ static int32_t hard_cap(const ctl_t *c)
                              : c->cfg.jog_unbounded + 1;
 }
 
-static void start_move(ctl_t *c, int32_t target, const motion_profile_t *prof)
+static bool start_move(ctl_t *c, int32_t target, const motion_profile_t *prof)
 {
     if (target == c->raw) {
         c->io->trace(TRC_MOVE_NOOP, target, c->pos.closed_steps);
         c->io->led_flash(LED_ACK);   /* heard you; already there */
         ctl_refresh_outputs(c);      /* keep reports honest, no NVS churn */
-        return;
+        return false;
     }
     int32_t cap = hard_cap(c);       /* hoisted so a refusal can record it */
     c->move_start_pct = position_lift_pct(&c->pos);
@@ -97,15 +97,17 @@ static void start_move(ctl_t *c, int32_t target, const motion_profile_t *prof)
         c->io->trace(TRC_MOVE_REFUSED, err, cap);
         c->io->led_flash(LED_ERROR);  /* refusing — needs attention */
         c->io->log("move refused");
-    } else {
-        c->io->report_timer_start();
+        return false;
     }
+    c->move_active = true;
+    c->io->report_timer_start();
+    return true;
 }
 
 static void goto_pct(ctl_t *c, uint8_t pct)
 {
     if (!ctl_calibrated(c)) return;
-    start_move(c, position_target_for_pct(&c->pos, pct), &c->cfg.move);
+    (void)start_move(c, position_target_for_pct(&c->pos, pct), &c->cfg.move);
 }
 
 static void jog(ctl_t *c, bool up)
@@ -117,7 +119,7 @@ static void jog(ctl_t *c, bool up)
         target = up ? c->raw - c->cfg.jog_unbounded
                     : c->raw + c->cfg.jog_unbounded;
     }
-    start_move(c, target, &c->cfg.jog);
+    (void)start_move(c, target, &c->cfg.jog);
 }
 
 /* ---------- calibration (spec §6) ---------- */
@@ -266,6 +268,7 @@ static void handle_keypad(ctl_t *c, kp_event_t e)
 
 static void on_motion_done(ctl_t *c, int32_t steps, bool completed)
 {
+    c->move_active = false;   /* the only place it clears */
     c->io->trace(TRC_MOVE_DONE, steps, completed);
     c->io->report_timer_stop();
     c->raw = steps;

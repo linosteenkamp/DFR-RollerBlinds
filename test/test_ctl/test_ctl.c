@@ -576,6 +576,72 @@ static void test_factory_reset_while_moving_is_refused(void)
     TEST_ASSERT_EQUAL_INT(0, f_count(F_FACTORY_RESET));
 }
 
+/* ---------- S1: the end-of-move gap ----------
+ * isr_finished(): the ISR has ended the move and cleared its own moving
+ * flag, but the dispatcher has not yet handled MOTION_DONE. */
+static void isr_finished(void) { F.moving = false; }
+
+static void test_tap_in_end_of_move_gap_is_a_stop_not_a_new_move(void)
+{
+    boot_cal(0);
+    kp(KP_EVT_TAP, KEY_DOWN);                 /* 0 -> 24000 */
+    isr_finished();
+    kp(KP_EVT_TAP, KEY_DOWN);                 /* would restart from stale raw 0 */
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_MOTION_START));
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_MOTION_STOP));
+    done(SPAN, true);
+    kp(KP_EVT_TAP, KEY_UP);
+    TEST_ASSERT_EQUAL_INT(1, f_count_ab(F_MOTION_START, SPAN, 0));
+}
+
+static void test_goto_in_end_of_move_gap_is_parked_and_runs_from_done(void)
+{
+    boot_cal(0);
+    kp(KP_EVT_TAP, KEY_DOWN);
+    isr_finished();
+    zb_goto(50);
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_MOTION_START));
+    done(SPAN, true);
+    TEST_ASSERT_EQUAL_INT(1, f_count_ab(F_MOTION_START, SPAN, 12000));
+}
+
+/* Review Focus 2 */
+static void test_zb_stop_in_gap_discards_parked_goto(void)
+{
+    boot_cal(0);
+    kp(KP_EVT_TAP, KEY_DOWN);
+    isr_finished();
+    zb_goto(50);
+    ev_type(APP_EVT_ZB_STOP);
+    done(SPAN, true);
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_MOTION_START));
+}
+
+static void test_cal_timeout_in_gap_defers_abort_and_distrusts_position(void)
+{
+    boot_cal(5000);
+    kp(KP_EVT_FN_LONG, KEY_FN);
+    kp(KP_EVT_HOLD_START, KEY_DOWN);
+    isr_finished();
+    ev_type(APP_EVT_CAL_TIMEOUT);             /* would abort before the jog counted */
+    done(9000, false);
+    TEST_ASSERT_EQUAL(POS_CAL_NONE, C.pos.cal);
+    TEST_ASSERT_FALSE(C.pos.pos_known);
+    TEST_ASSERT_FALSE(ctl_calibrated(&C));
+    TEST_ASSERT_EQUAL_INT(0, f_count_ab(F_SAVE_POSITION, true, 9000));
+}
+
+static void test_move_flag_not_cleared_by_a_stale_done(void)
+{
+    boot_cal(0);
+    kp(KP_EVT_TAP, KEY_DOWN);
+    isr_finished();
+    zb_goto(50);
+    done(SPAN, true);                          /* runs the parked goto */
+    TEST_ASSERT_EQUAL_INT32(1, f_rec(F_SAVE_MOVE_FLAG).a);   /* set for the new move */
+    TEST_ASSERT_TRUE(C.move_active);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -624,5 +690,10 @@ int main(void)
     RUN_TEST(test_reverse_inside_calibration_exits_mode);
     RUN_TEST(test_factory_reset_when_idle);
     RUN_TEST(test_factory_reset_while_moving_is_refused);
+    RUN_TEST(test_tap_in_end_of_move_gap_is_a_stop_not_a_new_move);
+    RUN_TEST(test_goto_in_end_of_move_gap_is_parked_and_runs_from_done);
+    RUN_TEST(test_zb_stop_in_gap_discards_parked_goto);
+    RUN_TEST(test_cal_timeout_in_gap_defers_abort_and_distrusts_position);
+    RUN_TEST(test_move_flag_not_cleared_by_a_stale_done);
     return UNITY_END();
 }

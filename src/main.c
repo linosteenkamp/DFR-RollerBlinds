@@ -77,7 +77,6 @@ static void p_log(const char *msg)     { ESP_LOGW(TAG, "%s", msg); }
 static const ctl_ports_t PORTS = {
     .motion_start        = motion_start,
     .motion_stop         = motion_stop,
-    .motion_is_moving    = motion_is_moving,
     .motion_steps        = motion_current_steps,
     .motion_set_reversed = motion_set_reversed,
     .save_move_flag      = blind_store_set_move_flag,

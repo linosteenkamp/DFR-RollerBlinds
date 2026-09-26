@@ -92,7 +92,6 @@ static ctl_err_t p_motion_start(int32_t from, int32_t to,
     return F.start_err;
 }
 static void      p_motion_stop(void)            { f_rec_add(F_MOTION_STOP, 0, 0); }
-static bool      p_motion_is_moving(void)       { return F.moving; }
 static int32_t   p_motion_steps(void)           { return F.steps; }
 static void      p_set_reversed(bool r)         { f_rec_add(F_SET_REVERSED, r, 0); }
 static ctl_err_t p_save_move_flag(bool on)      { f_rec_add(F_SAVE_MOVE_FLAG, on, 0); return F.fail[F_SAVE_MOVE_FLAG]; }
@@ -118,7 +117,7 @@ static void      p_log(const char *msg)         { (void)msg; f_rec_add(F_LOG, 0,
 
 static const ctl_ports_t FAKE_PORTS = {
     .motion_start = p_motion_start, .motion_stop = p_motion_stop,
-    .motion_is_moving = p_motion_is_moving, .motion_steps = p_motion_steps,
+    .motion_steps = p_motion_steps,
     .motion_set_reversed = p_set_reversed,
     .save_move_flag = p_save_move_flag, .save_span = p_save_span,
     .save_position = p_save_position, .save_reversed = p_save_reversed,
