@@ -173,7 +173,10 @@ static void cal_abort(ctl_t *c)
 
 static void enter_or_exit_cal(ctl_t *c)
 {
-    if (moving(c)) return;                     /* only from standstill */
+    if (moving(c)) {                          /* only from standstill */
+        c->io->led_flash(LED_ERROR);          /* heard you; refusing */
+        return;
+    }
     if (in_cal(c)) {                           /* second long-press: abort */
         cal_abort(c);
     } else {
@@ -315,6 +318,7 @@ static void handle_keypad(ctl_t *c, kp_event_t e)
         /* Never mid-move: the reset reboots, and rebooting with
          * move_in_progress still set drops the device to Position Unknown. */
         if (moving(c)) {
+            c->io->led_flash(LED_ERROR);
             c->io->log("factory reset ignored: stop the blind first");
             break;
         }

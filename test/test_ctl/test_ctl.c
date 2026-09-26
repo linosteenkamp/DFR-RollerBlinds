@@ -384,6 +384,7 @@ static void test_fn_long_while_moving_does_not_enter(void)
     kp(KP_EVT_FN_LONG, KEY_FN);
     TEST_ASSERT_EQUAL(POS_CAL_NONE, C.pos.cal);
     TEST_ASSERT_EQUAL_INT(0, f_count(F_CAL_TIMER_START));
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_LED_FLASH, LED_ERROR));
 }
 
 static void test_full_calibration_happy_path(void)
@@ -708,6 +709,7 @@ static void test_factory_reset_while_moving_is_refused(void)
     kp(KP_EVT_TAP, KEY_DOWN);
     kp(KP_EVT_FACTORY_RESET, KEY_FN);
     TEST_ASSERT_EQUAL_INT(0, f_count(F_FACTORY_RESET));
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_LED_FLASH, LED_ERROR));
 }
 
 /* ---------- S1: the end-of-move gap ----------
