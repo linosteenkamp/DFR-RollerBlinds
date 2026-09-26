@@ -367,10 +367,13 @@ static void on_motion_done(ctl_t *c, int32_t steps, bool completed)
          * trusting a position that failed to persist */
         c->io->log("position save failed: move flag left set, re-home on next boot");
     }
-    if (c->pending_valid && !in_cal(c) && ctl_calibrated(c)) {
+    if (c->pending_valid) {
         uint8_t pct = c->pending_pct;   /* ZB preemption: last writer */
-        c->pending_valid = false;
-        goto_pct(c, pct);
+        c->pending_valid = false;       /* always clear: a parked goto whose
+                                          * guard fails below must not be left
+                                          * to fire on some later, unrelated
+                                          * MOTION_DONE */
+        if (!in_cal(c) && ctl_calibrated(c)) goto_pct(c, pct);
     }
     refresh_outputs(c);
 }
