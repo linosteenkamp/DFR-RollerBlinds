@@ -247,6 +247,31 @@ static void test_refused_move_flashes_error_and_clears_flag(void)
     TEST_ASSERT_EQUAL_INT(0, f_count(F_REPORT_TIMER_START));
 }
 
+/* Recommended test: move_active must never be left stuck true after a start
+ * that never actually ran motion, or the unit would refuse every further
+ * command believing itself already moving. Passes unmodified today — it
+ * pins the invariant against regression. */
+static void test_refused_or_noop_start_leaves_unit_responsive(void)
+{
+    /* (a) a refused start (motion_start failed) must not latch move_active:
+     * once the port stops failing, the very same gesture must start motion. */
+    boot_cal(0);
+    F.start_err = 0x103;
+    kp(KP_EVT_TAP, KEY_DOWN);                 /* refused */
+    F.start_err = 0;
+    kp(KP_EVT_TAP, KEY_DOWN);                 /* must still be able to start */
+    TEST_ASSERT_EQUAL_INT(2, f_count_ab(F_MOTION_START, 0, SPAN));
+    TEST_ASSERT_EQUAL_INT(0, f_count(F_MOTION_STOP));
+
+    /* (b) a no-op start (already at target) must not latch move_active
+     * either: a real move right after must still start. */
+    boot_cal(0);
+    kp(KP_EVT_TAP, KEY_UP);                 /* NOOP: already at Open */
+    kp(KP_EVT_TAP, KEY_DOWN);
+    TEST_ASSERT_EQUAL_INT(1, f_count_ab(F_MOTION_START, 0, SPAN));
+    TEST_ASSERT_EQUAL_INT(0, f_count(F_MOTION_STOP));
+}
+
 /* ---------- S3 / S8: persistence ---------- */
 
 static void test_move_refused_when_move_flag_cannot_be_saved(void)
@@ -857,6 +882,7 @@ int main(void)
     RUN_TEST(test_position_save_failure_leaves_move_flag_set);
     RUN_TEST(test_dead_zone_move_acks);
     RUN_TEST(test_refused_move_flashes_error_and_clears_flag);
+    RUN_TEST(test_refused_or_noop_start_leaves_unit_responsive);
     RUN_TEST(test_move_refused_when_move_flag_cannot_be_saved);
     RUN_TEST(test_uncalibrated_jog_is_unbounded_and_uncapped);
     RUN_TEST(test_calibrated_jog_is_clamped_to_limits);
