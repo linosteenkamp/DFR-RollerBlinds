@@ -706,12 +706,13 @@ matches the keypad:
    a hold-to-jog, not a tap — taps don't move an uncalibrated device).
 2. If the blind moves **up** (toward Open), direction is correct — done.
 3. If the blind moves **down** instead, the motor/gearing sense is flipped
-   for this installation. Fix it either:
-   - **remotely**: flip `motor_reversed` in zigbee2mqtt (Mode attribute,
-     `motor_reversed` expose), or
-   - **locally**: hold **Up + Down together for ~3 s** (the reverse chord).
+   for this installation. Fix it by flipping `motor_reversed` in
+   zigbee2mqtt (Mode attribute, `motor_reversed` expose). There is **no
+   keypad gesture** for it: the Up + Down chord was retired in v2.3.0 (it
+   wiped calibration on a 3 s hold with no confirmation, and its latch
+   could strand the keypad). The device must be joined to change it.
 
-Either path flips `motor_reversed` in NVS and — because all stored step
+This flips `motor_reversed` in NVS and — because all stored step
 counts were measured under the old direction sense — **wipes the current
 calibration**. Recalibrate afterward (see [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)).
 
