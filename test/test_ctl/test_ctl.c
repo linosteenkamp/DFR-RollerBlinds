@@ -642,6 +642,51 @@ static void test_move_flag_not_cleared_by_a_stale_done(void)
     TEST_ASSERT_TRUE(C.move_active);
 }
 
+/* ---------- S4: dead-man ---------- */
+
+static void test_lost_hold_end_is_caught_on_the_next_event(void)
+{
+    boot_cal(12000);
+    kp(KP_EVT_HOLD_START, KEY_DOWN);
+    F.held[KEY_DOWN] = false;                 /* released; HOLD_END was dropped */
+    ev_type(APP_EVT_REPORT_TICK);
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_MOTION_STOP));
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_TRACE, TRC_DEADMAN_STOP));
+}
+
+static void test_hold_start_with_key_already_released_stops_in_same_call(void)
+{
+    boot_uncal();
+    F.held[KEY_UP] = false;                   /* HOLD_END dropped before HOLD_START ran */
+    kp(KP_EVT_HOLD_START, KEY_UP);
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_MOTION_START));
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_MOTION_STOP));
+}
+
+static void test_normal_hold_end_stops_once_without_deadman(void)
+{
+    boot_cal(12000);
+    kp(KP_EVT_HOLD_START, KEY_DOWN);
+    F.held[KEY_DOWN] = false;
+    kp(KP_EVT_HOLD_END, KEY_DOWN);
+    ev_type(APP_EVT_REPORT_TICK);
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_MOTION_STOP));
+    TEST_ASSERT_EQUAL_INT(0, f_count_a(F_TRACE, TRC_DEADMAN_STOP));
+}
+
+/* Review Focus 1: a Zigbee goto that preempts a jog is not the jog's to stop. */
+static void test_deadman_does_not_stop_a_zigbee_move_after_a_jog(void)
+{
+    boot_cal(12000);
+    kp(KP_EVT_HOLD_START, KEY_DOWN);
+    zb_goto(25);                              /* parks, stops the jog */
+    done(13000, false);                       /* runs the goto */
+    int stops = f_count(F_MOTION_STOP);
+    F.held[KEY_DOWN] = false;                 /* operator lets go of the key */
+    ev_type(APP_EVT_REPORT_TICK);
+    TEST_ASSERT_EQUAL_INT(stops, f_count(F_MOTION_STOP));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -695,5 +740,9 @@ int main(void)
     RUN_TEST(test_zb_stop_in_gap_discards_parked_goto);
     RUN_TEST(test_cal_timeout_in_gap_defers_abort_and_distrusts_position);
     RUN_TEST(test_move_flag_not_cleared_by_a_stale_done);
+    RUN_TEST(test_lost_hold_end_is_caught_on_the_next_event);
+    RUN_TEST(test_hold_start_with_key_already_released_stops_in_same_call);
+    RUN_TEST(test_normal_hold_end_stops_once_without_deadman);
+    RUN_TEST(test_deadman_does_not_stop_a_zigbee_move_after_a_jog);
     return UNITY_END();
 }

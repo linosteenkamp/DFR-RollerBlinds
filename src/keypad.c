@@ -11,7 +11,6 @@
 #include "app_event.h"
 #include "key_filter.h"
 #include "trace.h"
-#include "motion.h"
 
 #include "driver/gpio.h"
 #include "esp_timer.h"
@@ -98,17 +97,20 @@ static void trace_latches(void)
     }
 }
 
+bool keypad_key_held(key_id_t key)
+{
+    return key_filter_level(&s_filt[key]) == 0;   /* active-low */
+}
+
 static void post_kp(kp_event_t e)
 {
     if (e.type == KP_EVT_NONE) return;
     app_event_t ev = { .type = APP_EVT_KEYPAD, .kp = e };
     if (xQueueSend(s_queue, &ev, 0) != pdTRUE) {
+        /* Dropped. A dropped HOLD_END is caught by the dispatcher's dead-man
+         * check against keypad_key_held(); this task never touches motion. */
         TRACE(TRC_QUEUE_FULL, e.type, 0);
         ESP_LOGE(TAG, "queue full, dropped kp event type=%d", e.type);
-        if (e.type == KP_EVT_HOLD_END || e.type == KP_EVT_TAP) {
-            /* a dropped stop-class event must not leave the motor running */
-            motion_stop();
-        }
     }
 }
 

@@ -110,8 +110,9 @@ static void goto_pct(ctl_t *c, uint8_t pct)
     (void)start_move(c, position_target_for_pct(&c->pos, pct), &c->cfg.move);
 }
 
-static void jog(ctl_t *c, bool up)
+static void jog(ctl_t *c, key_id_t key)
 {
+    bool up = (key == KEY_UP);
     int32_t target;
     if (ctl_calibrated(c)) {
         target = up ? 0 : c->pos.closed_steps;              /* clamped jog */
@@ -119,7 +120,24 @@ static void jog(ctl_t *c, bool up)
         target = up ? c->raw - c->cfg.jog_unbounded
                     : c->raw + c->cfg.jog_unbounded;
     }
-    (void)start_move(c, target, &c->cfg.jog);
+    if (start_move(c, target, &c->cfg.jog)) {
+        c->jog_active    = true;
+        c->jog_key       = key;
+        c->jog_stop_sent = false;
+    }
+}
+
+/* Hold-to-jog must stop on release even if HOLD_END never arrives (a full
+ * queue drops it). Checked after every event: a full queue means the
+ * dispatcher is behind, so it has events to process and catches the release
+ * within one of them; the 1 s report tick is the backstop. */
+static void deadman(ctl_t *c)
+{
+    if (c->jog_active && !c->jog_stop_sent && !c->io->key_held(c->jog_key)) {
+        c->jog_stop_sent = true;
+        c->io->trace(TRC_DEADMAN_STOP, c->jog_key, 0);
+        c->io->motion_stop();
+    }
 }
 
 /* ---------- calibration (spec §6) ---------- */
@@ -210,6 +228,7 @@ static void zb_goto_request(ctl_t *c, uint8_t pct)
     if (mv) {
         c->pending_pct   = pct;
         c->pending_valid = true;
+        if (c->jog_active) c->jog_stop_sent = true;
         c->io->motion_stop();
     } else {
         goto_pct(c, pct);
@@ -241,9 +260,10 @@ static void handle_keypad(ctl_t *c, kp_event_t e)
         }
         break;
     case KP_EVT_HOLD_START:
-        if (!moving(c)) jog(c, e.key == KEY_UP);
+        if (!moving(c)) jog(c, e.key);
         break;
     case KP_EVT_HOLD_END:
+        if (c->jog_active) c->jog_stop_sent = true;
         c->io->motion_stop();
         break;
     case KP_EVT_FN_LONG:
@@ -269,6 +289,7 @@ static void handle_keypad(ctl_t *c, kp_event_t e)
 static void on_motion_done(ctl_t *c, int32_t steps, bool completed)
 {
     c->move_active = false;   /* the only place it clears */
+    c->jog_active  = false;
     c->io->trace(TRC_MOVE_DONE, steps, completed);
     c->io->report_timer_stop();
     c->raw = steps;
@@ -317,6 +338,7 @@ void ctl_handle(ctl_t *c, const app_event_t *ev)
     case APP_EVT_ZB_GOTO:  zb_goto_request(c, ev->pct);   break;
     case APP_EVT_ZB_STOP:
         c->pending_valid = false;
+        if (c->jog_active) c->jog_stop_sent = true;
         c->io->motion_stop();
         break;
     case APP_EVT_ZB_SET_REVERSED:
@@ -364,6 +386,7 @@ void ctl_handle(ctl_t *c, const app_event_t *ev)
     default:
         break;
     }
+    deadman(c);
 }
 
 void ctl_init(ctl_t *c, const ctl_ports_t *io, const ctl_config_t *cfg,

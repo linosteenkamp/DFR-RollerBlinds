@@ -57,6 +57,11 @@ typedef enum {
      *   a = polls since the last heartbeat (12000 at a healthy 5 ms/60 s)
      *   b = bit0/1/2 raw GPIO level, bit4/5/6 debounced level, per key       */
     TRC_KEY_ALIVE,
+
+    /* The dispatcher stopped a jog because its key reads released while no
+     * HOLD_END arrived (dropped on a full queue).
+     *   a = key_id_t   b = -                                                  */
+    TRC_DEADMAN_STOP,
 } trace_code_t;
 
 /* Validate the RTC ring; clear it only if this was a cold boot. Emits nothing

@@ -93,6 +93,7 @@ static const ctl_ports_t PORTS = {
     .factory_reset       = zb_core_factory_reset,
     .led_set             = status_led_set,
     .led_flash           = status_led_flash,
+    .key_held            = keypad_key_held,
     .cal_timer_start     = p_cal_timer_start,
     .cal_timer_stop      = p_cal_timer_stop,
     .report_timer_start  = p_report_timer_start,

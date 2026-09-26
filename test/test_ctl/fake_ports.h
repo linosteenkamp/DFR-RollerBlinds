@@ -30,6 +30,7 @@ static struct {
     int32_t   last_cap;       /* hard_cap of the last motion_start */
     uint32_t  last_cruise;    /* profile cruise_us of the last motion_start */
     ctl_err_t fail[F__COUNT]; /* non-zero: that save port returns it */
+    bool      held[KEY_COUNT];/* what key_held() returns, per key */
 } F;
 
 static inline void f_rec_add(fcall_t w, int32_t a, int32_t b)
@@ -114,6 +115,7 @@ static void      p_report_timer_start(void)     { f_rec_add(F_REPORT_TIMER_START
 static void      p_report_timer_stop(void)      { f_rec_add(F_REPORT_TIMER_STOP, 0, 0); }
 static void      p_trace(uint16_t code, int32_t a, int32_t b) { (void)b; f_rec_add(F_TRACE, code, a); }
 static void      p_log(const char *msg)         { (void)msg; f_rec_add(F_LOG, 0, 0); }
+static bool      p_key_held(key_id_t k)         { return F.held[k]; }
 
 static const ctl_ports_t FAKE_PORTS = {
     .motion_start = p_motion_start, .motion_stop = p_motion_stop,
@@ -130,12 +132,14 @@ static const ctl_ports_t FAKE_PORTS = {
     .cal_timer_start = p_cal_timer_start, .cal_timer_stop = p_cal_timer_stop,
     .report_timer_start = p_report_timer_start, .report_timer_stop = p_report_timer_stop,
     .trace = p_trace, .log = p_log,
+    .key_held = p_key_held,
 };
 
 static inline void fake_reset(void)
 {
     memset(&F, 0, sizeof F);
     F.joined = true;
+    for (int k = 0; k < KEY_COUNT; k++) F.held[k] = true;   /* a HOLD_START implies held */
 }
 
 #endif /* FAKE_PORTS_H */

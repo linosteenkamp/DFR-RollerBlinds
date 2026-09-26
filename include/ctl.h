@@ -45,6 +45,7 @@ typedef struct {
     /* operator */
     void (*led_set)(led_pattern_t base);
     void (*led_flash)(led_pattern_t transient);
+    bool (*key_held)(key_id_t key);   /* debounced level, safe to poll */
     /* timers */
     void (*cal_timer_start)(void);
     void (*cal_timer_stop)(void);
@@ -80,6 +81,9 @@ typedef struct {
                                 * when this core handles MOTION_DONE. The ISR's
                                 * own flag clears earlier, at the last step, so
                                 * it cannot answer "may I start a move?" */
+    bool     jog_active;       /* the current move is a keypad jog */
+    key_id_t jog_key;          /* ...held on this key */
+    bool     jog_stop_sent;    /* its stop has been requested */
 } ctl_t;
 
 void ctl_init(ctl_t *c, const ctl_ports_t *io, const ctl_config_t *cfg,
