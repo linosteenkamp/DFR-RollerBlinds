@@ -58,8 +58,11 @@ typedef enum {
      *   b = bit0/1/2 raw GPIO level, bit4/5/6 debounced level, per key       */
     TRC_KEY_ALIVE,
 
-    /* The dispatcher stopped a jog because its key reads released while no
-     * HOLD_END arrived (dropped on a full queue).
+    /* The dispatcher stopped a running jog because its key reads released
+     * before any HOLD_END was handled. Usually a dropped HOLD_END (a full
+     * queue), but also fires when HOLD_END is merely still queued behind a
+     * backlog, or after a tap/Fn/timeout stop already ended the move first.
+     * Confirm an actual drop with a matching TRC_QUEUE_FULL.
      *   a = key_id_t   b = -                                                  */
     TRC_DEADMAN_STOP,
 

@@ -44,6 +44,8 @@ static const char *code_name(uint16_t c)
     case TRC_KEY_EDGE:      return "KEY_EDGE";
     case TRC_KEY_LATCH:     return "KEY_LATCH";
     case TRC_KEY_ALIVE:     return "KEY_ALIVE";
+    case TRC_DEADMAN_STOP:     return "DEADMAN_STOP";
+    case TRC_DONE_POST_FAILED: return "DONE_POST_FAIL";
     default: {
         /* Keep the number: an unrecognised code is the one clue that this
          * dump is a stale-layout ring (see TRACE_MAGIC above) rather than a
