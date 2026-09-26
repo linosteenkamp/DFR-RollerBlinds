@@ -24,6 +24,8 @@ typedef enum {
     APP_EVT_CAL_TIMEOUT,     /* 5-min calibration timeout */
     APP_EVT_REPORT_TICK,     /* 1 s live-position reporting tick during moves */
     APP_EVT_IDENTIFY,        /* .on: Zigbee Identify start/stop */
+    APP_EVT_BOOT_SYNC,       /* app_main: join wait over (joined or timed out) —
+                              * push Mode, travel time and all outputs */
 } app_event_type_t;
 
 typedef struct {

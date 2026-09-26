@@ -212,17 +212,19 @@ void app_main(void)
     ESP_LOGI(TAG, "starting %s (calibrated=%d reversed=%d)",
              FW_VERSION_STR, ctl_calibrated(&s_ctl), s_ctl.reversed);
 
+    /* Still the only task touching ctl state: pick the LED now, so a unit
+     * that has not joined shows LED_NO_NETWORK from the first moment. */
+    status_led_set(ctl_led_pattern(&s_ctl));
+
     xTaskCreate(dispatcher_task, "dispatcher", 4096, NULL, 6, NULL);
 
-    /* Unchanged from before the extraction; Task 8 moves this into the
-     * dispatcher. */
-    status_led_set(ctl_calibrated(&s_ctl) ? LED_OFF : LED_UNCAL);
+    /* From here on app_main touches no ctl state: the dispatcher owns it.
+     * The post-join sync runs there, as an event. */
     if (zb_core_wait_ready(60000)) {
         ESP_LOGI(TAG, "joined");
     }
-    covering_report_mode(s_ctl.reversed);
-    covering_report_travel_time(ctl_achieved_travel_secs(&s_ctl));
-    ctl_refresh_outputs(&s_ctl);
+    app_event_t sync = { .type = APP_EVT_BOOT_SYNC };
+    xQueueSend(s_queue, &sync, portMAX_DELAY);
 
     /* Confirm a pending-verify OTA image once the app is up (join not
      * required) or the bootloader rolls back on the next reset. */

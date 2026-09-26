@@ -28,7 +28,7 @@ led_pattern_t ctl_led_pattern(const ctl_t *c)
     return ctl_calibrated(c) ? LED_OFF : LED_UNCAL;
 }
 
-void ctl_refresh_outputs(ctl_t *c)
+static void refresh_outputs(ctl_t *c)
 {
     bool cal = ctl_calibrated(c);
     c->io->set_motion_allowed(cal);
@@ -84,7 +84,7 @@ static bool start_move(ctl_t *c, int32_t target, const motion_profile_t *prof)
     if (target == c->raw) {
         c->io->trace(TRC_MOVE_NOOP, target, c->pos.closed_steps);
         c->io->led_flash(LED_ACK);   /* heard you; already there */
-        ctl_refresh_outputs(c);      /* keep reports honest, no NVS churn */
+        refresh_outputs(c);      /* keep reports honest, no NVS churn */
         return false;
     }
     int32_t cap = hard_cap(c);       /* hoisted so a refusal can record it */
@@ -184,7 +184,7 @@ static void enter_or_exit_cal(ctl_t *c)
         c->raw = c->pos.pos_known ? c->pos.cur_steps : 0;   /* fresh raw frame */
         c->io->cal_timer_start();
     }
-    ctl_refresh_outputs(c);
+    refresh_outputs(c);
 }
 
 static void handle_mark(ctl_t *c)
@@ -209,7 +209,7 @@ static void handle_mark(ctl_t *c)
                 c->pos = before;                        /* treat as a rejected mark */
                 c->io->led_flash(LED_ERROR);
                 c->io->log("calibration not saved: mark rejected, try again");
-                ctl_refresh_outputs(c);
+                refresh_outputs(c);
                 return;
             }
             c->io->cal_timer_stop();
@@ -220,7 +220,7 @@ static void handle_mark(ctl_t *c)
     } else {
         c->io->led_flash(LED_ERROR);                    /* stay awaiting mark 2 */
     }
-    ctl_refresh_outputs(c);
+    refresh_outputs(c);
 }
 
 /* Invalidate before flipping: if power is lost between the saves, flash must
@@ -253,7 +253,7 @@ static void toggle_reversed(ctl_t *c)
     }
     c->io->report_mode(c->reversed);
     apply_travel_time(c);   /* span was wiped: fall back until recalibrated */
-    ctl_refresh_outputs(c);
+    refresh_outputs(c);
 }
 
 /* ---------- Zigbee ---------- */
@@ -368,7 +368,7 @@ static void on_motion_done(ctl_t *c, int32_t steps, bool completed)
         c->pending_valid = false;
         goto_pct(c, pct);
     }
-    ctl_refresh_outputs(c);
+    refresh_outputs(c);
 }
 
 void ctl_handle(ctl_t *c, const app_event_t *ev)
@@ -397,7 +397,7 @@ void ctl_handle(ctl_t *c, const app_event_t *ev)
         break;
     case APP_EVT_ZB_NET_LOST:
     case APP_EVT_ZB_NET_JOINED:
-        ctl_refresh_outputs(c);
+        refresh_outputs(c);
         break;
     case APP_EVT_MOTION_DONE:
         on_motion_done(c, ev->steps, ev->completed);
@@ -411,7 +411,7 @@ void ctl_handle(ctl_t *c, const app_event_t *ev)
             c->io->motion_stop();
         } else {
             cal_abort(c);
-            ctl_refresh_outputs(c);
+            refresh_outputs(c);
         }
         break;
     case APP_EVT_REPORT_TICK:
@@ -423,7 +423,12 @@ void ctl_handle(ctl_t *c, const app_event_t *ev)
         break;
     case APP_EVT_IDENTIFY:
         c->identifying = ev->on;
-        ctl_refresh_outputs(c);
+        refresh_outputs(c);
+        break;
+    case APP_EVT_BOOT_SYNC:
+        c->io->report_mode(c->reversed);
+        c->io->report_travel_time(ctl_achieved_travel_secs(c));
+        refresh_outputs(c);
         break;
     default:
         break;

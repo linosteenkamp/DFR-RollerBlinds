@@ -108,6 +108,25 @@ static void test_boot_travel_time_sets_cruise(void)
     TEST_ASSERT_EQUAL_UINT32(RAMP_DEFAULT_CRUISE_US, C.cfg.move.cruise_us);
 }
 
+/* ---------- S6 / S9: boot ---------- */
+
+static void test_boot_sync_reports_mode_travel_and_outputs(void)
+{
+    boot_full(true, 300000, true, 0, false, 30);
+    ev_type(APP_EVT_BOOT_SYNC);
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_REPORT_MODE, false));
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_REPORT_TRAVEL, 30));
+    TEST_ASSERT_EQUAL_INT(1, f_count_a(F_MOTION_ALLOWED, true));
+    TEST_ASSERT_EQUAL_INT(1, f_count(F_LED_SET));
+}
+
+static void test_boot_led_for_calibrated_unjoined_unit_is_no_network(void)
+{
+    boot_cal(0);
+    F.joined = false;
+    TEST_ASSERT_EQUAL(LED_NO_NETWORK, ctl_led_pattern(&C));
+}
+
 /* ---------- LED base pattern ---------- */
 
 static void test_led_pattern_priority_ladder(void)
@@ -808,6 +827,8 @@ int main(void)
     RUN_TEST(test_boot_clean_calibrated_restores_without_saving);
     RUN_TEST(test_boot_with_move_flag_drops_to_position_unknown);
     RUN_TEST(test_boot_travel_time_sets_cruise);
+    RUN_TEST(test_boot_sync_reports_mode_travel_and_outputs);
+    RUN_TEST(test_boot_led_for_calibrated_unjoined_unit_is_no_network);
     RUN_TEST(test_led_pattern_priority_ladder);
     RUN_TEST(test_tap_down_calibrated_runs_full_travel);
     RUN_TEST(test_tap_at_limit_acks_without_moving);

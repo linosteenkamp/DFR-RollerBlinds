@@ -97,8 +97,4 @@ bool          ctl_in_cal_mode(const ctl_t *c);
 led_pattern_t ctl_led_pattern(const ctl_t *c);
 uint16_t      ctl_achieved_travel_secs(const ctl_t *c);
 
-/* Pushes lockout, ConfigStatus, lift and the LED base pattern. Public only
- * while app_main still does the post-join sync itself (removed in Task 8). */
-void ctl_refresh_outputs(ctl_t *c);
-
 #endif /* CTL_H */
