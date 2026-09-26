@@ -7,6 +7,7 @@
 #include "status_led.h"
 #include "driver/gpio.h"
 #include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -19,6 +20,11 @@ static led_pattern_t s_trans = LED_OFF;   /* LED_OFF = no transient */
 static int s_base_tick;    /* base and transient keep independent tick counters */
 static int s_trans_tick;   /* so a base change can never corrupt a flash train */
 static esp_timer_handle_t s_timer;
+
+/* base+tick and trans+tick are each written as a pair by the dispatcher and
+ * read by the timer task; without the lock a flash landing between the two
+ * writes could be ended by a stale tick and never show. */
+static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 
 /* on/off per tick for each pattern; t is the tick inside the frame */
 static bool pattern_level(led_pattern_t p, int t)
@@ -53,6 +59,7 @@ static void tick_cb(void *arg)
 {
     (void)arg;
     bool lvl;
+    portENTER_CRITICAL(&s_mux);
     if (s_trans != LED_OFF) {
         lvl = pattern_level(s_trans, s_trans_tick);
         s_trans_tick++;
@@ -65,6 +72,7 @@ static void tick_cb(void *arg)
         lvl = pattern_level(s_base, s_base_tick);
         s_base_tick = (s_base_tick + 1) % FRAME;
     }
+    portEXIT_CRITICAL(&s_mux);
     gpio_set_level(s_ext, lvl);
 }
 
@@ -87,7 +95,9 @@ esp_err_t status_led_init(int gpio_ext)
 
 void status_led_set(led_pattern_t base)
 {
+    portENTER_CRITICAL(&s_mux);
     if (base != s_base) { s_base = base; s_base_tick = 0; }
+    portEXIT_CRITICAL(&s_mux);
 }
 
 void status_led_flash(led_pattern_t transient)
@@ -95,6 +105,8 @@ void status_led_flash(led_pattern_t transient)
     if (transient != LED_ACK && transient != LED_ERROR) {
         return;   /* only flash trains are transients; base patterns never overlay */
     }
+    portENTER_CRITICAL(&s_mux);
     s_trans = transient;
     s_trans_tick = 0;
+    portEXIT_CRITICAL(&s_mux);
 }
