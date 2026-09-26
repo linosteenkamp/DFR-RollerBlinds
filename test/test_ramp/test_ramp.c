@@ -149,6 +149,48 @@ static void test_travel_time_round_trip_does_not_lose_a_second(void)
     TEST_ASSERT_EQUAL_UINT16(55, ramp_travel_time_from_us(us, span));
 }
 
+/* ---------- stop path (used by the motion ISR) ---------- */
+
+static void test_stop_index_decelerates_as_far_as_it_accelerated(void)
+{
+    ramp_plan_t r;
+    ramp_plan_init(&r, 10000, CRUISE_US, START_US, 800);
+    TEST_ASSERT_EQUAL_INT32(1, ramp_stop_index(&r, 0));       /* at rest: one step */
+    TEST_ASSERT_EQUAL_INT32(800, ramp_stop_index(&r, 400));   /* mid-accel */
+    TEST_ASSERT_EQUAL_INT32(5800, ramp_stop_index(&r, 5000)); /* cruise: full ramp */
+    TEST_ASSERT_EQUAL_INT32(10000, ramp_stop_index(&r, 9990));/* capped by the plan */
+}
+
+static void test_stop_index_triangle_profile(void)
+{
+    ramp_plan_t r;
+    ramp_plan_init(&r, 1000, CRUISE_US, START_US, 800);       /* accel clamps to 500 */
+    TEST_ASSERT_EQUAL_INT32(500, ramp_stop_index(&r, 250));
+}
+
+static void test_stopping_interval_is_continuous_at_the_stop(void)
+{
+    ramp_plan_t r;
+    ramp_plan_init(&r, 10000, CRUISE_US, START_US, 800);
+    /* stop requested mid-accel at 400: no jump in speed at that step */
+    TEST_ASSERT_EQUAL_UINT32(ramp_interval_us(&r, 400),
+                             ramp_interval_us_stopping(&r, 400, 800));
+    /* stop requested at cruise */
+    TEST_ASSERT_EQUAL_UINT32(CRUISE_US, ramp_interval_us_stopping(&r, 5000, 5800));
+}
+
+static void test_stopping_interval_mirrors_the_accel_ramp(void)
+{
+    ramp_plan_t r;
+    ramp_plan_init(&r, 10000, CRUISE_US, START_US, 800);
+    for (int32_t k = 0; k < 800; k += 13) {
+        TEST_ASSERT_EQUAL_UINT32(ramp_interval_us(&r, 800 - k),
+                                 ramp_interval_us_stopping(&r, 5000 + k, 5800));
+    }
+    TEST_ASSERT_EQUAL_UINT32(START_US, ramp_interval_us_stopping(&r, 5800, 5800));
+    TEST_ASSERT_EQUAL_UINT32(START_US, ramp_interval_us_stopping(&r, 5900, 5800));
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -168,5 +210,9 @@ int main(void)
     RUN_TEST(test_travel_time_round_trips);
     RUN_TEST(test_travel_time_from_us_without_span_is_zero);
     RUN_TEST(test_travel_time_round_trip_does_not_lose_a_second);
+    RUN_TEST(test_stop_index_decelerates_as_far_as_it_accelerated);
+    RUN_TEST(test_stop_index_triangle_profile);
+    RUN_TEST(test_stopping_interval_is_continuous_at_the_stop);
+    RUN_TEST(test_stopping_interval_mirrors_the_accel_ramp);
     return UNITY_END();
 }

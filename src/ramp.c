@@ -1,9 +1,8 @@
 /**
  * @file ramp.c
- * @brief Pure trapezoid/triangle profile math. Called from the motion ISR —
- *        keep it allocation-free and branch-light. (The motion module places
- *        this in IRAM via its own compilation unit copy of the hot path; this
- *        file stays pure C for host tests.)
+ * @brief Pure trapezoid/triangle profile math — and the motion ISR's only
+ *        copy of it. The per-step functions carry RAMP_HOT, which places
+ *        them in IRAM on the device; host tests compile the same code.
  */
 #include "ramp.h"
 
@@ -26,7 +25,7 @@ void ramp_plan_init(ramp_plan_t *r, int32_t total_steps, uint32_t cruise_us,
 
 /* Linear interpolation in the frequency domain between f0=1e6/start and
  * fc=1e6/cruise: f(i) = f0 + (fc-f0)*i/accel. Returns 1e6/f(i). */
-static uint32_t interval_at(const ramp_plan_t *r, int32_t i_into_ramp)
+static RAMP_HOT uint32_t interval_at(const ramp_plan_t *r, int32_t i_into_ramp)
 {
     if (i_into_ramp >= r->accel_steps) {
         return r->cruise_us;
@@ -38,12 +37,30 @@ static uint32_t interval_at(const ramp_plan_t *r, int32_t i_into_ramp)
     return 1000000u / f;
 }
 
-uint32_t ramp_interval_us(const ramp_plan_t *r, int32_t step_idx)
+RAMP_HOT uint32_t ramp_interval_us(const ramp_plan_t *r, int32_t step_idx)
 {
     if (step_idx < 0) step_idx = 0;
     if (step_idx >= r->total) step_idx = r->total - 1;
     int32_t from_end = r->total - 1 - step_idx;
     int32_t i = (step_idx < from_end) ? step_idx : from_end;  /* mirror */
+    return interval_at(r, i);
+}
+
+RAMP_HOT int32_t ramp_stop_index(const ramp_plan_t *r, int32_t idx)
+{
+    int32_t from_end = r->total - idx;
+    int32_t into     = idx < r->accel_steps ? idx : r->accel_steps;
+    int32_t decel    = into < from_end ? into : from_end;
+    if (decel < 1) decel = 1;
+    return idx + decel;
+}
+
+RAMP_HOT uint32_t ramp_interval_us_stopping(const ramp_plan_t *r, int32_t idx,
+                                            int32_t stop_at)
+{
+    int32_t remaining = stop_at - idx;
+    int32_t from_end  = remaining < 0 ? 0 : remaining;
+    int32_t i = (idx < from_end) ? idx : from_end;
     return interval_at(r, i);
 }
 

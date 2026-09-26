@@ -3,11 +3,21 @@
 
 #include <stdint.h>
 
+/* The ISR calls the per-step functions, so on the device they must live in
+ * IRAM (flash writes during OTA or NVS commits must never stall stepping).
+ * Host builds have no IRAM. */
+#ifdef ESP_PLATFORM
+#include "esp_attr.h"
+#define RAMP_HOT IRAM_ATTR
+#else
+#define RAMP_HOT
+#endif
+
 /* Trapezoidal (or, for short moves, triangular) speed profile expressed as a
  * per-step timer interval. Speeds interpolate linearly in the FREQUENCY
  * domain between 1e6/start_us and 1e6/cruise_us over accel_steps, mirror-image
- * on deceleration. Pure math: the motion ISR asks for the interval of the
- * step it is about to schedule. */
+ * on deceleration. Pure math, and the motion ISR's only ramp code: it asks
+ * for the interval of the step it is about to schedule. */
 typedef struct {
     int32_t  total;        /* total steps in the move (> 0) */
     int32_t  accel_steps;  /* steps in the accel phase (== decel phase) */
@@ -40,5 +50,16 @@ void ramp_plan_init(ramp_plan_t *r, int32_t total_steps, uint32_t cruise_us,
 
 /* Interval in µs for step step_idx (0-based, < total). */
 uint32_t ramp_interval_us(const ramp_plan_t *r, int32_t step_idx);
+
+/* A stop requested at step idx: the step index to halt at. Decelerates over
+ * as many steps as the move is into its ramp (at least one), capped by what
+ * remains of the plan. */
+int32_t ramp_stop_index(const ramp_plan_t *r, int32_t idx);
+
+/* Interval for step idx while decelerating to halt at stop_at: the mirror of
+ * how far into the ramp the remaining steps are, so speed is continuous at
+ * the moment of the stop. */
+uint32_t ramp_interval_us_stopping(const ramp_plan_t *r, int32_t idx,
+                                   int32_t stop_at);
 
 #endif /* RAMP_H */
