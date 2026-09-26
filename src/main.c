@@ -37,9 +37,10 @@ static const char *TAG = "BLINDS";
  * The D-numbers are what the silkscreen and the wiring harness use; the
  * GPIO numbers below are what the driver API wants. Grouped to match the
  * implementation board's physical layout: driver signals on D7-D9 at one
- * end of the header, keypad on D4-D6 at the other, LED on D3.
- * D6/D7 carry the C6's default UART0 pins — free here because the console
- * runs on USB-Serial-JTAG (CONFIG_ESP_CONSOLE_UART_NUM = -1). */
+ * end of the header, keypad on D3-D5 at the other, LED on D2. D6 is left
+ * empty between them (v2.4.0 pin map; Fn was on D6 before).
+ * D7 carries one of the C6's default UART0 pins — free here because the
+ * console runs on USB-Serial-JTAG (CONFIG_ESP_CONSOLE_UART_NUM = -1). */
 #define PIN_STEP     19     /* D8 */
 #define PIN_DIR      17     /* D7 */
 #define PIN_EN       20     /* D9 */
