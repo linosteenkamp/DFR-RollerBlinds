@@ -56,7 +56,11 @@ const tzMotorReversed = {
         // the firmware reads only bit0 and reports back the canonical 0/1.
         const mode = value ? 0x09 : 0x08;
         await entity.write('closuresWindowCovering', {windowCoveringMode: mode});
-        return {state: {motor_reversed: value}};
+        // Deliberately no optimistic state: the device refuses the toggle
+        // while the blind moves (and on an NVS failure), and Mode cannot be
+        // reported, so read back what it actually holds.
+        await entity.read('closuresWindowCovering', ['windowCoveringMode']);
+        return {};
     },
     convertGet: async (entity, key, meta) => {
         await entity.read('closuresWindowCovering', ['windowCoveringMode']);
