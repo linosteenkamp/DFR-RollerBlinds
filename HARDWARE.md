@@ -18,6 +18,28 @@ share the same 16-pin header layout). Numbers not yet confirmed on the bench
 matches your specific board) are flagged explicitly below — don't treat them
 as settled until measured.
 
+## Wiring diagram
+
+One complete unit on the **v2.4.0 pin map** (Fn D3, LED D2, D6 spare), with
+the keypad RC front end, the VM bulk capacitor and the 1N5822 backfeed diode.
+Parts in teal are the September 2026 additions. The TMC2209 and XIAO are drawn
+top view, pins in their physical header order.
+
+![Whole-unit wiring](docs/wiring/unit-wiring.svg)
+
+One keypad line in detail (each of Fn, Up and Down is wired the same way):
+
+![One keypad line: 150 Ω series, 4.7 kΩ pull-up, 100 nF to GND](docs/wiring/key-line.svg)
+
+**The repo copy is the master.** `docs/wiring/wiring-diagram.html` is the full
+page (both diagrams plus the parts table, the XIAO header table, what's
+missing, and the rewiring and after-fitting checks); open it in any browser.
+The two SVGs above are extracted from it. Change the HTML first, re-extract
+the SVGs, and commit them with the wiring change they describe. A shareable
+copy is published as a private claude.ai artifact
+(https://claude.ai/artifact/XzdV31M5Czvb5AnbZ7gtDR); republish it from the
+repo file after a change.
+
 ## Bill of materials
 
 | Part | Role |

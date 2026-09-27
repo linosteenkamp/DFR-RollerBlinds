@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="560" viewBox="0 0 1000 560" role="img" aria-label="Wiring for one roller blind unit, with the TMC2209 drawn in its physical pin order. The 24 V PSU feeds TMC2209 VM with a 220 microfarad and a 100 nanofarad capacitor, and feeds a buck to the XIAO 5V pin through a 1N5822 Schottky diode. XIAO D9, D8 and D7 drive EN, STEP and DIR. MS1 and MS2 go to ground. 3V3 feeds the TMC2209 VDD pin. The keypad reaches D3, D4 and D5 through an RC filter. D2 drives the LED through 150 ohms.">
+<style>
+  svg { color: #34464c; font-family: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; }
+  text { font-size: 12px; fill: currentColor; }
+  .t-strong { font-family: "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 600; }
+  .t-muted { fill: #5b6b70; }
+  .new { color: #0b7a84; }
+  .new text { fill: #0b7a84; }
+</style>
+<rect width="100%" height="100%" fill="#ffffff"/>
+      <defs>
+        <g id="gnd"><line x1="0" y1="0" x2="0" y2="8" stroke="currentColor" stroke-width="1.6"/><line x1="-9" y1="8" x2="9" y2="8" stroke="currentColor" stroke-width="1.6"/><line x1="-6" y1="12" x2="6" y2="12" stroke="currentColor" stroke-width="1.6"/><line x1="-3" y1="16" x2="3" y2="16" stroke="currentColor" stroke-width="1.6"/></g>
+      </defs>
+      <g fill="none" stroke="currentColor" stroke-width="1.6">
+        <rect x="820" y="30" width="150" height="50" rx="3"/>
+        <rect x="610" y="35" width="110" height="45" rx="3"/>
+        <line x1="820" y1="55" x2="720" y2="55"/>
+        <polyline points="910,80 910,250 880,250"/>
+        <polyline points="640,80 640,150 624,150"/>
+        <line x1="600" y1="150" x2="580" y2="150"/>
+        <rect x="420" y="110" width="160" height="320" rx="4"/>
+        <rect x="478" y="100" width="44" height="12" rx="3"/>
+        <line x1="405" y1="150" x2="420" y2="150"/><line x1="405" y1="190" x2="420" y2="190"/><line x1="405" y1="390" x2="420" y2="390"/>
+        <line x1="580" y1="270" x2="595" y2="270"/>
+        <line x1="580" y1="190" x2="600" y2="190"/>
+        <line x1="580" y1="230" x2="600" y2="230"/>
+        <polyline points="580,310 650,310 650,250 740,250"/>
+        <polyline points="580,350 690,350 690,400 740,400"/>
+        <polyline points="580,390 670,390 670,425 740,425"/>
+        <rect x="740" y="230" width="140" height="215" rx="3"/>
+        <polyline points="740,275 715,275 715,300 740,300"/>
+        <line x1="880" y1="275" x2="900" y2="275"/>
+        <line x1="880" y1="300" x2="930" y2="300"/><line x1="880" y1="325" x2="930" y2="325"/>
+        <line x1="880" y1="350" x2="930" y2="350"/><line x1="880" y1="375" x2="930" y2="375"/>
+        <rect x="930" y="285" width="56" height="105" rx="28"/>
+        <line x1="880" y1="400" x2="900" y2="400"/>
+        <line x1="880" y1="425" x2="900" y2="425"/>
+        <rect x="40" y="252" width="100" height="126" rx="4"/>
+        <line x1="90" y1="378" x2="90" y2="400"/>
+        <line x1="140" y1="270" x2="240" y2="270"/><line x1="140" y1="310" x2="240" y2="310"/><line x1="140" y1="350" x2="240" y2="350"/>
+        <line x1="350" y1="270" x2="420" y2="270"/><line x1="350" y1="310" x2="420" y2="310"/><line x1="350" y1="350" x2="420" y2="350"/>
+        <line x1="420" y1="230" x2="372" y2="230"/>
+        <line x1="328" y1="230" x2="290" y2="230"/>
+        <line x1="254" y1="230" x2="200" y2="230"/>
+      </g>
+      <g>
+        <use href="#gnd" xlink:href="#gnd" x="600" y="190"/>
+        <use href="#gnd" xlink:href="#gnd" x="715" y="300"/>
+        <use href="#gnd" xlink:href="#gnd" x="90" y="400"/>
+        <use href="#gnd" xlink:href="#gnd" x="200" y="230"/>
+        <use href="#gnd" xlink:href="#gnd" x="690" y="80"/>
+        <use href="#gnd" xlink:href="#gnd" x="950" y="80"/>
+      </g>
+      <g class="new" fill="none" stroke="currentColor" stroke-width="1.8">
+        <polyline points="910,150 760,150"/>
+        <line x1="760" y1="150" x2="760" y2="166"/>
+        <line x1="746" y1="166" x2="774" y2="166"/>
+        <path d="M746 176 Q760 170 774 176"/>
+        <line x1="760" y1="174" x2="760" y2="190"/>
+        <line x1="840" y1="150" x2="840" y2="166"/>
+        <line x1="828" y1="166" x2="852" y2="166"/><line x1="828" y1="173" x2="852" y2="173"/>
+        <line x1="840" y1="173" x2="840" y2="190"/>
+        <rect x="328" y="222" width="44" height="16" rx="1"/>
+        <polygon points="280,220 280,240 256,230" fill="none"/>
+        <line x1="254" y1="219" x2="254" y2="241"/>
+        <line x1="280" y1="230" x2="290" y2="230"/>
+        <line x1="262" y1="214" x2="270" y2="206"/><line x1="272" y1="216" x2="280" y2="208"/>
+        <rect x="240" y="254" width="110" height="112" rx="3"/>
+      </g>
+      <g class="new"><use href="#gnd" xlink:href="#gnd" x="760" y="190"/><use href="#gnd" xlink:href="#gnd" x="840" y="190"/></g>
+      <circle cx="910" cy="150" r="3" fill="currentColor"/>
+
+      <text x="895" y="52" text-anchor="middle" class="t-strong">24 V PSU</text>
+      <text x="895" y="70" text-anchor="middle" class="t-muted">LRS-50-24</text>
+      <text x="665" y="55" text-anchor="middle" class="t-strong">Buck</text>
+      <text x="665" y="72" text-anchor="middle" class="t-muted">24 → 5 V</text>
+      <text x="770" y="48" text-anchor="middle">+24 V</text>
+      <text x="648" y="118">5 V</text>
+      <g class="new" fill="none" stroke="currentColor" stroke-width="1.8">
+        <polygon points="624,141 624,159 604,150"/>
+        <line x1="602" y1="140" x2="602" y2="160"/>
+      </g>
+      <g class="new"><text x="612" y="134" text-anchor="middle">1N5822</text></g>
+      <text x="918" y="120">+24 V</text>
+      <g class="new">
+        <text x="772" y="172">220 µF</text>
+        <text x="772" y="186">35 V</text>
+        <text x="852" y="172">100 nF</text>
+        <text x="350" y="212" text-anchor="middle">150 Ω</text>
+        <text x="268" y="198" text-anchor="middle">LED</text>
+        <text x="295" y="290" text-anchor="middle" class="t-strong">RC filter ×3</text>
+        <text x="295" y="332" text-anchor="middle">see fig. 2</text>
+      </g>
+      <text x="835" y="140" text-anchor="middle" class="t-muted">at the VM pin</text>
+
+      <text x="500" y="90" text-anchor="middle" class="t-strong">XIAO ESP32C6</text><text x="500" y="128" text-anchor="middle" class="t-muted">USB-C</text>
+      <text x="400" y="154" text-anchor="end" class="t-muted">spare</text><text x="430" y="154">D0</text>
+      <text x="400" y="194" text-anchor="end" class="t-muted">spare</text><text x="430" y="194">D1</text>
+      <text x="430" y="234">D2 · 2</text><text x="430" y="274">D3 · 21</text><text x="430" y="314">D4 · 22</text><text x="430" y="354">D5 · 23</text>
+      <text x="430" y="394">D6</text><text x="400" y="394" text-anchor="end" class="t-muted">spare</text>
+      <text x="570" y="154" text-anchor="end">5V</text><text x="570" y="194" text-anchor="end">GND</text>
+      <text x="570" y="234" text-anchor="end">3V3</text><text x="570" y="274" text-anchor="end">D10</text>
+      <text x="570" y="314" text-anchor="end">20 · D9</text><text x="570" y="354" text-anchor="end">19 · D8</text><text x="570" y="394" text-anchor="end">17 · D7</text>
+      <text x="600" y="274" class="t-muted">spare</text>
+      <text x="604" y="234">3V3 → TMC VDD</text>
+      <text x="500" y="422" text-anchor="middle" class="t-muted">pin · GPIO</text><text x="500" y="448" text-anchor="middle" class="t-muted">top view, pins in header order</text>
+      <text x="615" y="304" text-anchor="middle">EN̅</text>
+      <text x="630" y="344" text-anchor="middle">STEP</text>
+      <text x="625" y="384" text-anchor="middle">DIR</text>
+
+      <text x="810" y="222" text-anchor="middle" class="t-muted">DIAG · INDEX · VREF</text>
+      <text x="748" y="254">EN</text><text x="748" y="279">MS1</text><text x="748" y="304">MS2</text>
+      <text x="748" y="329" class="t-muted">PDN</text><text x="748" y="354" class="t-muted">PDN</text><text x="748" y="379" class="t-muted">CLK</text>
+      <text x="748" y="404">STEP</text><text x="748" y="429">DIR</text>
+      <text x="872" y="254" text-anchor="end">VM</text><text x="872" y="279" text-anchor="end">GND</text>
+      <text x="872" y="304" text-anchor="end">A2</text><text x="872" y="329" text-anchor="end">A1</text>
+      <text x="872" y="354" text-anchor="end">B1</text><text x="872" y="379" text-anchor="end">B2</text>
+      <text x="872" y="404" text-anchor="end">VDD</text><text x="872" y="429" text-anchor="end">GND</text>
+      <text x="810" y="345" text-anchor="middle" class="t-muted">open</text>
+      <text x="904" y="279" class="t-muted">PSU −</text>
+      <text x="904" y="404">3V3</text>
+      <text x="904" y="429" class="t-muted">XIAO GND</text>
+      <text x="958" y="342" text-anchor="middle" class="t-strong">M</text><text x="958" y="358" text-anchor="middle" class="t-muted">motor</text>
+      <text x="810" y="468" text-anchor="middle" class="t-strong">TMC2209 V1.3</text>
+      <text x="810" y="484" text-anchor="middle" class="t-muted">top view, pins as on the card</text>
+      <text x="708" y="336" text-anchor="end" class="t-muted">1/8 step</text>
+
+      <text x="90" y="244" text-anchor="middle" class="t-strong">Keypad</text>
+      <text x="132" y="274" text-anchor="end">Fn</text><text x="132" y="314" text-anchor="end">Up</text><text x="132" y="354" text-anchor="end">Down</text>
+      <text x="98" y="394" class="t-muted">common</text>
+      <text x="190" y="385" text-anchor="middle" class="t-muted">harness</text>
+      <text x="190" y="440" text-anchor="middle" class="t-muted">route away from the motor cable</text>
+      <text x="190" y="456" text-anchor="middle" class="t-muted">twisted or shielded if long</text>
+      <text x="500" y="530" text-anchor="middle" class="t-muted">Filter parts, LED resistor and VM capacitors all sit at the board end.</text>
+    </svg>
