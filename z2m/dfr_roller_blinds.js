@@ -56,7 +56,21 @@ const tzMotorReversed = {
         // the firmware reads only bit0 and reports back the canonical 0/1.
         const mode = value ? 0x09 : 0x08;
         await entity.write('closuresWindowCovering', {windowCoveringMode: mode});
-        return {state: {motor_reversed: value}};
+        // Deliberately no optimistic state: the device refuses the toggle
+        // while the blind moves (and on an NVS failure), and Mode cannot be
+        // reported, so read back what it actually holds.
+        // (In principle this read-back could race a refusal the device is
+        // still rewriting, but the air round-trip here far exceeds the
+        // dispatcher's own turnaround, so the read always sees the settled
+        // value.)
+        // configStatus rides along because an accepted toggle wipes the
+        // calibration, and the device's lift=0xFF report that normally tells
+        // z2m so was seen NOT to arrive after a toggle (bench3, 2026-09-26).
+        // Reading Operational here makes `calibrated` correct regardless.
+        // Not lift: a 255 lift would also reach the stock position converter.
+        await entity.read('closuresWindowCovering',
+                          ['windowCoveringMode', 'configStatus']);
+        return {};
     },
     convertGet: async (entity, key, meta) => {
         await entity.read('closuresWindowCovering', ['windowCoveringMode']);

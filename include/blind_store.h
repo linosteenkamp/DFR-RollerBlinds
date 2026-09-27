@@ -4,16 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "esp_err.h"
-
-typedef struct {
-    bool    span_valid;
-    int32_t closed_steps;
-    bool    pos_known;
-    int32_t cur_steps;
-    bool    motor_reversed;
-    bool    move_in_progress;   /* set at move start, cleared on clean end */
-    uint16_t travel_secs;       /* full-travel time in seconds; 0 = never set */
-} blind_store_data_t;
+#include "blind_store_data.h"
 
 /* Open the namespace and load everything; missing keys become safe defaults
  * (uncalibrated, not reversed, no move in progress). */

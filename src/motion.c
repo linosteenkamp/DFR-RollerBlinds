@@ -38,26 +38,7 @@ static DRAM_ATTR volatile int8_t  s_dir;          /* +1 toward Closed, -1 toward
 static DRAM_ATTR volatile bool    s_moving;
 static DRAM_ATTR volatile bool    s_stop_req;     /* decel-stop latch */
 static DRAM_ATTR volatile int32_t s_stop_at_idx;  /* index to halt at after stop req */
-
-/* interval_at() duplicated from ramp.c's math in IRAM-safe form: the ISR must
- * not call flash-resident code. ramp_interval_us is small; we inline the same
- * computation here against s_plan. */
-static IRAM_ATTR uint32_t isr_interval(int32_t idx)
-{
-    int32_t from_end = s_plan.total - 1 - idx;
-    if (s_stop_req) {
-        /* decel: mirror of how far INTO the ramp we currently are */
-        int32_t remaining = s_stop_at_idx - idx;
-        from_end = remaining < 0 ? 0 : remaining;
-    }
-    int32_t i = (idx < from_end) ? idx : from_end;
-    if (i >= s_plan.accel_steps) return s_plan.cruise_us;
-    uint32_t f0 = 1000000u / s_plan.start_us;
-    uint32_t fc = 1000000u / s_plan.cruise_us;
-    uint32_t f  = f0 + (uint32_t)(((uint64_t)(fc - f0) * (uint32_t)i)
-                                  / (uint32_t)s_plan.accel_steps);
-    return 1000000u / f;
-}
+static DRAM_ATTR volatile uint32_t s_done_post_failed;   /* see TRC_DONE_POST_FAILED */
 
 static IRAM_ATTR bool timer_cb(gptimer_handle_t timer,
                                const gptimer_alarm_event_data_t *edata, void *ctx)
@@ -80,10 +61,14 @@ static IRAM_ATTR bool timer_cb(gptimer_handle_t timer,
         s_moving = false;
         app_event_t ev = { .type = APP_EVT_MOTION_DONE,
                            .steps = s_pos, .completed = !s_stop_req };
-        xQueueSendFromISR(s_queue, &ev, &hpw);
+        /* The ISR runs from IRAM and may not call the (flash-resident) trace;
+         * count here, and the dispatcher reports it. */
+        if (xQueueSendFromISR(s_queue, &ev, &hpw) != pdTRUE) s_done_post_failed++;
     } else {
         gptimer_alarm_config_t al = {
-            .alarm_count = isr_interval(s_step_idx),
+            .alarm_count = s_stop_req
+                ? ramp_interval_us_stopping(&s_plan, s_step_idx, s_stop_at_idx)
+                : ramp_interval_us(&s_plan, s_step_idx),
             .flags.auto_reload_on_alarm = false,
         };
         gptimer_set_raw_count(timer, 0);
@@ -132,7 +117,7 @@ esp_err_t motion_start(int32_t from_steps, int32_t to_steps,
     if (delta == 0) {
         app_event_t ev = { .type = APP_EVT_MOTION_DONE,
                            .steps = from_steps, .completed = true };
-        xQueueSend(s_queue, &ev, 0);
+        if (xQueueSend(s_queue, &ev, 0) != pdTRUE) s_done_post_failed++;
         return ESP_OK;
     }
     int32_t dist = delta > 0 ? delta : -delta;
@@ -169,17 +154,13 @@ esp_err_t motion_start(int32_t from_steps, int32_t to_steps,
 void motion_stop(void)
 {
     if (!s_moving || s_stop_req) return;
-    /* Halt after decelerating from the current speed: as many steps out as we
-     * are currently into the ramp (capped by what remains of the plan). */
-    int32_t idx      = s_step_idx;
-    int32_t from_end = s_plan.total - idx;
-    int32_t into     = idx < s_plan.accel_steps ? idx : s_plan.accel_steps;
-    int32_t decel    = into < from_end ? into : from_end;
-    if (decel < 1) decel = 1;
-    s_stop_at_idx = idx + decel;
+    /* Halt after decelerating from the current speed (ramp_stop_index). */
+    s_stop_at_idx = ramp_stop_index(&s_plan, s_step_idx);
     s_stop_req    = true;
 }
 
 bool motion_is_moving(void) { return s_moving; }
 
 int32_t motion_current_steps(void) { return s_pos; }
+
+uint32_t motion_done_post_failures(void) { return s_done_post_failed; }

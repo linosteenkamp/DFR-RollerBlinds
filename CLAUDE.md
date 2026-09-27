@@ -39,7 +39,7 @@ pio run -e seeed_xiao_esp32c6_zigbee -t upload -t monitor
 # Bench build (identical; named env kept for sibling symmetry)
 pio run -e seeed_xiao_esp32c6_zigbee_test -t upload -t monitor
 
-# Host tests (position / ramp / keypad_logic / key_filter / trace_ring — pure C, Unity)
+# Host tests (position / ramp / keypad_logic / key_filter / trace_ring / ctl — pure C, Unity)
 pio test -e native
 
 # Clean / erase flash (before re-provisioning in development)
@@ -60,8 +60,9 @@ pio run --target erase
    integrator debounce → `APP_EVT_KEYPAD` events.
 5. `zb_core_init()` (library) — Router bring-up; `covering_build_clusters` /
    `covering_post_register` register Basic / Identify / Window Covering / OTA.
-6. `dispatcher_task` is created and the stack task runs forever; everything
-   after boot is event-driven through one queue.
+6. `ctl_init()` restores state (an unclean mid-move shutdown drops to Position
+   Unknown here); `app_main` sets the LED from `ctl_led_pattern()`, creates
+   the dispatcher, waits for the join, then posts `APP_EVT_BOOT_SYNC`.
 
 ### Module Responsibilities
 
@@ -69,19 +70,20 @@ pio run --target erase
 |---|---|---|---|
 | `position` | `src/position.c` | Pure: steps↔lift %, clamping, calibration/re-home state machine, wipe/unknown transitions | `test/test_position/` |
 | `ramp` | `src/ramp.c` | Pure: trapezoid/triangle step-interval planning | `test/test_ramp/` |
+| `ctl` | `src/ctl.c` | Pure: every dispatcher decision (gesture matrix, calibration flow, preemption, persistence policy) behind `ctl_ports_t` | `test/test_ctl/` |
 | `keypad_logic` | `src/keypad_logic.c` | Pure: press/release+time → Tap / Hold / Fn-long / three-key reset. Every key classified independently — no cross-key latches | `test/test_keypad/`, `test/test_press_classification/` |
 | `blind_store` | `src/blind_store.c` | NVS persistence (namespace `blind`) | — |
 | `motion` | `src/motion.c` | GPTimer ISR step generation, DIR/EN, step counter, done-events to queue | — |
 | `status_led` | `src/status_led.c` | LED pattern player (single external LED) | — |
 | `covering` | `src/covering.c` | Window Covering cluster build/report + action-handler → queue | — |
-| `keypad` | `src/keypad.c` | 5 ms poller (no ISR) + `key_filter` integrator → feeds `keypad_logic`, events to queue | — |
+| `keypad` | `src/keypad.c` | 5 ms poller (no ISR) + `key_filter` integrator → feeds `keypad_logic`, events to queue. No GPIO glitch filter on the key pins (removed 2026-09-26 — see `src/keypad.c` comment: it latched a released key "pressed" while the motor ran) | — |
 | `key_filter` | `src/key_filter.c` | Pure: integrator debounce — the output flips only after a full rail-to-rail traverse | `test/test_key_filter/` |
 | `trace_ring` | `src/trace_ring.c` | Pure: fixed-size ring of decision records | `test/test_trace_ring/` |
 | `trace` | `src/trace.c` | RTC_NOINIT storage + boot dump; survives resets, not power loss | — |
-| `main` | `src/main.c` | Wiring, GPIO map, constants, dispatcher task (gesture matrix + calibration flow) | — |
+| `main` | `src/main.c` | Wiring: GPIO map, constants, ports table binding ctl to the real modules, queues, dispatcher loop | — |
 | `app_event` | `include/app_event.h` | The one queue item type shared by keypad/covering/motion/main | — |
 | `ota_ids` / `fw_version` | `include/ota_ids.h`, `include/fw_version.h` | OTA identity (image type 0x0003) | — |
-| converter | `z2m/dfr_roller_blinds.js` | z2m external converter (cover + motor_reversed + calibrated) | — |
+| converter | `z2m/dfr_roller_blinds.js` | z2m external converter (cover + motor_reversed + calibrated + travel_time) | — |
 | OTA CI | `.github/workflows/release-ota.yml` | Tag-triggered OTA build/publish | — |
 
 ### Concurrency rule: ISR and action handler never decide
@@ -91,8 +93,13 @@ and toggles STEP — it makes no decisions and touches no Zigbee/NVS API. The
 Zigbee action handler (`covering_action_handler`) only validates and enqueues
 — it never calls `motion_start`/`motion_stop` directly. **Every decision**
 (ramp profile choice, limit clamping, persistence, reporting, lockout checks)
-happens in `dispatcher_task` (`src/main.c`), which owns `s_pos` and all mutable
-state and processes one `app_event_t` at a time off a single FreeRTOS queue.
+happens in `ctl_handle()` (`src/ctl.c`), called only by `dispatcher_task`
+(`src/main.c`), one `app_event_t` at a time. The dispatcher waits on a
+FreeRTOS queue set: the main queue plus a one-slot queue for `MOTION_DONE`,
+which cannot overflow because ctl never starts a move while one is
+outstanding. ctl owns "move in progress" (`move_active`): the ISR's own flag
+clears at the last step, before the final position reaches the dispatcher,
+so it must not be used to decide anything.
 This is why the step ISR and its data live in IRAM: flash writes (OTA
 download, NVS commits) driven from the dispatcher must never stall stepping
 mid-move.
@@ -100,19 +107,27 @@ mid-move.
 ### Key Configuration Constants (`src/main.c`, copied verbatim)
 
 ```c
-/* ---- GPIO map: XIAO ESP32C6, D-number → GPIO (see HARDWARE.md) ---- */
+/* ---- GPIO map: XIAO ESP32C6, D-number → GPIO (see HARDWARE.md) ----
+ * The D-numbers are what the silkscreen and the wiring harness use; the
+ * GPIO numbers below are what the driver API wants. Grouped to match the
+ * implementation board's physical layout: driver signals on D7-D9 at one
+ * end of the header, keypad on D3-D5 at the other, LED on D2. D6 is left
+ * empty between them (v2.4.0 pin map; Fn was on D6 before).
+ * D7 carries one of the C6's default UART0 pins — free here because the
+ * console runs on USB-Serial-JTAG (CONFIG_ESP_CONSOLE_UART_NUM = -1). */
 #define PIN_STEP     19     /* D8 */
 #define PIN_DIR      17     /* D7 */
 #define PIN_EN       20     /* D9 */
 #define PIN_BTN_UP   22     /* D4 */
 #define PIN_BTN_DOWN 23     /* D5 */
-#define PIN_BTN_FN   16     /* D6 */
-#define PIN_LED_EXT  21     /* D3 — sole indicator; no onboard mirror on XIAO */
+#define PIN_BTN_FN   21     /* D3 — off D6, away from the driver pins */
+#define PIN_LED_EXT  2      /* D2 — sole indicator; no onboard mirror on XIAO */
 
 /* ---- motion tuning (bench constants, spec §6) ---- */
 #define START_US        500      /* ~2 kHz first/last step */
 #define ACCEL_STEPS     800
-#define JOG_CRUISE_US   300      /* jog slower than travel, still crosses a full span */
+#define JOG_CRUISE_US   300      /* jog slower than travel but fast enough to
+                                  * cross a full 2.5 m span within the cal timeout */
 #define JOG_START_US    900      /* jog starts slower than its cruise */
 #define MIN_SPAN_STEPS  6000     /* ~1/4 output rev: min valid calibration */
 #define HARD_CAP_MARGIN 2400     /* watchdog: allowed overshoot of span */
@@ -144,7 +159,7 @@ Summary for code navigation:
   `position_cal_mark()` validates mark 2 lies below mark 1 by at least
   `MIN_SPAN_STEPS`; an invalid mark is rejected (`LED_ERROR`, mode stays
   waiting).
-- **Abort** (second Fn long-press or 5-minute timeout,
+- **Abort** (second Fn long-press or 10-minute timeout,
   `CAL_TIMEOUT_US`): span/position untouched **unless** the blind was jogged
   during the aborted session, in which case position drops to Position
   Unknown (`cal_abort_position_policy()`) rather than trusting stale state.

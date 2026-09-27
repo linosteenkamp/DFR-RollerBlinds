@@ -6,10 +6,10 @@
 #include "keypad_logic.h"
 
 /* One queue, one item type. Producers: keypad ISR-side task (KP_*), the
- * Zigbee action handler via covering (ZB_*), the motion ISR (MOTION_DONE),
- * esp_timer callbacks (CAL_TIMEOUT), and the Zigbee stack context (lock
- * held) behind APP_EVT_ZB_NET_LOST / APP_EVT_ZB_NET_JOINED. Consumer: the
- * dispatcher in main. */
+ * Zigbee action handler via covering (ZB_*), the motion ISR (MOTION_DONE, on
+ * its own one-slot queue), esp_timer callbacks (CAL_TIMEOUT), and the Zigbee
+ * stack context (lock held) behind APP_EVT_ZB_NET_LOST / APP_EVT_ZB_NET_JOINED.
+ * Consumer: the dispatcher in main. */
 typedef enum {
     APP_EVT_KEYPAD = 0,      /* .kp: gesture from keypad_logic */
     APP_EVT_ZB_OPEN,         /* UpOpen command */
@@ -21,9 +21,11 @@ typedef enum {
     APP_EVT_ZB_NET_LOST,     /* device left/was removed from the network */
     APP_EVT_ZB_NET_JOINED,   /* device (re)joined a network */
     APP_EVT_MOTION_DONE,     /* .steps final position, .completed reached target */
-    APP_EVT_CAL_TIMEOUT,     /* 5-min calibration timeout */
+    APP_EVT_CAL_TIMEOUT,     /* 10-min calibration timeout (CAL_TIMEOUT_US) */
     APP_EVT_REPORT_TICK,     /* 1 s live-position reporting tick during moves */
     APP_EVT_IDENTIFY,        /* .on: Zigbee Identify start/stop */
+    APP_EVT_BOOT_SYNC,       /* app_main: join wait over (joined or timed out) —
+                              * push Mode, travel time and all outputs */
 } app_event_type_t;
 
 typedef struct {

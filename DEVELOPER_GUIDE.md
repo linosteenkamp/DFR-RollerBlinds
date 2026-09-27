@@ -81,7 +81,7 @@ trust in current position was lost, e.g. after a power cut mid-move):
 3. **Tap Fn** → re-zeroes position against the kept span, mode exits, device
    is calibrated again. LED returns to **off**, three-flash ack.
 
-**Abort**: a second **Fn long-press** (~3 s) inside the mode, or a **5-minute
+**Abort**: a second **Fn long-press** (~3 s) inside the mode, or a **10-minute
 timeout** since entering the mode, aborts with no save — the timeout fires
 regardless of whether a mark has already been recorded (e.g. mid-way through
 a full calibration, awaiting mark 2). The span is left untouched — but if
@@ -229,7 +229,7 @@ wiring reference.
 checklist is runnable. Nothing below has been exercised on rev 2 hardware
 except the pin mapping.
 
-- [x] XIAO D-number → GPIO mapping verified **2026-08-02** — all seven confirmed on a bare board with `tools/pinwalk` (drives one GPIO high at a time; probed against GND). STEP D8=GPIO19, DIR D7=GPIO17, EN D9=GPIO20, Up D4=GPIO22, Down D5=GPIO23, Fn D6=GPIO16, LED D2=GPIO2. Seeed's published pinout table was correct; `src/main.c` needed no change. Note the silkscreen prints only D-numbers, so this can't be checked visually — re-run the walker on any future board rather than eyeballing it. **The LED moved to D3/GPIO21 on 2026-08-08, and that pin is confirmed too** — D3 was *not* in the original walk (only the seven then-in-use pins were driven, and D3 was a spare), so it initially rested on Seeed's table alone; flashing the moved firmware and seeing the LED light verified it on hardware. All eight D-number → GPIO pairs the project has ever used are now empirically confirmed.
+- [x] XIAO D-number → GPIO mapping verified **2026-08-02** — all seven confirmed on a bare board with `tools/pinwalk` (drives one GPIO high at a time; probed against GND). STEP D8=GPIO19, DIR D7=GPIO17, EN D9=GPIO20, Up D4=GPIO22, Down D5=GPIO23, Fn D6=GPIO16, LED D2=GPIO2. Seeed's published pinout table was correct; `src/main.c` needed no change. Note the silkscreen prints only D-numbers, so this can't be checked visually — re-run the walker on any future board rather than eyeballing it. **The LED moved to D3/GPIO21 on 2026-08-08, and that pin is confirmed too** — D3 was *not* in the original walk (only the seven then-in-use pins were driven, and D3 was a spare), so it initially rested on Seeed's table alone; flashing the moved firmware and seeing the LED light verified it on hardware. All eight D-number → GPIO pairs the project has ever used are now empirically confirmed. **Pin map changed in v2.4.0:** Fn D3/GPIO21, LED D2/GPIO2 — both pairs were already confirmed on hardware (GPIO21 as the LED, GPIO2 in the original walk), and the new map ran on `bench3` on 2026-09-26.
 - [~] `VCC_IO` sanity check — **skipped deliberately** on the rev 2 built board. The test means lifting `VCC_IO` to confirm the driver goes inert; on a soldered board that costs a desoldering job to prove a failure mode we already understand. It was worth doing on rev 1's breadboard. A sane Vref reading (below) already implies the digital core is powered.
 - [x] Motor bench-run before mounting **2026-08-02** — Vref set to 1.69 V (motor disconnected), motor then spins on both Up and Down holds with the motor free of the geartrain: **quiet and smooth** at `CRUISE_US = 100`. Quiet confirms StealthChop2 is live (the `SPRE` pad is at its factory bridge); smooth confirms the A/B coil pairing. LED double-flashes (`LED_UNCAL`) confirming the D2 harness; keypad holds confirmed through the full keypad → dispatcher → motion path. Direction sense not yet meaningful — deferred to after coupling, then fixed via `motor_reversed` if needed, never by rewiring coils. **Still unproven: torque under real blind load** — free-running quiet says nothing about whether 100 µs holds under the 1:15 reduction and a 2.5 m blind.
 - [x] Join as router **2026-08-02** — joined and published as `lounge-blind-3`, linkquality ~138, exposed via the converter as a cover with `calibrated: false`. The rev 1 converter needed no change (Zigbee identity is unchanged by the hardware swap).
@@ -237,7 +237,7 @@ except the pin mapping.
 - [x] z2m motion commands rejected while uncalibrated **2026-08-02** — open/close pressed in z2m, no motor movement. Lockout is enforced device-side in `zb_goto_request()`, so this holds regardless of what the converter reports.
 - [x] Calibrate via keypad **2026-08-02** — calibrated successfully on the bench rig (17HS4401 + small blind). The deliberate wrong-mark-2 five-flash rejection is **not yet retested** on rev 2.
 - [x] Full travel from keypad taps **2026-08-02** — clean both directions at `CRUISE_US = 150` / Vref 1.92 V. Getting there required correcting Vref for the fitted motor first; see [HARDWARE.md](HARDWARE.md#motion-speed-tuning). Live-position tracking during z2m moves not yet separately checked.
-- [ ] Keypad matrix (D4/D5/D6): tap up/down full travel; tap-while-moving stops; hold jogs clamped at limits
+- [ ] Keypad matrix (Fn D3, Up D4, Down D5 since v2.4.0): tap up/down full travel; tap-while-moving stops; hold jogs clamped at limits
 - [ ] Power-cut mid-travel → boots Position Unknown (double-flash, z2m locked) → re-home (Fn 3 s, jog Open, Fn)
 - [~] Clean power cycle at rest → still calibrated **2026-08-02** (observed as part of the OTA persistence check — calibration survived a power cycle at rest). "Taps work immediately afterwards" not separately confirmed.
 - [ ] Idle back-drive watch: leave the blind mid-travel overnight; if it creeps, revisit idle-hold (spec §2 fallback)
@@ -249,11 +249,21 @@ except the pin mapping.
 - [ ] z2m lockout inside calibration mode (motion commands rejected while `s_cal_mode`)
 - [ ] Uncalibrated taps inert (hold-to-jog still works)
 - [ ] Zigbee-down keypad autonomy, then rejoin
-- [ ] Identify → LED (steady rapid blink while Identify is active, D3)
+- [ ] Identify → LED (steady rapid blink while Identify is active, D2 since v2.4.0)
 - [ ] ≥10 consecutive full-travel cycles, checking both physical marks each time (open-loop drift)
 - [ ] TMC2209 thermal soak in enclosure (built-in thermal shutdown is a backstop, not a substitute for adequate airflow — confirm temps stay reasonable under sustained cycling)
 - [ ] Power-cycle during a jogged calibration session
 - [ ] z2m Mode write while moving is rejected and stays in sync
+
+**v2.4.0 (review fixes) bench checks**
+- [ ] Calibrated unit powered with the coordinator off: LED shows NO_NETWORK from power-on
+- [ ] Tap exactly as a full travel ends: no second travel from the old position
+- [ ] Hold a jog, release: stops; hold during heavy z2m traffic, release: stops
+- [ ] Motor Reversed toggled from z2m while idle: ACK, calibration wiped, z2m shows the new value
+- [ ] Motor Reversed toggled from z2m while moving: refused, z2m shows the unchanged value
+- [ ] Fn held 3 s during a travel: ERROR flash, no Calibration Mode
+- [ ] Three-key reset during a travel: ERROR flash, no reset
+- [ ] `riscv32-esp-elf-nm` shows the ramp functions and timer_cb at 0x408… (IRAM)
 
 ## Known issues
 

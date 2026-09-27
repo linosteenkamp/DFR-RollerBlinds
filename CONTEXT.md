@@ -31,10 +31,13 @@ Position Unknown it only re-zeros (span kept) — a **Re-home**.
 position as a limit: first mark = Open, second mark = Closed.
 
 **Span** — The calibrated travel distance between Open and Closed. Survives
-power loss; only a full recalibration changes it.
+power loss; only a full recalibration changes it. Also wiped by a Motor
+Reversed toggle.
 
 **Position Unknown** — The device has a Span but lost trust in its position
-(power died mid-move). Remote motion locks out until a Re-home.
+(power died mid-move). Remote motion locks out until a Re-home. Also entered
+when a Calibration Mode session in which the blind was jogged is aborted
+(Fn long-press or timeout).
 
 **Re-home** — Restoring position trust after Position Unknown: jog to Open,
 set one mark. Lighter than recalibration because the Span is kept.

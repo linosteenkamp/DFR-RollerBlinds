@@ -203,6 +203,10 @@ from 20 ms to 5 ms. Cost is three GPIO reads and a few comparisons at 200 Hz.
 
 ### 3. Hardware glitch filter
 
+**Superseded 2026-09-26:** the glitch filter was removed after a bench A/B
+proved it latched a released key "pressed" while the motor ran; see
+`src/keypad.c`.
+
 Added in `keypad_init` after `gpio_config`, on all three pins. The *flex*
 filter rather than the pin filter: the pin filter's window is fixed at two
 IO-MUX clocks (~50 ns), while flex takes an explicit threshold. The C6 has 8

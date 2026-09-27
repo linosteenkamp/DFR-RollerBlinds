@@ -6,6 +6,7 @@
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "motion_profile.h"
 
 typedef struct {
     int gpio_step;
@@ -13,15 +14,11 @@ typedef struct {
     int gpio_en;      /* TMC2209 EN̅: high = driver DISABLED */
 } motion_pins_t;
 
-typedef struct {
-    uint32_t cruise_us;   /* step interval at cruise (e.g. 300 = ~3.3 kHz) */
-    uint32_t start_us;    /* first/last-step interval (e.g. 500 = 2 kHz) */
-    int32_t  accel_steps; /* ramp length in steps (e.g. 800) */
-} motion_profile_t;
-
-/* Configure GPIOs (EN̅ high), create the GPTimer. done-events are posted to q
- * as APP_EVT_MOTION_DONE {steps=final absolute position, completed}. */
-esp_err_t motion_init(const motion_pins_t *pins, QueueHandle_t q);
+/* Configure GPIOs (EN̅ high), create the GPTimer. done-events are posted to
+ * done_q as APP_EVT_MOTION_DONE {steps=final absolute position, completed}.
+ * done_q should be a dedicated one-slot queue: the dispatcher never starts a
+ * move while one is outstanding, so the post cannot fail. */
+esp_err_t motion_init(const motion_pins_t *pins, QueueHandle_t done_q);
 
 /* Applied before each move; flips the DIR level meaning. Persisted elsewhere. */
 void motion_set_reversed(bool reversed);
@@ -43,5 +40,8 @@ bool motion_is_moving(void);
 /* Live absolute position during a move (atomic read; between moves it equals
  * the last MOTION_DONE steps). Used for the 1 s progress reports. */
 int32_t motion_current_steps(void);
+
+/* Times a MOTION_DONE post failed (should stay 0). Read by the dispatcher. */
+uint32_t motion_done_post_failures(void);
 
 #endif /* MOTION_H */

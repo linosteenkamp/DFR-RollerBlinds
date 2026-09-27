@@ -30,8 +30,11 @@ as settled until measured.
 | Mean Well 24 V DC PSU — **recommend LRS-50-24** (LRS-35-24 acceptable) for a single unit | System supply. See [Multi-unit installations](#multi-unit-installations-shared-psu) for sharing one PSU across several controllers. |
 | Mean Well **LRS-150-24** (24 V, 6.5 A, ~156 W) — *optional, in place of the LRS-50-24 above* | Single shared supply for **3 blind controllers** on one PSU instead of one PSU per unit. See [Multi-unit installations](#multi-unit-installations-shared-psu) for sizing rationale and distribution wiring. |
 | Step-down buck regulator, 24 V → 5 V for the XIAO | Current builds use a **Mini560 Pro**. Rev 1 used a **Pololu** 5 V/2.5 A (VIN 6–38 V). Either works functionally; the Pololu idles considerably more efficiently — see [Idle power draw](#idle-power-draw). |
+| Schottky diode, buck 5 V output → XIAO 5V pin (1N5817/SS14, or 1N5822 — oversized, DO-201AD leads ~1.3 mm) | Blocks USB VBUS from feeding backwards through the buck onto its 5 V output when the board is powered from USB alone — see [Power chain](#power-chain) and [Troubleshooting](#motor-turns-with-24-v-off) |
 | Membrane keypad: 2 arrow keys + function key | Local controls + calibration UX |
-| External status LED (enclosure face) | State annunciator. This revision drops the onboard-LED mirror entirely — the external LED is the only status indicator (frees a GPIO on the XIAO's smaller header; see [GPIO summary](#gpio-summary-srcmainc)). |
+| External status LED (enclosure face) — **Kingbright L-7104SURC-E** + **150 Ω** (Yageo `MF0204FTE52-150R`) | State annunciator. This revision drops the onboard-LED mirror entirely — the external LED is the only status indicator (frees a GPIO on the XIAO's smaller header; see [GPIO summary](#gpio-summary-srcmainc)). See [LED wiring](#led-wiring). |
+| VM bulk capacitor — **220 µF 35 V** electrolytic (100 µF 50 V acceptable) | Across TMC2209 `VM`/`GND` at the pin, mandatory — see [Power chain](#power-chain). |
+| Keypad RC front-end, per unit: **3 × 4.7 kΩ** (`RS-C-4K7-5%-0.5W`), **3 × 150 Ω** (`MF0204FTE52-150R`), **3 × 100 nF** (Vishay `K104K20X7RH5TL2`, 100 V X7R) | Noise immunity on the three key lines — see [Keypad noise immunity](#keypad-noise-immunity-fit-to-every-unit). With the LED resistor that makes **four 150 Ω per unit**. |
 | Multimeter | Required — for Vref, VMOT, and 3V3-rail checks below. Don't skip these. |
 
 ## Recommended bring-up order
@@ -56,13 +59,17 @@ stage is independently testable before moving to the next:
 ## Power chain
 
 ```
-24 V PSU (LRS-50-24) ──┬─── TMC2209 VM  (+ ≥100 µF electrolytic across VM/GND,
+24 V PSU (LRS-50-24) ──┬─── TMC2209 VM  (+ 220 µF 35 V electrolytic across VM/GND,
                         │                  close to the driver — non-negotiable
-                        │                  spike protection)
+                        │                  spike protection; optional 100 nF
+                        │                  ceramic in parallel)
                         │
                         └─── Step-down regulator (5 V / 3.2 A, VIN 5.3–50 V)
                                      │
-                                     └─── XIAO ESP32C6 5V pin
+                                     └─── Schottky diode (anode at buck,
+                                          cathode/band at XIAO) ── XIAO ESP32C6 5V pin
+                                                                          │
+                                                  USB VBUS (when plugged) ┘
 ```
 
 - 24 V feeds the TMC2209's **VM** pin directly. The **≥100 µF electrolytic
@@ -70,8 +77,29 @@ stage is independently testable before moving to the next:
   without it, motor-current transients can spike VM high enough to damage
   the driver. (BTT's V1.3 module accepts 4.75–28 V on VM, so 24 V has
   plenty of headroom either direction.)
+- **Capacitor choice:** the stocked part is **220 µF 35 V**; **100 µF 50 V**
+  also meets the ≥100 µF requirement and is fine where it's what's to hand.
+  Rate it at **35 V or more**: 24 V on a 25 V part leaves no margin for the
+  spikes the capacitor is there to absorb. **Mind the polarity**: the stripe
+  marks the negative lead, which goes to GND. Reversed, an electrolytic on a
+  24 V rail can vent. A 100 nF ceramic (`K104K20X7RH5TL2`, 100 V rated)
+  alongside it handles the fast edges the electrolytic is too slow for.
+  That's optional.
 - The same 24 V rail feeds a step-down regulator to 5 V for the XIAO's 5V
   pin. ESP32-C6 peak draw is well under 1 A, so there is large margin.
+- **Schottky diode required in series from the buck's 5 V output to the
+  XIAO 5V pin** (anode at the buck, cathode/band at the XIAO; 1N5817/SS14,
+  or 1N5822 — oversized, DO-201AD leads ~1.3 mm). The XIAO's 5V pin is also
+  fed by USB VBUS when a cable is plugged in, and without a blocking diode
+  that path runs backwards through the buck: on bench3, 2026-09-26, USB
+  alone (24 V off) put 4.47 V on the driver's `VM` — enough to run the
+  motor with the 24 V rail unpowered. See
+  [Troubleshooting: Motor turns with 24 V off](#motor-turns-with-24-v-off).
+  **Until the diode is fitted**, avoid having both supplies present at
+  once: flash and bench-test with USB only and the motor disconnected; run
+  installed units on 24 V only; or, to use USB and 24 V together (e.g. to
+  watch the serial log during a real move), temporarily disconnect the
+  buck-5V→XIAO-5V wire (grounds stay tied) for that session.
 - **One common ground.** PSU −, both TMC2209 GND pins (there are usually
   two — one on the power side, one on the logic side), the step-down
   regulator's ground, and the XIAO GND must all tie together. If they
@@ -222,6 +250,30 @@ TMC2209 pin-designation manual (their V1.2 and V1.3 modules share this same
 layout) — still **read the silkscreen on your specific board** before
 wiring, since clones vary.
 
+**Physical layout** (top view, trimpot and `DIAG`/`INDEX`/`VREF` at the top
+edge), as printed on the pin card that ships with the V1.3 module:
+
+```
+            DIAG · INDEX · VREF
+          ┌───────────────────┐
+  EN    ──┤ 1              16 ├── VM      ← 24 V (+ 220 µF, 100 nF)
+  MS1   ──┤ 2              15 ├── GND     ← PSU −
+  MS2   ──┤ 3              14 ├── A2  ┐
+  PDN   ──┤ 4              13 ├── A1  ┘ coil A
+  PDN   ──┤ 5              12 ├── B1  ┐
+  CLK   ──┤ 6              11 ├── B2  ┘ coil B
+  STEP  ──┤ 7              10 ├── VDD     ← XIAO 3V3  (= VCC_IO)
+  DIR   ──┤ 8               9 ├── GND     ← XIAO GND
+          └───────────────────┘
+```
+
+**The card labels the logic-supply pin `VDD`; BTT's manual and this document
+call it `VCC_IO`.** Same pin: right column, second from the bottom, beside
+the logic-side `GND`. Logic signals are all on the left column. Power and
+motor are all on the right. The two `GND` pins are on the right, at the top
+(power) and bottom (logic). Pin numbers above are this document's, for
+reference only; the module isn't marked with them.
+
 | TMC2209 pin | Wire to | Notes |
 |---|---|---|
 | `EN` (ENABLE) | XIAO **D9 / GPIO20** | Active-low enable, same convention as the DRV8825 this replaces. Firmware drives it high (disabled) at idle, low only during a move. |
@@ -233,9 +285,9 @@ wiring, since clones vary.
 | `DIR` | XIAO **D7 / GPIO17** | Direction level, set before each move |
 | `VM` | 24 V PSU **+** | Plus the ≥100 µF capacitor to the adjacent GND, right at the pin |
 | `GND` (power side, next to VM) | 24 V PSU **−** | |
-| `A1`, `A2` | Motor coil **A** (one pair) | See coil identification below |
+| `A1`, `A2` | Motor coil **A** (one pair) | See coil identification below. On the header `A2` is above `A1`. |
 | `B1`, `B2` | Motor coil **B** (the other pair) | |
-| `VCC_IO` | **XIAO 3V3** | **This is the pin the DRV8825 never had.** DRV8825 self-derives its logic reference from VMOT; the TMC2209's digital core needs its own 3–5 V logic supply here, or `STEP`/`DIR`/`EN` won't be recognized at all. Tie to the XIAO's 3.3 V rail (not 5V) so the logic threshold matches what the XIAO's GPIOs actually drive. |
+| `VCC_IO` (silkscreened **`VDD`** on the V1.3 pin card) | **XIAO 3V3** | **This is the pin the DRV8825 never had.** DRV8825 self-derives its logic reference from VMOT; the TMC2209's digital core needs its own 3–5 V logic supply here, or `STEP`/`DIR`/`EN` won't be recognized at all. Tie to the XIAO's 3.3 V rail (not 5V) so the logic threshold matches what the XIAO's GPIOs actually drive. |
 | `GND` (logic side, next to `VCC_IO`) | XIAO GND | Common ground — see power chain note above |
 | `DIAG`, `INDEX`, `VREF` | `DIAG`/`INDEX` unconnected; `VREF` is the trimpot test point | `DIAG`/`INDEX` are stall-detection / step-position outputs, not used by this firmware (no closed-loop features, spec §11 out of scope). `VREF` is where you measure current limit — see below. |
 
@@ -300,9 +352,47 @@ and the external LED alone was always the primary indicator), and leaves
 
 Assignments follow the **implementation board's physical layout**: the
 three driver signals sit together on `D7`–`D9` at one end of the header,
-the keypad's 3-pin harness on `D4`–`D6` at the other, and the LED on `D3`.
+the keypad's 3-pin harness on `D3`–`D5` at the other, and the LED on `D2`.
 That grouping is the reason for the pin choice — each harness lands on
 contiguous header pins and solders straight down without jumpers.
+
+**Pin map revised 2026-09-25 (v2.4.0 firmware): Fn D6 → D3, LED D3 → D2.**
+The keypad had been on `D4`–`D6`, which put Fn on GPIO16. Inside the C6
+package that pin neighbours DIR's GPIO17, and the carrier board ran both
+traces into the same corner as the kilohertz STEP line. Fn now sits across
+the header from spare `D10`, and `D6` is left empty as a buffer. **Firmware
+and wiring must change together**, see
+[Rewiring for the v2.4.0 pin map](#rewiring-for-the-v240-pin-map).
+
+**Physical layout** (top view, USB-C at the top), per Seeed's
+[XIAO ESP32C6 getting-started pin table](https://wiki.seeedstudio.com/xiao_esp32c6_getting_started/)
+and [pin-multiplexing page](https://wiki.seeedstudio.com/xiao_pin_multiplexing_esp32c6/),
+with this project's v2.4.0 assignments:
+
+```
+                          ┌──[ USB-C ]──┐
+   spare      GPIO0   D0 ─┤ •         • ├─ 5V              ← buck 5 V out
+   spare      GPIO1   D1 ─┤ •         • ├─ GND             ← common ground
+   LED        GPIO2   D2 ─┤ •         • ├─ 3V3             → TMC VDD, key pull-ups
+   Fn         GPIO21  D3 ─┤ •         • ├─ D10  GPIO18     spare (PDN_UART later)
+   Up         GPIO22  D4 ─┤ •         • ├─ D9   GPIO20     EN̅
+   Down       GPIO23  D5 ─┤ •         • ├─ D8   GPIO19     STEP
+   spare      GPIO16  D6 ─┤ •         • ├─ D7   GPIO17     DIR
+                          └─────────────┘
+```
+
+Seeed's alternate functions, for context: D0–D2 are ADC-capable (and
+LP_GPIO); D4/D5 are the default I²C SDA/SCL; D6/D7 are UART0 TX/RX; D8/D9/D10
+are SPI SCK/MISO/MOSI. None of those peripherals is used here. Driving
+`STEP`/`EN̅` from the SPI pins is fine, since they're plain GPIOs when SPI
+isn't configured.
+
+**Not on the header** (so not available for wiring): the JTAG pads on the
+back (MTMS GPIO4, MTDI GPIO5, MTCK GPIO6, MTDO GPIO7), BOOT on GPIO9, the
+onboard user LED on GPIO15, and the RF switch on GPIO3 (switch power) and
+GPIO14 (onboard vs U.FL antenna select). Battery pads are on the back:
+negative near the `D8` silkscreen, positive near `D5`. Don't repurpose
+GPIO3/GPIO14 in firmware: the radio depends on them.
 
 | Signal | XIAO pin | GPIO | Notes |
 |---|---|---|---|
@@ -311,28 +401,30 @@ contiguous header pins and solders straight down without jumpers.
 | `EN̅` | D9 | GPIO20 | High = driver **disabled**; firmware drives it low only during moves |
 | Keypad Up | D4 | GPIO22 | Internal pull-up (this pin doubles as I²C SDA on XIAO's silkscreen — unused here, plain GPIO input) |
 | Keypad Down | D5 | GPIO23 | Internal pull-up (doubles as I²C SCL — unused here) |
-| Keypad Fn | D6 | GPIO16 | Internal pull-up |
-| External status LED | D3 | GPIO21 | Through a series resistor to the LED, LED to GND. Sole status indicator this revision — no onboard-LED mirror. Moved here from D2/GPIO2 on 2026-08-08 to suit the implementation board layout; confirmed working on hardware the same day. |
-| *(spare)* | D0, D1, D2, D10 | GPIO0, GPIO1, GPIO2, GPIO18 | Unused headroom. `D10` is the suggested pick if `PDN_UART` is ever wired for a future TMC2209 UART upgrade — it neighbours `EN` on D9, keeping the driver harness in one corner. |
+| Keypad Fn | D3 | GPIO21 | Internal pull-up. Was D6/GPIO16 before v2.4.0 |
+| External status LED | D2 | GPIO2 | Through a series resistor to the LED, LED to GND. Sole status indicator this revision — no onboard-LED mirror. History: D2 until 2026-08-08, then D3 for the board layout, back to D2 in v2.4.0 to free D3 for Fn. GPIO2 is not a strapping pin on the C6. |
+| *(spare)* | D0, D1, D6, D10 | GPIO0, GPIO1, GPIO16, GPIO18 | Unused headroom. `D10` is the suggested pick if `PDN_UART` is ever wired for a future TMC2209 UART upgrade — it neighbours `EN` on D9, keeping the driver harness in one corner. |
 
 **`D6`/`D7` are the ESP32-C6's default UART0 TX/RX pins**, and this design
-uses both (Fn button and `DIR`). That is safe *only* because the console
-runs on the built-in USB-Serial-JTAG rather than UART0 —
-`sdkconfig.defaults` sets `CONFIG_ESP_CONSOLE_UART_DEFAULT=n` /
-`CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`, leaving
-`CONFIG_ESP_CONSOLE_UART_NUM = -1`. If anyone ever switches the console
-back to UART0, the console would drive the Fn line and fight its pull-up.
-Don't make that change without moving these two signals first.
+uses `D7` for `DIR` (`D6` is spare since v2.4.0; it carried Fn before). That
+is safe *only* because the console runs on the built-in USB-Serial-JTAG
+rather than UART0 — `sdkconfig.defaults` sets
+`CONFIG_ESP_CONSOLE_UART_DEFAULT=n` / `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`,
+leaving `CONFIG_ESP_CONSOLE_UART_NUM = -1`. If anyone ever switches the
+console back to UART0, it would drive the `DIR` line. Don't make that change
+without moving `DIR` first.
 
 None of the ESP32-C6 strapping pins (GPIO4/5/8/9/15) are exposed on the
 XIAO's header at all, so there's no strapping-pin caution needed here — a
 simplification versus the FireBeetle, where the onboard-LED mirror had to
 share a strapping pin deliberately.
 
-**Before wiring, confirm this D-number → GPIO-number mapping against your
-specific XIAO board's silkscreen/schematic.** It's sourced from Seeed's
-published pin-multiplexing reference, not yet cross-checked against a
-physical board in hand.
+**The D-number → GPIO mapping is verified on hardware**, with
+`tools/pinwalk` on 2026-08-02 (all pins then in use, including D2 and D6)
+plus the LED on D3/GPIO21 on 2026-08-08. The v2.4.0 combination (Fn D3/GPIO21, LED D2/GPIO2) ran on `bench3` on 2026-09-26. *(An earlier revision of this
+paragraph said it was not yet cross-checked; that was stale.)* The
+silkscreen prints only D-numbers, never GPIO numbers, so run `tools/pinwalk`
+on any board from a new batch rather than trusting the table.
 
 ## Setting Vref (current limit)
 
@@ -390,17 +482,35 @@ boards.
 3-key membrane keypad (Up / Down / Fn):
 
 ```
-Membrane keypad          XIAO ESP32C6
-┌──────────────┐        ┌──────────────────┐
-│ Common ───────┼────────┤ GND              │
-│ Up     ───────┼────────┤ D4 / GPIO22 (pull-up) │
-│ Down   ───────┼────────┤ D5 / GPIO23 (pull-up) │
-│ Fn     ───────┼────────┤ D6 / GPIO16 (pull-up) │
-└──────────────┘        └──────────────────┘
+Membrane keypad                                  XIAO ESP32C6
+┌──────────┐
+│ Common ──┼──────────────────────────────────── GND
+│ Fn     ──┼──── 150 Ω ──┬──────────────────────  D3 / GPIO21
+│ Up     ──┼──── 150 Ω ──┼─ (same per line) ────  D4 / GPIO22
+│ Down   ──┼──── 150 Ω ──┼─ (same per line) ────  D5 / GPIO23
+└──────────┘             │
+                 each line's node, at the XIAO end:
+                   node ── 4.7 kΩ ── 3V3
+                   node ── 100 nF ── GND
 ```
 
-Common → GND; each key's line goes to its own GPIO configured with the
-internal pull-up, so the pin idles HIGH and reads LOW when pressed. Firmware
+One channel in full:
+
+```
+key ── harness ──┤connector├── 150 Ω ──●── GPIO (internal pull-up left ON)
+                                       │
+                          3V3 ─ 4.7 kΩ ┤
+                                       │
+                                     100 nF
+                                       │
+                                      GND
+```
+
+Common → GND; each key's line goes to its own GPIO, pulled up by 4.7 kΩ
+external in parallel with the internal pull-up, so the pin idles HIGH and
+reads LOW when pressed. Units built before the RC front-end have only the
+internal pull-up and a direct wire: the firmware handles both, see
+[Keypad noise immunity](#keypad-noise-immunity-fit-to-every-unit). Firmware
 debounce is now an integrator filter (`src/key_filter.c`) that requires a
 sustained level change before it registers an edge, replacing the
 `esp-zb-common` `debounce` module — which was a pure change detector that did
@@ -408,9 +518,9 @@ no debouncing at all; a single noisy sample passed straight through as a
 full press-and-release. That gap is what let a keypad harness routed beside
 the stepper cable on an installed unit fake presses and run the blind end to
 end on its own. On an installed unit, the internal pull-up alone proved
-insufficient — external pull-ups and an RC filter are recommended even with
-the firmware fix in place, see
-[Keypad noise immunity](#keypad-noise-immunity-recommended-for-new-builds)
+insufficient, so external pull-ups and an RC filter are now fitted as
+standard, see
+[Keypad noise immunity](#keypad-noise-immunity-fit-to-every-unit)
 below.
 
 **Identify the common pin before wiring**, don't assume it from the tail's
@@ -418,7 +528,7 @@ position — membrane tail pinouts aren't consistent across suppliers, and the
 "common" is sometimes an end pin, sometimes not. With a multimeter on
 continuity: hold one key down and probe pairs on the tail; the pin that
 shows continuity for *every* key (tested one at a time) is the common. That
-one goes to GND; the other three go to D4/D5/D6.
+one goes to GND; the other three go to Fn→D3, Up→D4, Down→D5.
 
 **Breadboards split rows down the centre channel.** A jumper landed on the
 wrong half of a row, or in a neighbouring row entirely, won't show up
@@ -442,7 +552,7 @@ If a key produces no reaction at all, don't assume firmware first; the
 overwhelming likelihood, based on the first bring-up session, is wiring —
 go through the [Troubleshooting](#troubleshooting) keypad checklist.
 
-### Keypad noise immunity (recommended for new builds)
+### Keypad noise immunity (fit to every unit)
 
 An installed unit ran itself up and down six times in one night — a keypad
 harness routed beside the stepper cable coupled enough noise onto the
@@ -458,9 +568,14 @@ for new builds, in priority order:
    for the same coupled current. **Either value is fine** — 5.1 kΩ gives 9.8×
    against 4.7 kΩ's 10.6×, a difference far inside the tolerance of cable
    length and routing. Use whichever is in the drawer; do not order a part
-   for the sake of the nominal value.
-2. **RC low-pass at the MCU pin**: **220-470 Ω** in series from the connector,
-   100 nF from pin to GND.
+   for the sake of the nominal value. **Stocked (2026-09): 4.7 kΩ 0.5 W
+   carbon film** — it dissipates ~2 mW with a key held, so the 0.5 W rating
+   only costs board space.
+2. **RC low-pass at the MCU pin**: **150-470 Ω** in series from the connector,
+   100 nF from pin to GND. **Stocked (2026-09): 150 Ω** (`MF0204FTE52-150R`,
+   the same part as the LED resistor) and **100 nF 100 V X7R**
+   (`K104K20X7RH5TL2`). Place the pull-up and cap at the XIAO end with short
+   leads, and the series resistor between the connector and that node.
 
    **Do not use 1 kΩ here** (an earlier revision of this document did). With
    a pull-up at the pin, the series resistor forms a divider when a key is
@@ -476,45 +591,83 @@ for new builds, in priority order:
    10-80 kΩ, not a tight 45 kΩ); at the strong end the combined value falls to
    ~3.4 kΩ and V_low climbs to 0.75 V, close enough to the threshold that
    temperature and supply drift matter. Rs = 220 Ω gives V_low ≈ 0.15 V and
-   ample margin.
+   ample margin; the stocked **150 Ω gives 0.11 V** (0.15 V with the internal
+   pull-up at the strong end of its spread).
 
    Shrinking Rs costs nothing in filtering, because the low-pass corner is set
-   by the *pull-up* and the cap, not by Rs: 5.1 kΩ with 100 nF gives ~310 Hz
-   (τ ≈ 510 µs) either way — invisible to a human press, fatal to coupled
-   spikes. The series resistor's real job is pin protection and limiting
-   injected current, which 220 Ω does perfectly well.
+   by the *pull-up* and the cap, not by Rs: 4.7 kΩ ∥ internal with 100 nF
+   gives τ ≈ 0.43 ms (a release reads high ~0.6 ms later, well inside one 5 ms
+   poll), invisible to a human press, fatal to coupled spikes. The series
+   resistor's real job is pin protection and limiting injected current, which
+   150 Ω does perfectly well. For spikes arriving along the harness it also
+   forms an Rs·C low-pass (~10 kHz at 150 Ω) with the same capacitor.
 
-   **Once the external pull-ups are fitted**, also switch `keypad_init`'s
-   `gpio_config` from `GPIO_PULLUP_ENABLE` to `GPIO_PULLUP_DISABLE` in
-   `src/keypad.c`. The pull-up is then exactly the external resistor instead
-   of that resistor in parallel with an unknown 10-80 kΩ, which makes the
-   divider above deterministic. **Only after the resistors are physically
-   installed** — making this change on unmodified hardware leaves the key
-   lines floating.
+   **Leave the internal pull-up enabled.** *(Corrected 2026-09-25 — an earlier
+   revision of this section said to switch `keypad_init` to
+   `GPIO_PULLUP_DISABLE` once the externals were fitted.)* Every unit runs the
+   same OTA image, so that change would also land on units that haven't
+   been modified. Their key lines would then float, and a floating line is
+   exactly the input that fakes presses. Leaving it on costs almost nothing:
+   in parallel with 4.7 kΩ even the strongest 10 kΩ internal only moves V_low
+   from 0.11 V to 0.15 V against a 0.83 V threshold. Revisit only if every
+   unit in the fleet has the front-end fitted.
 3. **Route the keypad harness away from the motor cable.** Separate bundles;
    cross at right angles where they must meet, rather than running parallel
    alongside each other.
 4. **Twisted or shielded keypad cable**, with a ground return alongside the
    signals, shield grounded at the MCU end only.
-5. **Move Fn off D6 in the next board revision.** The physical-layout pin map
-   puts the keypad on D4-D6 and the driver on D7-D9, landing Fn (D6/GPIO16)
-   immediately adjacent to `DIR` (D7/GPIO17), with `STEP` (D8) — switching at
-   kilohertz with fast edges — two pins over. That's a coupling path on the
-   board itself, not only in the harness. D0, D1, D2, and D10 are spare.
+5. **Fn moved off D6 — done in v2.4.0** (Fn → D3, LED → D2). On D6, Fn was
+   GPIO16, which neighbours `DIR`'s GPIO17 on the C6 package, and its trace
+   shared the carrier board's corner with `DIR` (D7) and `STEP` (D8,
+   switching at kilohertz with fast edges). *(On the XIAO header itself D6
+   and D7 face each other across the board rather than sitting side by
+   side; an earlier revision of this section called them "immediately
+   adjacent".)* Done together with the RC front-end, so every unit changes
+   hardware revision once.
+
+**After fitting**, with the unit powered and idle: meter each of D3/D4/D5
+to GND and expect ~3.3 V. Then hold each key and expect ~0.1 V. A line that
+stays near 3.3 V when pressed isn't reaching the node, so check the harness
+and the series resistor's joints. Finish by holding Up with a meter on `EN̅`
+(D9): 0 V for the whole hold proves the path end to end.
 
 See `docs/superpowers/specs/2026-08-11-keypad-debounce-design.md` for the
 full incident writeup and the residual-risk analysis of what's still
 accepted without these changes.
 
+### Rewiring for the v2.4.0 pin map
+
+v2.4.0 moves Fn from D6 to D3 and the LED from D3 to D2. **Firmware and
+wiring must match.** The OTA image carries no hardware revision, so the
+device can't tell which wiring it's on.
+
+**What goes wrong on a mismatch:**
+
+| Board wired for | Firmware | Result |
+|---|---|---|
+| old map (Fn D6, LED D3) | v2.4.0+ | **Unsafe.** Fn reads D3, which is the LED line: the pull-up pushes a few µA through the LED and 150 Ω to GND, leaving the pin near 1.5 V, between a valid low and a valid high. Fn can read as held, and 3 s of that enters Calibration Mode. The LED is dark and the real Fn key does nothing. |
+| new map (Fn D3, LED D2) | v2.3.x or older | Old firmware drives D3 as the LED output straight into the Fn key's line, so pressing Fn shorts a driven-high pin through 150 Ω to GND (~20 mA, survivable but wrong). Fn does nothing, and the LED is dark. |
+
+**Procedure, per board:**
+
+1. Power down (24 V off, USB unplugged).
+2. Move the **LED** wire (with its 150 Ω) from D3 to **D2**.
+3. Move the **Fn** wire from D6 to **D3**. Fit its RC front-end at the D3
+   end if you're doing both at once.
+4. Leave D6 empty.
+5. Flash or OTA **v2.4.0 or later** before relying on the keypad.
+6. Check: the LED shows its normal pattern; hold Fn ~3 s from standstill and
+   Calibration Mode's slow pulse appears; hold Fn again to exit.
+
 ## LED wiring
 
 ```
-GPIO 21 (D3) ── resistor (150 Ω) ── LED anode
+GPIO 2 (D2) ── resistor (150 Ω) ── LED anode
                                      LED cathode ── GND
 ```
 
 One external status LED on the enclosure face — **Kingbright L-7104SURC-E**,
-3mm through-hole, Hyper Red (AlGaInP) — driven from D3/GPIO21 through a
+3mm through-hole, Hyper Red (AlGaInP) — driven from D2/GPIO2 (D3/GPIO21 before v2.4.0) through a
 series resistor. **This revision has no onboard-LED mirror** — the external
 LED is the only status indicator, so it needs to be wired and visible before
 doing any bring-up beyond stage 1 (flash + serial log only).
@@ -525,7 +678,7 @@ figure that shows up on some retailer listings is a *pulsed* rating — 1/10
 duty cycle, 0.1ms pulses — not continuous, and doesn't apply to a steady
 status LED), and a genuinely bright 3100mcd typical at 20mA.
 
-**Resistor: 150 Ω.** Working through the full `V_f` tolerance band
+**Resistor: 150 Ω** (Yageo `MF0204FTE52-150R`, 1 %, 0.4 W). Working through the full `V_f` tolerance band
 (`R = (3.3V − V_f) / I_f`) rather than a single nominal value: worst-case
 low `V_f` (1.8V) draws 10.0mA, typical (1.9V) draws 9.3mA, worst-case high
 `V_f` (2.6V) draws 4.7mA — every case stays 3–6× under the 30mA rating, and
@@ -553,12 +706,13 @@ matches the keypad:
    a hold-to-jog, not a tap — taps don't move an uncalibrated device).
 2. If the blind moves **up** (toward Open), direction is correct — done.
 3. If the blind moves **down** instead, the motor/gearing sense is flipped
-   for this installation. Fix it either:
-   - **remotely**: flip `motor_reversed` in zigbee2mqtt (Mode attribute,
-     `motor_reversed` expose), or
-   - **locally**: hold **Up + Down together for ~3 s** (the reverse chord).
+   for this installation. Fix it by flipping `motor_reversed` in
+   zigbee2mqtt (Mode attribute, `motor_reversed` expose). There is **no
+   keypad gesture** for it: the Up + Down chord was retired in v2.3.0 (it
+   wiped calibration on a 3 s hold with no confirmation, and its latch
+   could strand the keypad). The device must be joined to change it.
 
-Either path flips `motor_reversed` in NVS and — because all stored step
+This flips `motor_reversed` in NVS and — because all stored step
 counts were measured under the old direction sense — **wipes the current
 calibration**. Recalibrate afterward (see [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)).
 
@@ -701,7 +855,7 @@ rather than reaching straight for `CRUISE_US`.
 
 ### One or more keypad keys do nothing
 
-1. **Confirm the physical wiring order.** ▲→D4, ▼→D5, Fn→D6 is the
+1. **Confirm the physical wiring order.** Fn→D3, ▲→D4, ▼→D5 is the
    firmware's expectation; wires landed in rotated or swapped positions will
    make keys register as the *wrong* key rather than not at all (▲ acting
    like Fn, etc.) — if presses do something but the wrong thing, recheck
@@ -715,6 +869,21 @@ rather than reaching straight for `CRUISE_US`.
    don't assume from tail position.
 4. Watch the serial monitor while pressing — a GPIO level that never
    changes on press confirms a wiring problem (not firmware) immediately.
+
+### Motor turns with 24 V off
+
+If the motor runs (or twitches) while the 24 V PSU is confirmed off and only
+USB is connected, check `VM` with a meter before assuming a firmware or
+wiring fault — this is USB VBUS feeding backwards through the buck regulator
+onto its 5 V output and from there onto `VM`, not the driver misbehaving.
+Found on bench3, 2026-09-26: USB alone put **4.47 V on `VM`**, enough to run
+the motor with the 24 V rail unpowered. The fix is a **Schottky diode** in
+series from the buck's 5 V output to the XIAO's 5V pin (see
+[Power chain](#power-chain)) — without it fitted, don't power the board from
+USB and 24 V at the same time. Until it's fitted: flash with USB only and
+the motor disconnected; run installed units on 24 V only; or temporarily
+disconnect the buck-5V→XIAO-5V wire (grounds stay tied) to run USB and 24 V
+together for a session.
 
 ### Motor doesn't turn (or doesn't even hum/resist)
 

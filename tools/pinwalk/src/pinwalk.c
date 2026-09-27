@@ -35,8 +35,8 @@ static const struct {
     { 20, "D9", "EN"        },
     { 22, "D4", "Keypad Up" },
     { 23, "D5", "Keypad Dn" },
-    { 16, "D6", "Keypad Fn" },
-    { 21, "D3", "LED"       },
+    { 21, "D3", "Keypad Fn" },
+    {  2, "D2", "LED"       },
 };
 
 #define N_PINS (sizeof(PINS) / sizeof(PINS[0]))
