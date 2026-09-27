@@ -123,6 +123,13 @@ mid-move.
 #define PIN_BTN_FN   21     /* D3 — off D6, away from the driver pins */
 #define PIN_LED_EXT  2      /* D2 — sole indicator; no onboard mirror on XIAO */
 
+/* On-board RF switch, not on the header. Nothing drives these unless the
+ * firmware does, and left alone the radio barely hears its neighbours
+ * (bench3 A/B, 2026-09-27: LQI at the coordinator 77 → 128). Every unit
+ * has a U.FL antenna fitted, so the switch is enabled and pointed at it. */
+#define PIN_RF_SW_EN 3      /* low = switch enabled */
+#define PIN_RF_ANT   14     /* low = ceramic, high = U.FL */
+
 /* ---- motion tuning (bench constants, spec §6) ---- */
 #define START_US        500      /* ~2 kHz first/last step */
 #define ACCEL_STEPS     800

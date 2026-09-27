@@ -45,6 +45,7 @@ repo file after a change.
 | Part | Role |
 |---|---|
 | Seeed XIAO ESP32C6 (`seeed_xiao_esp32c6`) | Controller. Only 11 GPIOs are broken out (D0–D10) — the design keeps the GPIO budget to 7 used + 1 reserved (see [GPIO summary](#gpio-summary-srcmainc)), leaving 3 spare. |
+| External antenna — **WiFi antenna 2.4–5.9 GHz, 3 dBi, 2 W, U.FL/IPEX connector** | Zigbee antenna, mandatory from firmware v2.4.1, which switches the radio to the U.FL socket. It covers 2.4 GHz, which is what Zigbee uses. See [Fitting the U.FL antenna](#fitting-the-ufl-antenna-v241). |
 | 2HS60-1504JA05-020-03 bipolar stepper | Drive motor for the **larger** blinds — 1.8°/step (200 full steps/rev), 1.5 A/phase class, 60 mm body, 4-wire (2 coils) |
 | 17HS4401 bipolar stepper | Drive motor for the **smaller** blinds — 1.8°/step, 1.7 A/phase class, 40 mm body, 4-wire. Lower torque than the 2HS60 (roughly half to two-thirds), and takes a **different Vref** — see [Setting Vref](#setting-vref-current-limit). Its lower torque is what sets the fleet-wide `CRUISE_US` ceiling; see [Motion speed tuning](#motion-speed-tuning). |
 | BIGTREETECH TMC2209 V1.3 breakout | Stepper driver, StealthChop2 silent chopping — ships factory-default (no wiring needed for it). 1/8 microstep via `MS1`/`MS2` pin-strapping (same resolution as before — preserves all step-count math). Needs its own logic-supply pin (`VCC_IO`), which the DRV8825 never had — see the pin table below. |
@@ -435,8 +436,14 @@ isn't configured.
 back (MTMS GPIO4, MTDI GPIO5, MTCK GPIO6, MTDO GPIO7), BOOT on GPIO9, the
 onboard user LED on GPIO15, and the RF switch on GPIO3 (switch power) and
 GPIO14 (onboard vs U.FL antenna select). Battery pads are on the back:
-negative near the `D8` silkscreen, positive near `D5`. Don't repurpose
-GPIO3/GPIO14 in firmware: the radio depends on them.
+negative near the `D8` silkscreen, positive near `D5`.
+
+**The firmware drives the RF switch (from v2.4.1): GPIO3 low enables it, and
+GPIO14 high selects the U.FL antenna.** Up to v2.4.0 nothing drove either
+pin, and the radio ran badly as a result. So **every unit needs a U.FL antenna
+fitted** before it runs v2.4.1 or later; see
+[Fitting the U.FL antenna](#fitting-the-ufl-antenna-v241). Don't repurpose
+GPIO3/GPIO14.
 
 | Signal | XIAO pin | GPIO | Notes |
 |---|---|---|---|
@@ -703,6 +710,36 @@ device can't tell which wiring it's on.
 6. Check: the LED shows its normal pattern; hold Fn ~3 s from standstill and
    Calibration Mode's slow pulse appears; hold Fn again to exit.
 
+### Fitting the U.FL antenna (v2.4.1)
+
+v2.4.1 enables the XIAO's RF switch and routes the radio to the U.FL socket.
+Earlier firmware left the switch undriven, and the board barely heard its
+neighbours. Measured on bench3, same spot and same power, before and after:
+
+| | v2.4.0 (switch undriven) | v2.4.1 (U.FL antenna) |
+|---|---|---|
+| LQI at the coordinator, 30 reads | mean 77 | mean 128.5 |
+| Neighbours hearing the unit | 17, mean LQI 67 | 23, mean LQI 122 |
+| Neighbours the unit can hear | 6 of 21 | 18 of 27, mean LQI 89 |
+
+**⚠️ Fit the antenna before pressing Update in z2m.** With v2.4.1 and no
+antenna, the radio talks into an empty socket, which is likely worse than
+v2.4.0 and may drop the unit off the network. A unit that is off the
+network can't be updated back over the air; it needs USB. For bench2 and
+blinds lounge side, fit the antenna together with the
+[v2.4.0 rewiring](#rewiring-for-the-v240-pin-map), then OTA once.
+
+1. Power down (24 V off, USB unplugged).
+2. Press the U.FL plug straight down onto the socket on the XIAO until it
+   clicks. It is fragile: never lever it on at an angle, and don't let the
+   cable pull on it.
+3. Route the antenna out of the enclosure or against its face, away from the
+   motor, the driver and the 24 V wiring. Metal around the antenna defeats
+   the point.
+4. Power up and check the boot log for `RF switch: enabled, U.FL antenna`.
+   Once it has been up a few minutes, check its `linkquality` in z2m (see
+   [Weak Zigbee link](#weak-zigbee-link--low-linkquality)).
+
 ## LED wiring
 
 ```
@@ -865,18 +902,21 @@ to *this* unit, and none of them are visible from the firmware side.
    [the warning above](#️-the-two-motors-cables-are-not-interchangeable).
    Label it now if it isn't already.
 3. **Fit the driver heatsink** and confirm the enclosure gives it airflow.
+4. **Fit the U.FL antenna** ([procedure](#fitting-the-ufl-antenna-v241)).
+   Firmware v2.4.1+ routes the radio to it, so a unit without one has almost
+   no range.
 
 **After mounting:**
 
-4. **Direction check** — hold Up; if the blind goes down, flip
+5. **Direction check** — hold Up; if the blind goes down, flip
    `motor_reversed` ([Direction check](#direction-check)). Do this **before**
    calibrating: flipping wipes calibration by design.
-5. **Calibrate** via the keypad (`DEVELOPER_GUIDE.md`).
-6. **Test the hard case: lifting on a full roll.** Peak torque demand is
+6. **Calibrate** via the keypad (`DEVELOPER_GUIDE.md`).
+7. **Test the hard case: lifting on a full roll.** Peak torque demand is
    raising the blind with maximum fabric wound on — larger effective radius
    working against gravity. A unit that moves happily mid-travel can still
    stall there, so a mid-travel test proves less than it appears to.
-7. **Run several full cycles**, both directions, and check the blind still
+8. **Run several full cycles**, both directions, and check the blind still
    reaches its physical marks. Open-loop step counting means a stall or lost
    steps show up as accumulating drift rather than an immediate error.
 
@@ -896,6 +936,30 @@ rather than reaching straight for `CRUISE_US`.
 - A rail sagging well below its nominal voltage (e.g. 3.3 V reading ~1.7 V)
   usually means something elsewhere is loading it down — check continuity
   between 3V3 and GND for an accidental short before re-powering.
+
+### Weak Zigbee link / low `linkquality`
+
+`linkquality` in z2m is the LQI of the **last radio hop into the
+coordinator**, for the last frame received. It is not the unit's best link.
+The network map shows other things: how neighbours hear the unit, and how the
+unit hears them. The two can differ.
+
+1. **Check the boot log for `RF switch: enabled, U.FL antenna`**, and check
+   the antenna is fitted and seated. Firmware older than v2.4.1 never enabled
+   the RF switch. A unit on that firmware hears few of its neighbours, and
+   most of its entries in the network map read LQI 0. See
+   [Fitting the U.FL antenna](#fitting-the-ufl-antenna-v241).
+2. **Low values alongside a strong map usually mean a marginal direct link.**
+   Zigbee sends straight to anything in the neighbour table, however weak.
+   So a unit that can just about hear the coordinator talks to it directly
+   instead of through a nearby router. Place units either clearly in range
+   of the coordinator or clearly out of it.
+3. **After moving a unit:** power-cycle it where it now sits, wait about
+   2 minutes for link status to rebuild, then run a network map. If the
+   coordinator can't reach the unit afterwards (timeouts, an OTA that won't
+   start), power-cycle the coordinator dongle as well. Restarting z2m doesn't
+   clear the dongle's tables. Don't remove the unit from z2m to force a
+   rejoin.
 
 ### One or more keypad keys do nothing
 
