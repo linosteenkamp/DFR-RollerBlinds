@@ -10,6 +10,30 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-25-review-fixes-design.md` (read it before starting; review finding IDs S1…S12 / T1…T8 used below come from its table).
 
+> **Status (checked 2026-09-27): complete except Task 16 Step 5.** Tasks 1–15
+> and Task 16 Steps 1–4 are done, with each task matched to its commit on the
+> merged branch (`b0c15c0`, tagged `v2.4.0`, index `0x24000000`). Deviations
+> from the plan as written:
+> - Bench and soak ran on `bench3`, not `bench2`, once the pin move joined
+>   v2.4.0. The 22 h soak was clean.
+> - Host tests number 143, not 140, because the final review's fixes added
+>   tests.
+> - The converter also reads `configStatus` back (`5279219`).
+>
+> **Task 16 Step 5 is replaced.** The owner removed `bench2` and `blinds
+> lounge side` from z2m on 2026-09-26, so neither can be OTA'd. Also, since
+> v2.4.1 (2026-09-27) the firmware routes the radio to the U.FL antenna. Per
+> board:
+> 1. Rewire for the v2.4.0 pin map.
+> 2. Fit the U.FL antenna. See `HARDWARE.md` § "Fitting the U.FL antenna
+>    (v2.4.1)".
+> 3. Flash v2.4.1 or later over USB.
+> 4. Rejoin: open permit-join in z2m. If the board doesn't steer by itself,
+>    hold all three keys for 5 s.
+> 5. Re-home or calibrate as needed.
+>
+> Task 17 stays superseded, and its boxes stay unticked on purpose.
+
 ## Global Constraints
 
 - Branch: `review-fixes` (off `main`). Do not touch `fn-to-d3` except in Task 17.
@@ -68,7 +92,7 @@
 **Interfaces:**
 - Produces: `led_pattern_t` in `led_pattern.h`; `motion_profile_t` in `motion_profile.h`; `blind_store_data_t` in `blind_store_data.h`. Names and members unchanged.
 
-- [ ] **Step 1: Create `include/led_pattern.h`** by moving the enum out of `status_led.h` verbatim:
+- [x] **Step 1: Create `include/led_pattern.h`** by moving the enum out of `status_led.h` verbatim:
 
 ```c
 #ifndef LED_PATTERN_H
@@ -93,7 +117,7 @@ typedef enum {
 
 In `include/status_led.h`, delete the enum and its comment and add `#include "led_pattern.h"` after `#include "esp_err.h"`.
 
-- [ ] **Step 2: Create `include/motion_profile.h`:**
+- [x] **Step 2: Create `include/motion_profile.h`:**
 
 ```c
 #ifndef MOTION_PROFILE_H
@@ -113,7 +137,7 @@ typedef struct {
 
 In `include/motion.h`, delete the `motion_profile_t` typedef and add `#include "motion_profile.h"` after `#include "freertos/queue.h"`.
 
-- [ ] **Step 3: Create `include/blind_store_data.h`:**
+- [x] **Step 3: Create `include/blind_store_data.h`:**
 
 ```c
 #ifndef BLIND_STORE_DATA_H
@@ -139,12 +163,12 @@ typedef struct {
 
 In `include/blind_store.h`, delete the typedef and add `#include "blind_store_data.h"` after `#include "esp_err.h"`.
 
-- [ ] **Step 4: Build firmware and host tests**
+- [x] **Step 4: Build firmware and host tests**
 
 Run: `pio run -e seeed_xiao_esp32c6_zigbee && pio test -e native`
 Expected: firmware `SUCCESS`; `74 test cases: 74 succeeded`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add include/led_pattern.h include/motion_profile.h include/blind_store_data.h include/status_led.h include/motion.h include/blind_store.h
@@ -181,7 +205,7 @@ The code in this task is a **transcription** of `src/main.c`'s dispatcher logic 
   - `void ctl_refresh_outputs(ctl_t *c);` (public only until Task 8)
   - Fake: `F` (recorder state), `FAKE_PORTS`, `fake_reset()`, `f_count()`, `f_first()`, `f_last()`, `f_rec()`, `f_count_a()`, `f_count_ab()`
 
-- [ ] **Step 1: Create `include/ctl.h`**
+- [x] **Step 1: Create `include/ctl.h`**
 
 ```c
 #ifndef CTL_H
@@ -281,7 +305,7 @@ void ctl_refresh_outputs(ctl_t *c);
 #endif /* CTL_H */
 ```
 
-- [ ] **Step 2: Create `src/ctl.c`**
+- [x] **Step 2: Create `src/ctl.c`**
 
 ```c
 /**
@@ -673,7 +697,7 @@ void ctl_init(ctl_t *c, const ctl_ports_t *io, const ctl_config_t *cfg,
 }
 ```
 
-- [ ] **Step 3: Create `test/test_ctl/fake_ports.h`**
+- [x] **Step 3: Create `test/test_ctl/fake_ports.h`**
 
 ```c
 #ifndef FAKE_PORTS_H
@@ -822,7 +846,7 @@ static inline void fake_reset(void)
 
 Note on `p_trace`: the record stores `a = code`, `b = the trace's a`, so `f_count_a(F_TRACE, TRC_MOVE_NOOP)` counts records of that code.
 
-- [ ] **Step 4: Create `test/test_ctl/test_ctl.c` with the helpers and the motion characterisation tests**
+- [x] **Step 4: Create `test/test_ctl/test_ctl.c` with the helpers and the motion characterisation tests**
 
 ```c
 #include <unity.h>
@@ -1182,21 +1206,21 @@ int main(void)
 }
 ```
 
-- [ ] **Step 5: Add the suite to `platformio.ini`**
+- [x] **Step 5: Add the suite to `platformio.ini`**
 
 In `[env:native]`, append `    test_ctl` as a new line under `test_filter =` (after `test_trace_ring`).
 
-- [ ] **Step 6: Run the suite**
+- [x] **Step 6: Run the suite**
 
 Run: `pio test -e native -f test_ctl`
 Expected: `24 test cases: 24 succeeded`. These are characterisation tests: they describe what the code in `main.c` does today. If one fails, the transcription in Step 2 differs from `main.c`; fix `ctl.c` to match `main.c`, not the test to match `ctl.c`, unless the test misreads `main.c`.
 
-- [ ] **Step 7: Run everything**
+- [x] **Step 7: Run everything**
 
 Run: `pio test -e native`
 Expected: `98 test cases: 98 succeeded`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add include/ctl.h src/ctl.c test/test_ctl platformio.ini
@@ -1224,7 +1248,7 @@ No production code changes unless a test exposes a transcription error in `ctl.c
 **Interfaces:**
 - Consumes: everything Task 2 produced.
 
-- [ ] **Step 1: Add the tests** above `int main(void)` in `test/test_ctl/test_ctl.c`:
+- [x] **Step 1: Add the tests** above `int main(void)` in `test/test_ctl/test_ctl.c`:
 
 ```c
 /* ---------- calibration (spec §6) ---------- */
@@ -1506,12 +1530,12 @@ Add to `main()`, before `return UNITY_END();`:
     RUN_TEST(test_factory_reset_while_moving_is_refused);
 ```
 
-- [ ] **Step 2: Run**
+- [x] **Step 2: Run**
 
 Run: `pio test -e native -f test_ctl`
 Expected: `45 test cases: 45 succeeded`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add test/test_ctl/test_ctl.c
@@ -1537,9 +1561,9 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 - Consumes: `ctl_*` (Task 2).
 - Produces: `static ctl_t s_ctl`, `static const ctl_ports_t PORTS`, `static const ctl_config_t CFG` in `main.c`, used by Tasks 6, 8, 10.
 
-- [ ] **Step 1: Add `ctl.c` to the build.** In `src/CMakeLists.txt`, add `    "ctl.c"` on the line after `    "main.c"`.
+- [x] **Step 1: Add `ctl.c` to the build.** In `src/CMakeLists.txt`, add `    "ctl.c"` on the line after `    "main.c"`.
 
-- [ ] **Step 2: Replace `src/main.c` from `static QueueHandle_t s_queue;` to end of file** with:
+- [x] **Step 2: Replace `src/main.c` from `static QueueHandle_t s_queue;` to end of file** with:
 
 ```c
 static QueueHandle_t      s_queue;
@@ -1725,17 +1749,17 @@ Also add `#include "ctl.h"` to the include block (after `#include "trace.h"`), a
 
 The `ESP_LOGI` "starting" line moved above `xTaskCreate` so `app_main` reads `s_ctl` only while it is the sole task. `position.h` and `ramp.h` includes may stay (`RAMP_DEFAULT_CRUISE_US` is used in `CFG`).
 
-- [ ] **Step 3: Build**
+- [x] **Step 3: Build**
 
 Run: `rm -rf .pio/build/seeed_xiao_esp32c6_zigbee && pio run -e seeed_xiao_esp32c6_zigbee`
 Expected: `SUCCESS`, no warnings from `main.c` or `ctl.c`. A warning about incompatible function-pointer types in `PORTS` means a port signature differs from the real function; fix the port type in `ctl.h` to match.
 
-- [ ] **Step 4: Host tests still pass**
+- [x] **Step 4: Host tests still pass**
 
 Run: `pio test -e native`
 Expected: `119 test cases: 119 succeeded`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main.c src/CMakeLists.txt
@@ -1750,7 +1774,7 @@ the dispatcher in a later commit.
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
 
-- [ ] **Step 6: HUMAN GATE — bench regression check on `bench2`**
+- [x] **Step 6: HUMAN GATE — bench regression check on `bench2`**
 
 Stop and ask the owner to flash `bench2` and run these checks (this build carries OTA version v0.0.0; that is expected for a local build):
 
@@ -1773,7 +1797,7 @@ Do not start Task 5 until the owner reports all seven pass.
 **Files:**
 - Modify: `src/keypad.c`
 
-- [ ] **Step 1:** In `src/keypad.c`, delete the `install_glitch_filters()` function and the comment block above it, delete its call in `keypad_init()`, and delete `#include "driver/gpio_filter.h"`. Where the call was, put:
+- [x] **Step 1:** In `src/keypad.c`, delete the `install_glitch_filters()` function and the comment block above it, delete its call in `keypad_init()`, and delete `#include "driver/gpio_filter.h"`. Where the call was, put:
 
 ```c
     /* No GPIO glitch filter on the key pins. The C6's flex glitch filter was
@@ -1784,9 +1808,9 @@ Do not start Task 5 until the owner reports all seven pass.
      * release. The RC front end and the key_filter integrator reject noise. */
 ```
 
-- [ ] **Step 2:** `grep -n "glitch" src/keypad.c` shows only the new comment.
-- [ ] **Step 3:** `pio run -e seeed_xiao_esp32c6_zigbee && pio test -e native` → firmware `SUCCESS`; `119 test cases: 119 succeeded`.
-- [ ] **Step 4:** Commit:
+- [x] **Step 2:** `grep -n "glitch" src/keypad.c` shows only the new comment.
+- [x] **Step 3:** `pio run -e seeed_xiao_esp32c6_zigbee && pio test -e native` → firmware `SUCCESS`; `119 test cases: 119 succeeded`.
+- [x] **Step 4:** Commit:
 
 ```bash
 git add src/keypad.c
@@ -1815,7 +1839,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `ctl_t.move_active` (bool). Removes `ctl_ports_t.motion_is_moving`. `start_move()` now returns `bool` (true = motion started) for Task 6.
 
-- [ ] **Step 1: Write the failing tests** (add above `main()`, register in `main()`):
+- [x] **Step 1: Write the failing tests** (add above `main()`, register in `main()`):
 
 ```c
 /* ---------- S1: the end-of-move gap ----------
@@ -1893,12 +1917,12 @@ static void test_move_flag_not_cleared_by_a_stale_done(void)
     RUN_TEST(test_move_flag_not_cleared_by_a_stale_done);
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `pio test -e native -f test_ctl`
 Expected: compile error `no member named 'move_active'` in the last test. Temporarily comment out `test_move_flag_not_cleared_by_a_stale_done` and re-run: the first four FAIL (e.g. `Expected 1 Was 2` on `F_MOTION_START`). Restore the test.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `include/ctl.h`: delete the `motion_is_moving` line from `ctl_ports_t`, and add to `ctl_t` after `move_start_pct`:
 
@@ -1954,12 +1978,12 @@ In `test/test_ctl/fake_ports.h`: delete `p_motion_is_moving` and its `.motion_is
 
 In `src/main.c`: delete the `.motion_is_moving = motion_is_moving,` line from `PORTS`.
 
-- [ ] **Step 4: Run**
+- [x] **Step 4: Run**
 
 Run: `pio test -e native && pio run -e seeed_xiao_esp32c6_zigbee`
 Expected: `124 test cases: 124 succeeded`; firmware `SUCCESS`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add include/ctl.h src/ctl.c src/main.c test/test_ctl
@@ -1987,7 +2011,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 - Consumes: `start_move()` returning `bool`, `move_active` (Task 5).
 - Produces: `ctl_ports_t.key_held` (`bool (*key_held)(key_id_t key)`); `bool keypad_key_held(key_id_t key);` in `keypad.h`; `TRC_DEADMAN_STOP` in `trace.h`; `ctl_t.jog_active`, `ctl_t.jog_key`, `ctl_t.jog_stop_sent`.
 
-- [ ] **Step 1: Add the port to the fake first** (so the tests compile). In `test/test_ctl/fake_ports.h` add `bool held[KEY_COUNT];` to `F`, the port
+- [x] **Step 1: Add the port to the fake first** (so the tests compile). In `test/test_ctl/fake_ports.h` add `bool held[KEY_COUNT];` to `F`, the port
 
 ```c
 static bool      p_key_held(key_id_t k)         { return F.held[k]; }
@@ -1999,7 +2023,7 @@ the initialiser `.key_held = p_key_held,`, and in `fake_reset()` after `F.joined
     for (int k = 0; k < KEY_COUNT; k++) F.held[k] = true;   /* a HOLD_START implies held */
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 ```c
 /* ---------- S4: dead-man ---------- */
@@ -2050,12 +2074,12 @@ static void test_deadman_does_not_stop_a_zigbee_move_after_a_jog(void)
 
 Register the four in `main()`.
 
-- [ ] **Step 3: Run to verify they fail**
+- [x] **Step 3: Run to verify they fail**
 
 Run: `pio test -e native -f test_ctl`
 Expected: compile error `TRC_DEADMAN_STOP undeclared`. That is the red state for this task.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 `include/trace.h`: append after `TRC_KEY_ALIVE,`:
 
@@ -2178,12 +2202,12 @@ Delete `#include "motion.h"` from `src/keypad.c`.
 
 `src/main.c`: add `.key_held = keypad_key_held,` to `PORTS` after `.led_flash`.
 
-- [ ] **Step 5: Run**
+- [x] **Step 5: Run**
 
 Run: `pio test -e native && pio run -e seeed_xiao_esp32c6_zigbee`
 Expected: `128 test cases: 128 succeeded`; firmware `SUCCESS`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add include/ctl.h src/ctl.c include/trace.h include/keypad.h src/keypad.c src/main.c test/test_ctl
@@ -2209,7 +2233,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: `F.fail[]` injection (Task 2).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```c
 /* ---------- S3 / S8: persistence ---------- */
@@ -2304,12 +2328,12 @@ static void test_mark2_position_save_failure_boots_needing_rehome(void)
 
 Register the six in `main()`.
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `pio test -e native -f test_ctl`
 Expected: all six FAIL (e.g. the first with `Expected 0 Was 1` on `F_MOTION_START`; the order test because `save_reversed` comes first).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `start_move`, replace `c->io->save_move_flag(true);` with:
 
@@ -2399,12 +2423,12 @@ In `cal_abort`, replace `c->io->save_position(false, 0);` with:
         }
 ```
 
-- [ ] **Step 4: Run**
+- [x] **Step 4: Run**
 
 Run: `pio test -e native`
 Expected: `134 test cases: 134 succeeded`. `test_full_calibration_happy_path` must still pass: it asserts `F_CAL_TIMER_STOP` count 1, which now comes after the saves.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ctl.c test/test_ctl/test_ctl.c
@@ -2431,7 +2455,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `APP_EVT_BOOT_SYNC` (last value of `app_event_type_t`). `ctl_refresh_outputs()` becomes `static` (removed from `ctl.h`).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```c
 /* ---------- S6 / S9: boot ---------- */
@@ -2456,12 +2480,12 @@ static void test_boot_led_for_calibrated_unjoined_unit_is_no_network(void)
 
 Register both.
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `pio test -e native -f test_ctl`
 Expected: compile error `APP_EVT_BOOT_SYNC undeclared`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `include/app_event.h`: append after `APP_EVT_IDENTIFY,`:
 
@@ -2507,12 +2531,12 @@ Since `refresh_outputs` is now defined before use only if it stays above its cal
 }
 ```
 
-- [ ] **Step 4: Run**
+- [x] **Step 4: Run**
 
 Run: `pio test -e native && pio run -e seeed_xiao_esp32c6_zigbee`
 Expected: `136 test cases: 136 succeeded`; firmware `SUCCESS`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add include/app_event.h include/ctl.h src/ctl.c src/main.c test/test_ctl/test_ctl.c
@@ -2536,7 +2560,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 **Files:**
 - Modify: `src/ctl.c`, `test/test_ctl/test_ctl.c`
 
-- [ ] **Step 1: Change the two existing tests to the new behaviour and run them red**
+- [x] **Step 1: Change the two existing tests to the new behaviour and run them red**
 
 In `test_fn_long_while_moving_does_not_enter`, append:
 
@@ -2549,7 +2573,7 @@ In `test_factory_reset_while_moving_is_refused`, append the same line.
 Run: `pio test -e native -f test_ctl`
 Expected: both FAIL with `Expected 1 Was 0`.
 
-- [ ] **Step 2: Implement**
+- [x] **Step 2: Implement**
 
 In `enter_or_exit_cal`, replace `if (moving(c)) return;` with:
 
@@ -2562,12 +2586,12 @@ In `enter_or_exit_cal`, replace `if (moving(c)) return;` with:
 
 In `handle_keypad`'s `KP_EVT_FACTORY_RESET` case, inside `if (moving(c)) {`, add `c->io->led_flash(LED_ERROR);` before the log call.
 
-- [ ] **Step 3: Run**
+- [x] **Step 3: Run**
 
 Run: `pio test -e native`
 Expected: `136 test cases: 136 succeeded`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/ctl.c test/test_ctl/test_ctl.c
@@ -2593,7 +2617,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `uint32_t motion_done_post_failures(void);` in `motion.h`; `TRC_DONE_POST_FAILED` in `trace.h`. `motion_init()` keeps its signature; `main.c` passes the done queue.
 
-- [ ] **Step 1: `include/trace.h`** — append after `TRC_DEADMAN_STOP,`:
+- [x] **Step 1: `include/trace.h`** — append after `TRC_DEADMAN_STOP,`:
 
 ```c
     /* The motion ISR could not post MOTION_DONE. Cannot happen while the
@@ -2603,7 +2627,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
     TRC_DONE_POST_FAILED,
 ```
 
-- [ ] **Step 2: `src/motion.c`** — add after the `s_stop_at_idx` declaration:
+- [x] **Step 2: `src/motion.c`** — add after the `s_stop_at_idx` declaration:
 
 ```c
 static DRAM_ATTR volatile uint32_t s_done_post_failed;   /* see TRC_DONE_POST_FAILED */
@@ -2646,7 +2670,7 @@ and add
 uint32_t motion_done_post_failures(void);
 ```
 
-- [ ] **Step 3: `src/main.c`** — add after `static QueueHandle_t s_queue;`:
+- [x] **Step 3: `src/main.c`** — add after `static QueueHandle_t s_queue;`:
 
 ```c
 static QueueHandle_t      s_done_q;       /* MOTION_DONE only, one slot */
@@ -2692,12 +2716,12 @@ and change `motion_init(&pins, s_queue)` to `motion_init(&pins, s_done_q)`.
 
 `include/app_event.h`: in the top comment, change "the motion ISR (MOTION_DONE)" to "the motion ISR (MOTION_DONE, on its own one-slot queue)".
 
-- [ ] **Step 4: Build**
+- [x] **Step 4: Build**
 
 Run: `pio run -e seeed_xiao_esp32c6_zigbee && pio test -e native`
 Expected: firmware `SUCCESS`; `136 test cases: 136 succeeded`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/motion.c include/motion.h include/trace.h include/app_event.h src/main.c
@@ -2724,7 +2748,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 **Interfaces:**
 - Produces: `int32_t ramp_stop_index(const ramp_plan_t *r, int32_t idx);`, `uint32_t ramp_interval_us_stopping(const ramp_plan_t *r, int32_t idx, int32_t stop_at);`, macro `RAMP_HOT`.
 
-- [ ] **Step 1: Write the failing tests** in `test/test_ramp/test_ramp.c` (above `main`, registered in `main`):
+- [x] **Step 1: Write the failing tests** in `test/test_ramp/test_ramp.c` (above `main`, registered in `main`):
 
 ```c
 /* ---------- stop path (used by the motion ISR) ---------- */
@@ -2770,12 +2794,12 @@ static void test_stopping_interval_mirrors_the_accel_ramp(void)
 }
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `pio test -e native -f test_ramp`
 Expected: compile error, implicit declaration of `ramp_stop_index`.
 
-- [ ] **Step 3: Implement in `ramp.h` / `ramp.c`**
+- [x] **Step 3: Implement in `ramp.h` / `ramp.c`**
 
 `include/ramp.h`: replace the top comment's last sentence "Pure math: the motion ISR asks for the interval of the step it is about to schedule." with "Pure math, and the motion ISR's only ramp code: it asks for the interval of the step it is about to schedule." Add after the includes:
 
@@ -2839,12 +2863,12 @@ RAMP_HOT uint32_t ramp_interval_us_stopping(const ramp_plan_t *r, int32_t idx,
 }
 ```
 
-- [ ] **Step 4: Run the ramp tests**
+- [x] **Step 4: Run the ramp tests**
 
 Run: `pio test -e native -f test_ramp`
 Expected: all pass (previous count + 4).
 
-- [ ] **Step 5: `src/motion.c` uses them.** Delete `isr_interval` and its comment. In `timer_cb`, replace `.alarm_count = isr_interval(s_step_idx),` with:
+- [x] **Step 5: `src/motion.c` uses them.** Delete `isr_interval` and its comment. In `timer_cb`, replace `.alarm_count = isr_interval(s_step_idx),` with:
 
 ```c
             .alarm_count = s_stop_req
@@ -2864,7 +2888,7 @@ void motion_stop(void)
 }
 ```
 
-- [ ] **Step 6: Build and verify IRAM placement**
+- [x] **Step 6: Build and verify IRAM placement**
 
 Run:
 
@@ -2875,7 +2899,7 @@ rm -rf .pio/build/seeed_xiao_esp32c6_zigbee && pio run -e seeed_xiao_esp32c6_zig
 
 Expected: firmware `SUCCESS`, and every address for `timer_cb`, `interval_at`, `ramp_interval_us`, `ramp_interval_us_stopping` and `ramp_stop_index` starts with `408` (IRAM) (`interval_at` may be absent: the compiler can inline it into its IRAM callers, which is fine); `__udivdi3` starts with `400` (ROM). Any `420…` address is flash: the change is not done. `isr_interval` must not appear.
 
-- [ ] **Step 7: Run everything and commit**
+- [x] **Step 7: Run everything and commit**
 
 Run: `pio test -e native`
 Expected: `140 test cases: 140 succeeded`.
@@ -2901,7 +2925,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 **Files:**
 - Modify: `src/status_led.c`
 
-- [ ] **Step 1: Implement.** Add after the includes: `#include "freertos/FreeRTOS.h"` and after `static esp_timer_handle_t s_timer;`:
+- [x] **Step 1: Implement.** Add after the includes: `#include "freertos/FreeRTOS.h"` and after `static esp_timer_handle_t s_timer;`:
 
 ```c
 /* base+tick and trans+tick are each written as a pair by the dispatcher and
@@ -2955,12 +2979,12 @@ void status_led_flash(led_pattern_t transient)
 
 `pattern_level` is a pure switch with no calls, so holding the lock across it is a few instructions.
 
-- [ ] **Step 2: Build**
+- [x] **Step 2: Build**
 
 Run: `pio run -e seeed_xiao_esp32c6_zigbee`
 Expected: `SUCCESS`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/status_led.c
@@ -2983,7 +3007,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 **Files:**
 - Modify: `z2m/dfr_roller_blinds.js`
 
-- [ ] **Step 1: Implement.** Replace `tzMotorReversed.convertSet` with:
+- [x] **Step 1: Implement.** Replace `tzMotorReversed.convertSet` with:
 
 ```js
     convertSet: async (entity, key, value, meta) => {
@@ -3002,12 +3026,12 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
     },
 ```
 
-- [ ] **Step 2: Syntax check**
+- [x] **Step 2: Syntax check**
 
 Run: `node --check z2m/dfr_roller_blinds.js`
 Expected: no output, exit 0.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add z2m/dfr_roller_blinds.js
@@ -3029,7 +3053,7 @@ Deployment to the z2m box is **not** part of this task: it restarts zigbee2mqtt.
 **Files:**
 - Modify: `CLAUDE.md`, `CONTEXT.md`, `DEVELOPER_GUIDE.md`, `docs/superpowers/specs/2026-07-18-roller-blinds-design.md`, `include/app_event.h`
 
-- [ ] **Step 1: Calibration timeout is 10 min everywhere.**
+- [x] **Step 1: Calibration timeout is 10 min everywhere.**
   - `include/app_event.h`: `APP_EVT_CAL_TIMEOUT` comment → `/* 10-min calibration timeout (CAL_TIMEOUT_US) */`.
   - `CLAUDE.md` line with "5-minute timeout" → "10-minute timeout".
   - `DEVELOPER_GUIDE.md:84` → 10 minutes.
@@ -3038,7 +3062,7 @@ Deployment to the z2m box is **not** part of this task: it restarts zigbee2mqtt.
   Run: `git grep -nE "5[- ]min" -- CLAUDE.md DEVELOPER_GUIDE.md include docs/superpowers/specs/2026-07-18-roller-blinds-design.md`
   Expected: no hits about the calibration timeout.
 
-- [ ] **Step 2: Design spec §5 known deviation.** After the §5 text that says OTA applies only when idle, add:
+- [x] **Step 2: Design spec §5 known deviation.** After the §5 text that says OTA applies only when idle, add:
 
 ```markdown
 > **Known deviation (2026-09-25).** `esp-zb-common`'s `ota_client` reboots as
@@ -3049,19 +3073,19 @@ Deployment to the z2m box is **not** part of this task: it restarts zigbee2mqtt.
 > [2026-09-25-review-fixes-design.md](2026-09-25-review-fixes-design.md#deferred).
 ```
 
-- [ ] **Step 3: `CLAUDE.md` architecture.**
+- [x] **Step 3: `CLAUDE.md` architecture.**
   - Module table: add a row `| ctl | src/ctl.c | Pure: every dispatcher decision (gesture matrix, calibration flow, preemption, persistence policy) behind ctl_ports_t | test/test_ctl/ |`; change `main`'s purpose to "Wiring: GPIO map, constants, ports table binding ctl to the real modules, queues, dispatcher loop"; change the converter row to "(cover + motor_reversed + calibrated + travel_time)".
   - Concurrency section: replace "happens in `dispatcher_task` (`src/main.c`), which owns `s_pos` and all mutable state and processes one `app_event_t` at a time off a single FreeRTOS queue" with "happens in `ctl_handle()` (`src/ctl.c`), called only by `dispatcher_task` (`src/main.c`), one `app_event_t` at a time. The dispatcher waits on a FreeRTOS queue set: the main queue plus a one-slot queue for `MOTION_DONE`, which cannot overflow because ctl never starts a move while one is outstanding. ctl owns \"move in progress\" (`move_active`): the ISR's own flag clears at the last step, before the final position reaches the dispatcher, so it must not be used to decide anything."
   - Architecture step list: step 6 becomes "`ctl_init()` restores state (an unclean mid-move shutdown drops to Position Unknown here); `app_main` sets the LED from `ctl_led_pattern()`, creates the dispatcher, waits for the join, then posts `APP_EVT_BOOT_SYNC`."
   - Re-copy the "Key Configuration Constants" block verbatim from `src/main.c` (GPIO map and motion tuning `#define`s with their comments exactly).
 
-- [ ] **Step 3b: `HARDWARE.md` — Schottky diode (added 2026-09-26).** On bench3, USB alone put 4.47 V on `VM` (USB VBUS → XIAO 5V pin → backwards through the buck) and ran the motor with 24 V off. In the power-chain diagram and text, add a Schottky diode in series from the buck's 5 V output to the XIAO 5V pin (anode at the buck, cathode/band at the XIAO; 1N5817/SS14, or 1N5822 — oversized, DO-201AD leads ~1.3 mm), with that reason; add it to the BOM; and add a Troubleshooting entry "Motor turns with 24 V off" pointing at it. Until it is fitted: flash with USB only and the motor disconnected; run on 24 V only.
+- [x] **Step 3b: `HARDWARE.md` — Schottky diode (added 2026-09-26).** On bench3, USB alone put 4.47 V on `VM` (USB VBUS → XIAO 5V pin → backwards through the buck) and ran the motor with 24 V off. In the power-chain diagram and text, add a Schottky diode in series from the buck's 5 V output to the XIAO 5V pin (anode at the buck, cathode/band at the XIAO; 1N5817/SS14, or 1N5822 — oversized, DO-201AD leads ~1.3 mm), with that reason; add it to the BOM; and add a Troubleshooting entry "Motor turns with 24 V off" pointing at it. Until it is fitted: flash with USB only and the motor disconnected; run on 24 V only.
 
-- [ ] **Step 4: `CONTEXT.md` vocabulary.**
+- [x] **Step 4: `CONTEXT.md` vocabulary.**
   - Span entry: add "Also wiped by a Motor Reversed toggle."
   - Position Unknown entry: add "Also entered when a Calibration Mode session in which the blind was jogged is aborted (Fn long-press or timeout)."
 
-- [ ] **Step 5: `DEVELOPER_GUIDE.md`** — add a bench-checklist block for this release (under the existing bench checklist):
+- [x] **Step 5: `DEVELOPER_GUIDE.md`** — add a bench-checklist block for this release (under the existing bench checklist):
 
 ```markdown
 **v2.4.0 (review fixes) bench checks**
@@ -3075,7 +3099,7 @@ Deployment to the z2m box is **not** part of this task: it restarts zigbee2mqtt.
 - [ ] `riscv32-esp-elf-nm` shows the ramp functions and timer_cb at 0x408… (IRAM)
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add CLAUDE.md CONTEXT.md DEVELOPER_GUIDE.md docs/superpowers/specs/2026-07-18-roller-blinds-design.md include/app_event.h
@@ -3095,17 +3119,17 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 
 ### Task 15: Whole-branch verification
 
-- [ ] **Step 1: Clean build and full host run**
+- [x] **Step 1: Clean build and full host run**
 
 Run: `rm -rf .pio/build/seeed_xiao_esp32c6_zigbee && pio run -e seeed_xiao_esp32c6_zigbee && pio test -e native`
 Expected: `SUCCESS`; `140 test cases: 140 succeeded`.
 
-- [ ] **Step 2: Nothing outside ctl decides**
+- [x] **Step 2: Nothing outside ctl decides**
 
 Run: `git grep -n "motion_is_moving\|motion_stop" -- src/main.c src/keypad.c src/covering.c`
 Expected: only the `PORTS` initialiser line `.motion_stop = motion_stop,` in `src/main.c`.
 
-- [ ] **Step 3: Push**
+- [x] **Step 3: Push**
 
 ```bash
 git push
@@ -3117,11 +3141,11 @@ git push
 
 Every step here needs the owner present and saying go.
 
-- [ ] **Step 1: Bench `bench3`** (already on the v2.4.0 pin map). *(Revised 2026-09-26: the pin move now ships in v2.4.0, so `bench2` is on the OLD map and must be rewired — `HARDWARE.md` § Rewiring for the v2.4.0 pin map — before it takes this image.)* Owner flashes and runs Task 4's seven checks plus the v2.4.0 checklist in `DEVELOPER_GUIDE.md`.
-- [ ] **Step 2: Deploy the converter** (owner's go-ahead; restarts zigbee2mqtt). On the z2m box: back up `data/external_converters/dfr_roller_blinds.js` to `dfr_roller_blinds.js.bak-2026-09-25`, `scp` the new file over it, `sudo systemctl restart zigbee2mqtt`, then toggle `motor_reversed` on `bench2` while it moves and confirm z2m shows the unchanged value.
-- [ ] **Step 3: Unattended soak** on `bench2`: owner notes the start time and leaves the rig untouched; afterwards check z2m for travels with no preceding `/set`, and dump the trace (press RESET, do not unplug) if any appear.
-- [ ] **Step 4: Merge and tag** (owner's go-ahead): merge `review-fixes` into `main` with `--no-ff`, delete the branch, then `git tag -a v2.4.0 -m "v2.4.0: review fixes" && git push origin main v2.4.0`. Watch the `Release OTA` workflow to success and confirm `ota/index.json` on `main` lists `fileVersion` `0x24000000` (603979776).
-- [ ] **Step 5: Update `blinds lounge side`** from z2m (Device → OTA → Update) with the owner present to Re-home if the OTA reboot lands mid-move.
+- [x] **Step 1: Bench `bench3`** (already on the v2.4.0 pin map). *(Revised 2026-09-26: the pin move now ships in v2.4.0, so `bench2` is on the OLD map and must be rewired — `HARDWARE.md` § Rewiring for the v2.4.0 pin map — before it takes this image.)* Owner flashes and runs Task 4's seven checks plus the v2.4.0 checklist in `DEVELOPER_GUIDE.md`.
+- [x] **Step 2: Deploy the converter** (owner's go-ahead; restarts zigbee2mqtt). On the z2m box: back up `data/external_converters/dfr_roller_blinds.js` to `dfr_roller_blinds.js.bak-2026-09-25`, `scp` the new file over it, `sudo systemctl restart zigbee2mqtt`, then toggle `motor_reversed` on `bench2` while it moves and confirm z2m shows the unchanged value.
+- [x] **Step 3: Unattended soak** on `bench2`: owner notes the start time and leaves the rig untouched; afterwards check z2m for travels with no preceding `/set`, and dump the trace (press RESET, do not unplug) if any appear.
+- [x] **Step 4: Merge and tag** (owner's go-ahead): merge `review-fixes` into `main` with `--no-ff`, delete the branch, then `git tag -a v2.4.0 -m "v2.4.0: review fixes" && git push origin main v2.4.0`. Watch the `Release OTA` workflow to success and confirm `ota/index.json` on `main` lists `fileVersion` `0x24000000` (603979776).
+- [ ] **Step 5: Update `blinds lounge side`** — *REPLACED 2026-09-27, see the status note at the top (removed from z2m; rewire + antenna + USB flash + rejoin).* ~~from z2m (Device → OTA → Update) with the owner present to Re-home if the OTA reboot lands mid-move.~~
 
 ---
 
