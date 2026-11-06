@@ -24,7 +24,7 @@ kicad-cli sch erc --severity-all --exit-code-violations carrier-board.kicad_sch
 
 Rev A was ERC-clean at every severity. Its netlist was also checked net by net
 against the intended connections: 37 named nets, plus 3 intentional
-no-connects (TMC2209 TX and CLK, and the DIAG row's second pin).
+no-connects (TMC2209 TX, CLK and VREF).
 
 ## How the schematic is drawn
 
@@ -39,7 +39,7 @@ approach PCBWay's assembly guidance calls for (see `docs/research/pcbway-kicad.m
 
 ## Open items
 
-- **J6 DIAG-row pin order** and whether both pins exist: waiting on
+- **J6 DIAG-row pins** are measured: pin 1 is VREF (2.54 mm from EN, trimpot wiper, left open), pin 2 is DIAG (5.08 mm). Measured on
   [Measure the physical XIAO and TMC2209 modules](https://github.com/linosteenkamp/DFR-RollerBlinds/issues/13).
 - **L1 part number:** to be chosen. It must be 10 µH, shielded, with Isat
   ≥ 4.5 A (the AP64200 high-side limit). The footprint is a placeholder
