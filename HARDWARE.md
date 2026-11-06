@@ -52,7 +52,7 @@ repo file after a change.
 | 3D-printed geartrain (`Blinds 2.step`) | 1:15 reduction to the roller tube |
 | Mean Well 24 V DC PSU — **recommend LRS-50-24** (LRS-35-24 acceptable) for a single unit | System supply. See [Multi-unit installations](#multi-unit-installations-shared-psu) for sharing one PSU across several controllers. |
 | Mean Well **LRS-150-24** (24 V, 6.5 A, ~156 W) — *optional, in place of the LRS-50-24 above* | Single shared supply for **3 blind controllers** on one PSU instead of one PSU per unit. See [Multi-unit installations](#multi-unit-installations-shared-psu) for sizing rationale and distribution wiring. |
-| Step-down buck regulator, 24 V → 5 V for the XIAO | Current builds use a **Mini560 Pro**. Rev 1 used a **Pololu** 5 V/2.5 A (VIN 6–38 V). Either works functionally; the Pololu idles considerably more efficiently — see [Idle power draw](#idle-power-draw). |
+| Step-down buck regulator, 24 V → 5 V for the XIAO | Current builds use a **Mini560 Pro**. Rev 1 used a **Pololu D36V28F5** (5 V/3.2 A, VIN 5.3–50 V — matching the power-chain diagram below; this row previously said 2.5 A / 6–38 V). Either works functionally; the Pololu idles considerably more efficiently — see [Idle power draw](#idle-power-draw). |
 | Schottky diode, buck 5 V output → XIAO 5V pin — **stocked: 1N5822** (3 A 40 V, DO-201AD, leads ~1.3 mm; ordered 2026-09-27). 1N5817/SS14 are equally good and smaller. | Blocks USB VBUS from feeding backwards through the buck onto its 5 V output when the board is powered from USB alone — see [Power chain](#power-chain) and [Troubleshooting](#motor-turns-with-24-v-off) |
 | Membrane keypad: 2 arrow keys + function key | Local controls + calibration UX |
 | External status LED (enclosure face) — **Kingbright L-7104SURC-E** + **150 Ω** (Yageo `MF0204FTE52-150R`) | State annunciator. This revision drops the onboard-LED mirror entirely — the external LED is the only status indicator (frees a GPIO on the XIAO's smaller header; see [GPIO summary](#gpio-summary-srcmainc)). See [LED wiring](#led-wiring). |
@@ -294,6 +294,17 @@ the current-limit trimpot. Pin names below come straight from BTT's own
 TMC2209 pin-designation manual (their V1.2 and V1.3 modules share this same
 layout) — still **read the silkscreen on your specific board** before
 wiring, since clones vary.
+
+> **Unreconciled (2026-11):** BTT's published V1.3 files
+> (`bigtreetech/BIGTREETECH-Stepper-Motor-Driver`, `TMC2209/V1.3`) label pins
+> 4/5 `RX`/`TX` (RX carries UART; TX is isolated unless R10 is bridged),
+> `VCC_IO` as `VIO`, `VM` as `VS`; select StealthChop with resistor R7 (not
+> fitted) rather than a `SPRE` pad; add two downward pins in the
+> `DIAG` row beside `EN`; and give a 12–28 V supply range. Pin *positions* are
+> unchanged. The table below follows the pin card that shipped with these
+> units. Which one matches the units is being checked by
+> [Measure the physical XIAO and TMC2209 modules](https://github.com/linosteenkamp/DFR-RollerBlinds/issues/13);
+> details in [docs/research/module-footprints.md](docs/research/module-footprints.md).
 
 **Physical layout** (top view, trimpot and `DIAG`/`INDEX`/`VREF` at the top
 edge), as printed on the pin card that ships with the V1.3 module:
