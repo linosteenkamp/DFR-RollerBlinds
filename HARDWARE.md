@@ -251,11 +251,15 @@ Mean Well LRS-150-24 ├─── (fuse) ──── Blind 2 (VM / GND)
    24 V / 6.5 A       └─── (fuse) ──── Blind 3 (VM / GND)
 ```
 
-- **Per-branch fuse (~2 A fast-blow)** on each branch. With one supply
+- **Per-branch fuse (4 A slow-blow)** on each branch. With one supply
   feeding several installations, a wiring fault or locked rotor on one
   blind shouldn't be able to brown out or damage the other branches — this
   wasn't a concern in the single-unit design (nothing else to protect) but
-  matters once several units share a source.
+  matters once several units share a source. Slow-blow and 4 A, not the
+  ~2 A fast-blow this used to say: the carrier board has its own 3 A
+  slow-blow input fuse plus 220 µF of bulk capacitance, and a 2 A fast-blow
+  branch fuse would trip on that cap's inrush before the board's fuse — see
+  [docs/research/input-protection.md](docs/research/input-protection.md).
 - Each unit's own **≥100 µF electrolytic across VM/GND at the driver**
   (see [Power chain](#power-chain)) is still required regardless of shared
   supply — that's a per-driver spike-protection requirement, not something
@@ -281,7 +285,7 @@ doesn't care about a few hundred millivolts off 24 V (VM floor is ~4.75 V):
 | 1.5 mm² (~AWG 16) | 0.18 V (0.7 %) | 0.29 V (1.2 %) |
 
 **0.75 mm² (18 AWG) or thicker** per branch: comfortably under 2.5 % drop
-even at the pessimistic current figure, and its ampacity covers the ~2 A
+even at the pessimistic current figure, and its ampacity covers the 4 A
 branch fuse with margin. At 5 m, wire gauge is really about mechanical
 robustness (thin wire is fragile at connectors) rather than electrical
 necessity — recompute the table above if your actual runs are much longer.
