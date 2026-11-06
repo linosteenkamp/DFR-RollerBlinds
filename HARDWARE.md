@@ -299,16 +299,18 @@ TMC2209 pin-designation manual (their V1.2 and V1.3 modules share this same
 layout) — still **read the silkscreen on your specific board** before
 wiring, since clones vary.
 
-> **Unreconciled (2026-11):** BTT's published V1.3 files
-> (`bigtreetech/BIGTREETECH-Stepper-Motor-Driver`, `TMC2209/V1.3`) label pins
-> 4/5 `RX`/`TX` (RX carries UART; TX is isolated unless R10 is bridged),
-> `VCC_IO` as `VIO`, `VM` as `VS`; select StealthChop with resistor R7 (not
-> fitted) rather than a `SPRE` pad; add two downward pins in the
-> `DIAG` row beside `EN`; and give a 12–28 V supply range. Pin *positions* are
-> unchanged. The table below follows the pin card that shipped with these
-> units. Which one matches the units is being checked by
-> [Measure the physical XIAO and TMC2209 modules](https://github.com/linosteenkamp/DFR-RollerBlinds/issues/13);
-> details in [docs/research/module-footprints.md](docs/research/module-footprints.md).
+> **Measured on these units (2026-11-06,
+> [Measure the physical XIAO and TMC2209 modules](https://github.com/linosteenkamp/DFR-RollerBlinds/issues/13)):**
+> the pin card shipped with the modules reads `PDN`/`PDN`/`VDD`/`VM`, as in the
+> table below. BTT's published V1.3 files
+> (`bigtreetech/BIGTREETECH-Stepper-Motor-Driver`, `TMC2209/V1.3`) name the
+> same pins, in the same positions, `RX`/`TX` (the first `PDN`, pin 4, carries
+> UART), `VIO` and `VS`. **The `DIAG` row has two downward pins beside `EN`,
+> 5 mm long:** the first one (2.54 mm from `EN`) is **`VREF`**, which has
+> continuity with the trimpot wiper, and the further one (5.08 mm) is **`DIAG`**.
+> `INDEX` isn't brought down. Other measurements: board 1.5 mm, header pins 8.5 mm
+> below the board, tallest underside part 1 mm, heatsink 9 × 9 × 12 mm.
+> Background in [docs/research/module-footprints.md](docs/research/module-footprints.md).
 
 **Physical layout** (top view, trimpot and `DIAG`/`INDEX`/`VREF` at the top
 edge), as printed on the pin card that ships with the V1.3 module:
