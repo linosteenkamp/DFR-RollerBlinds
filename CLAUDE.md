@@ -210,3 +210,17 @@ steps were dropped from the workflow.
 See [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) for the full pairing, calibration
 walkthrough, bench checklist, and release flow, and
 [HARDWARE.md](HARDWARE.md) for wiring and the Vref procedure.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues on `linosteenkamp/DFR-RollerBlinds` (via the `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
