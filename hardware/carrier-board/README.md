@@ -94,8 +94,8 @@ unless ERC and DRC (with parity) are clean at every severity.
 | `carrier-board-revA-centroid.csv` | Pick and place: top side only, SMD only, mm, from the same origin |
 | `carrier-board-revA-assembly.pdf` | The assembly drawing. Designators are on the Fab layer, not the silkscreen, so this is where PCBWay finds them |
 
-Order settings: 2 layers, FR-4, 1.6 mm, 1 oz copper, HASL lead-free, green
-mask, white silk, 5 boards, all 5 assembled turnkey. Through-hole parts are
+Order settings: 2 layers, FR-4 (TG150), 1.6 mm, 1 oz copper, 6/6 mil, 0.3 mm min hole, HASL lead-free, green
+mask, white silk, 10 boards, all 10 assembled turnkey. Through-hole parts are
 fitted too (C1, J1-J8; J9 is not fitted). Allow substitutes. The BOM's Note
 column says which parts are generic and which must not change: L1 needs
 Isat ≥ 4.5 A, C4/C5 must be 50 V X7R, and C7/C8 must be ≥ 16 V X7R.
