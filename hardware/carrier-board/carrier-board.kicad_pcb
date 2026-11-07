@@ -175,6 +175,17 @@
 				)
 			)
 		)
+		(property "Note" "Do not fit"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "72f307e8-88ec-4206-b275-328b39cf6d99")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/d94f2be7-c421-5bbd-92fc-2408a3635f12")
 		(attr through_hole dnp)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -472,6 +483,17 @@
 				)
 			)
 		)
+		(property "Note" "0 ohm jumper, >= 1 A; generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "f923fb9b-e66f-436a-9b2b-b71d115a65a6")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/a2b387c6-91b3-5d0c-92cc-7d84b72bdb1e")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -733,6 +755,17 @@
 				)
 			)
 		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "1c7bb529-f284-41bd-95c3-dacacc45de94")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/177f6805-a29f-5360-b61d-9c1cb9976130")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -901,6 +934,17 @@
 				(font
 					(size 1.27 1.27)
 					(thickness 0.15)
+				)
+			)
+		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "8cc9600d-8330-4f6d-ad61-1969a318b2c8")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -1517,6 +1561,17 @@
 				)
 			)
 		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "91af7f17-d28f-42ff-ac15-63f46e56f42a")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/2956047a-14da-50cf-b288-7d0eb6e87217")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -1685,6 +1740,17 @@
 				(font
 					(size 1.27 1.27)
 					(thickness 0.15)
+				)
+			)
+		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "fe664494-900e-49c5-8b65-7bc31f7bd07a")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -1859,6 +1925,17 @@
 				)
 			)
 		)
+		(property "Note" "1% thick film; generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "7ee38b16-6dfa-4b9b-a81d-1dc49f18469c")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/a1c33d25-190a-5768-bca2-e13c1cd06b11")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -2030,6 +2107,39 @@
 				)
 			)
 		)
+		(property "Manufacturer" "Samsung"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "f883f3a5-0483-4f8c-a7d2-b552421387a8")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CL31B226KOHNNNE"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "d7838d2b-0ce2-4dba-a267-a24e73e489d5")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "Must be >= 16 V X7R"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "87cb4377-946c-4c36-9198-76b3c1aa700b")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/b32286f1-e639-59ce-b46a-95e66f1f3e59")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -2189,7 +2299,7 @@
 				)
 			)
 		)
-		(property "MPN" "S5B-XH-A"
+		(property "MPN" "S5B-XH-A(LF)(SN)"
 			(at 0 0 90)
 			(layer "F.SilkS")
 			(hide yes)
@@ -2700,6 +2810,17 @@
 				)
 			)
 		)
+		(property "Note" "0 ohm jumper, >= 1 A; generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "0b56b5ee-3e30-4793-8b1a-e7bc36e889ac")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/d4bcd531-5f01-564e-9277-6b842338186a")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -2839,7 +2960,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Vishay"
+		(property "Manufacturer" "Diodes Inc"
 			(at 0 0 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -2851,7 +2972,7 @@
 				)
 			)
 		)
-		(property "MPN" "SMBJ24A"
+		(property "MPN" "SMBJ24A-13-F"
 			(at 0 0 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -3186,6 +3307,39 @@
 				)
 			)
 		)
+		(property "Manufacturer" "Sullins"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "a4b53dfc-698e-4e9f-9176-19d178d61a2b")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "PPTC081LFBN-RC"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "f29014d2-e5f1-4b2e-9f31-8dec12b4ed65")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "8.5 mm female socket; fit flush and square"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "56f9f8f6-b6d6-45dc-9072-2c71eb924a57")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/2a04dafe-2deb-5dd3-adf0-ae133a6e2ef8")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -3491,6 +3645,39 @@
 				(font
 					(size 1.27 1.27)
 					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Sullins"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "d3d10f73-51ec-4ac1-a591-77e3b4ae2e0f")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "PPTC071LFBN-RC"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "4cb5e674-35d1-4cb4-90dd-7d4c3f66b228")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "8.5 mm female socket; fit flush and square"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "f9081ca0-ea8c-4cc7-8194-29ebbe717692")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -3842,6 +4029,17 @@
 				(font
 					(size 1.27 1.27)
 					(thickness 0.15)
+				)
+			)
+		)
+		(property "Note" "Equivalent 5.08 mm 2-pole horizontal-entry terminal OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "352a6655-906c-44ee-967d-de86e86f80f8")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -4210,7 +4408,7 @@
 				)
 			)
 		)
-		(property "MPN" "S4B-XH-A"
+		(property "MPN" "S4B-XH-A(LF)(SN)"
 			(at 0 0 270)
 			(layer "F.SilkS")
 			(hide yes)
@@ -4701,6 +4899,39 @@
 				)
 			)
 		)
+		(property "Manufacturer" "Sullins"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "2f70584a-7c20-45e4-9321-1ac286b7dfe0")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "PPTC021LFBN-RC"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "433a8689-d088-4a44-8c5b-9d182b306e94")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "8.5 mm female socket; fit flush and square"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "0791059f-3003-4e08-88fc-fed14dcf89fe")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/d8feadc9-825b-581b-9eba-95a9e3f7b2b3")
 		(attr through_hole)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -4890,6 +5121,17 @@
 				(font
 					(size 1.27 1.27)
 					(thickness 0.15)
+				)
+			)
+		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "d91e9821-c48d-4e6b-9611-4c827babd344")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -5152,7 +5394,7 @@
 				)
 			)
 		)
-		(property "MPN" "SS14"
+		(property "MPN" "SS14-E3/61T"
 			(at 0 0 90)
 			(layer "F.SilkS")
 			(hide yes)
@@ -5683,6 +5925,39 @@
 				)
 			)
 		)
+		(property "Manufacturer" "Bourns"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "33331abc-cb6e-4932-bebd-c364084e3f8b")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "SRP7028A-100M"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "44deb2f9-b952-4a36-a481-44c88145fd50")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "Isat >= 4.5 A required; no substitute without approval"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "632692e4-758c-477f-aa81-52bd8897d05b")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/c37e3926-3dd1-54f1-b10f-8931118bc060")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -6101,6 +6376,17 @@
 				(font
 					(size 1.27 1.27)
 					(thickness 0.15)
+				)
+			)
+		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "1f33f469-5f19-4e1a-a9eb-50842132fb03")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -6953,7 +7239,7 @@
 				)
 			)
 		)
-		(property "Value" "BZT52C12"
+		(property "Value" "MMSZ5242B"
 			(at 0 2.1 0)
 			(layer "F.Fab")
 			(uuid "f638fc01-748d-4d80-93c7-a1599530de89")
@@ -6990,7 +7276,7 @@
 				)
 			)
 		)
-		(property "MPN" "BZT52C12"
+		(property "MPN" "MMSZ5242BT1G"
 			(at 0 0 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -7023,6 +7309,28 @@
 				(font
 					(size 1.27 1.27)
 					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "onsemi"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "98f6020f-98c8-48bb-be42-ffe104c49ea1")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "12 V zener; BZT52C12 equivalent OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "0604a1af-7c61-41d1-ae94-926a3739f2e6")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -7335,6 +7643,17 @@
 				)
 			)
 		)
+		(property "Note" "1% thick film; generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "88fa5f7c-0815-4620-9fff-0c324bbe1e08")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/a43c9fcf-bb2b-575c-8ab7-1368d6289219")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -7515,6 +7834,39 @@
 				(font
 					(size 1.27 1.27)
 					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Rubycon"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "ec97cd8a-5c37-4bea-9481-b6e5208e9248")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "50ZLH220MEFC10X16"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "ca9f76eb-b8be-42b6-a624-b2d5c5668ec5")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "Polarised: + pad marked; low-ESR 50 V, D10 P5 equivalent OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "b8df869c-4c50-495f-a70d-2ca322391c5f")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -10084,6 +10436,39 @@
 				)
 			)
 		)
+		(property "Manufacturer" "Murata"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "5cd9dc40-7ff1-4f38-9811-0ac35dc2f933")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "GRM31CR71H106KA12L"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "1f043f42-c5f0-4742-96f8-febd80f1b00f")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "Must be 50 V X7R"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "32ed1020-10ac-45a1-9cf4-920f827d4131")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/039bf441-1c75-55bb-873c-648e18eb0e6c")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -10345,6 +10730,17 @@
 				)
 			)
 		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "44ca84ec-6bcb-40e6-99d0-c985caf2ca84")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/2916804b-df53-52ff-a592-2b2b051feaf4")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -10516,6 +10912,17 @@
 				)
 			)
 		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "319f3af8-4340-48fc-a2e1-2f1c0578258e")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/d90114a7-6e79-5b8d-b338-10fd4de52247")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -10684,6 +11091,39 @@
 				(font
 					(size 1.27 1.27)
 					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Sullins"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "d3a48912-a59f-408d-a7e1-31014deb4651")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "PPTC071LFBN-RC"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "593d13d5-1eb1-41e4-84bf-a98a3c61468a")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "8.5 mm female socket; fit flush and square"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "6a12af27-1de7-400e-9f37-189297d9d221")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -11013,6 +11453,17 @@
 				)
 			)
 		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "b6ea3f8d-0b16-477e-91f5-e20acddfdc2d")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/6d29921e-5535-5ab2-8a93-ad51cd87163c")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -11181,6 +11632,39 @@
 				(font
 					(size 1.27 1.27)
 					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Sullins"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "265242b2-f44d-439b-b324-4f7ef31359e2")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "PPTC081LFBN-RC"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "cde06123-01ab-4844-a528-a9080e22b7aa")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "8.5 mm female socket; fit flush and square"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "515d9b99-6f95-4833-9cf5-1730378915e5")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -11492,6 +11976,17 @@
 				)
 			)
 		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "e4e87b76-1fcf-43af-ae77-7955f87c9ac7")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/86d8b690-02c7-5c5e-a7ce-f397b0214167")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -11771,6 +12266,17 @@
 				)
 			)
 		)
+		(property "Note" "1% thick film; generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "aeac240d-1ec4-472a-9daf-028e0d7c5487")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/d122612c-79e9-54ab-a5ae-862b3ed46317")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -11942,6 +12448,39 @@
 				)
 			)
 		)
+		(property "Manufacturer" "Samsung"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "84d1901d-d610-478e-adaf-6200fdfa791c")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CL31B226KOHNNNE"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "779a00ee-1992-444e-9318-cf94f5d44e07")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "Must be >= 16 V X7R"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "6f1bc54c-f977-4e20-a96b-f7c42f271154")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/a47696f1-de8c-5209-98f9-60562ab488c1")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -12110,6 +12649,17 @@
 				(font
 					(size 1.27 1.27)
 					(thickness 0.15)
+				)
+			)
+		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "d8ab0b4d-b358-4f41-adee-f7f6bb39b761")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -12374,6 +12924,17 @@
 				)
 			)
 		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "09280909-45ac-49f4-b072-5c02f2ad030f")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/7f0a3f25-2fc5-51b9-9440-ee01298db4c7")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -12542,6 +13103,17 @@
 				(font
 					(size 1.27 1.27)
 					(thickness 0.15)
+				)
+			)
+		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "64d7d78e-1d94-4b65-b7da-f6da95217a82")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -12716,6 +13288,17 @@
 				)
 			)
 		)
+		(property "Note" "1% thick film; generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "bd6505d9-44aa-4d0b-99f8-3d8b6c3dafb0")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/7a7c4522-7c13-51ef-8f41-f27bd74e8dbd")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -12884,6 +13467,17 @@
 				(font
 					(size 1.27 1.27)
 					(thickness 0.15)
+				)
+			)
+		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "d291afdc-653a-41e1-a014-ba449b52becb")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -13058,6 +13652,39 @@
 				)
 			)
 		)
+		(property "Manufacturer" "Murata"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "bcbcba86-f2e5-4225-91bf-222840f62ed3")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "GRM31CR71H106KA12L"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "1a7cbed9-9d45-4415-830c-22d9fab653a0")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Note" "Must be 50 V X7R"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "76b3a1a1-c28f-4a45-bd9f-963bf72887c0")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
 		(path "/74b05374-2cd0-5bd2-9a28-d583ed475910")
 		(attr smd)
 		(duplicate_pad_numbers_are_jumpers no)
@@ -13226,6 +13853,17 @@
 				(font
 					(size 1.27 1.27)
 					(thickness 0.15)
+				)
+			)
+		)
+		(property "Note" "Generic, substitute OK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "7eafb5e8-e8b0-40f6-a6b8-fe5d594db6b8")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)

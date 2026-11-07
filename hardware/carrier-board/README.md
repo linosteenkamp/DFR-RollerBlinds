@@ -19,6 +19,7 @@ The part choices are justified in `docs/research/` (`buck-regulator.md`,
 | `carrier.kicad_sym` (+ `sym-lib-table`) | Project symbols: the module sockets, AP64200, a DPAK-numbered P-FET, and the DNP module placeholders |
 | `carrier.pretty/` (+ `fp-lib-table`) | Project footprints: tight-courtyard sockets for the TMC2209 (its DIAG row sits 2.54 mm from EN), plus no-silk copies of the test pad, L1 and J6 |
 | `carrier-board-schematic.pdf` | Schematic plot for review |
+| `fab/` | The PCBWay upload package and `export.sh`, which rebuilds it (see below) |
 | `renders/` | `top.png`/`bottom.png` (3D) and `copper-t.png`/`copper-b.png` (tracks, without the pours), for review |
 
 ## Checks
@@ -81,17 +82,31 @@ Freerouting narrows a few segments where they meet fine-pitch pads: 7 Power
 segments down to 0.6 mm, and some signal segments down to 0.19 mm. All are
 above PCBWay's 0.127 mm minimum.
 
-## Open items
+## The PCBWay package
 
-- **J1 wire entry:** the Phoenix terminal footprint was oriented so its wire
-  entry should face the left board edge. Its geometry is nearly symmetric, so
-  this needs checking in the 3D view at review.
-- **L1 part number:** to be chosen. It must be 10 µH, shielded, with Isat
-  ≥ 4.5 A (the AP64200 high-side limit). The footprint is a 7.3 × 6.6 mm
-  placeholder (Bourns SRP7028A size), so a different-sized part would need a
-  small layout change.
-- **Generic passives:** they have values and packages but no part numbers yet.
-  Those get assigned at the PCBWay export, along with a stock check for every
-  part (the research couldn't check PCBWay or LCSC stock).
+`fab/export.sh` rebuilds everything in `fab/` from the KiCad files. It fails
+unless ERC and DRC (with parity) are clean at every severity.
+
+| File | Upload as |
+|---|---|
+| `carrier-board-revA-gerbers.zip` | The PCB file: Gerbers (X2, origin at the lower-left corner), Excellon drill in mm with PTH and NPTH split, and an IPC-D-356 netlist |
+| `carrier-board-revA-bom.csv` | The BOM: one row per part, every designator spelled out, with the modules and J9 as DNP rows |
+| `carrier-board-revA-centroid.csv` | Pick and place: top side only, SMD only, mm, from the same origin |
+| `carrier-board-revA-assembly.pdf` | The assembly drawing. Designators are on the Fab layer, not the silkscreen, so this is where PCBWay finds them |
+
+Order settings: 2 layers, FR-4, 1.6 mm, 1 oz copper, HASL lead-free, green
+mask, white silk, 5 boards, all 5 assembled turnkey. Through-hole parts are
+fitted too (C1, J1-J8; J9 is not fitted). Allow substitutes. The BOM's Note
+column says which parts are generic and which must not change: L1 needs
+Isat ≥ 4.5 A, C4/C5 must be 50 V X7R, and C7/C8 must be ≥ 16 V X7R.
+
+Stock as of 2026-11-07 (Digi-Key unless stated): everything is in stock
+except Phoenix 1715721, which Digi-Key expects around 30 Nov but RS,
+element14 and TME have. D2 is an MMSZ5242BT1G, because BZT52C12 was on a
+32-week lead time. L1 is a Bourns SRP7028A-100M (Isat 6 A), which fits the
+footprint as laid out.
+
+## Notes
+
 - **PSUs stay at nominal 24 V** (the SMBJ24A TVS clamps above that). This is
   printed on the bottom silkscreen beside the input: "24 V NOMINAL - DO NOT TRIM PSU UP".
