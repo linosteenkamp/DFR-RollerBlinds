@@ -183,6 +183,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -491,6 +492,29 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "UniOhm"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "6db36da7-37c7-4c01-8b5b-7ba3cc5703f2")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "1206W4F0000T5E"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "898c9b59-1911-42f0-82ad-0dd669634ee1")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -763,6 +787,29 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "TDK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "51b3ba66-c1f8-45da-9fe6-144dc26718b8")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "C1608X7R1H104KT000N"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "52140523-3e70-46ca-80a1-4ea74b608caf")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -942,6 +989,29 @@
 			(layer "F.SilkS")
 			(hide yes)
 			(uuid "8cc9600d-8330-4f6d-ad61-1969a318b2c8")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "TDK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "03993122-182b-42e3-8098-08a331607f35")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "C1608X7R1H104KT000N"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "498821a2-9946-44bf-be8f-c423f9a4c103")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -1569,6 +1639,29 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "TDK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "73a4f400-7f97-454d-96ad-dfef711bab79")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "C1608X7R1H104KT000N"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "fddb42d4-03f0-440d-b22e-2a9aaf551596")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -1748,6 +1841,29 @@
 			(layer "F.SilkS")
 			(hide yes)
 			(uuid "fe664494-900e-49c5-8b65-7bc31f7bd07a")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Rohm"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "5c4c1003-2aae-4748-9222-1c6fe10ecdee")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MCR03EZPFX1500"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "b3243cdc-ffb0-4619-a1b7-f724cd92d30d")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -1933,6 +2049,29 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Rohm"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "b49ab695-0bc7-4d8d-b21c-6d266c8a0328")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MCR03EZPFX1002"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "087bba35-a8db-4678-a178-179009952434")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -2107,7 +2246,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Samsung"
+		(property "Manufacturer" "Murata"
 			(at 0 0 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -2115,10 +2254,11 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
-		(property "MPN" "CL31B226KOHNNNE"
+		(property "MPN" "GRM31CZ71C226ME15L"
 			(at 0 0 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -2126,6 +2266,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -2137,6 +2278,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -2818,6 +2960,29 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "UniOhm"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "da749936-a742-42c1-9ac1-37925dbb7e5c")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "1206W4F0000T5E"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "9b5c8090-23dd-4907-9081-ed021aa43939")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -3315,6 +3480,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -3326,6 +3492,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -3337,6 +3504,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -3656,6 +3824,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -3667,6 +3836,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -3678,6 +3848,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -4040,6 +4211,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -4907,6 +5079,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -4918,6 +5091,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -4929,6 +5103,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -5129,6 +5304,29 @@
 			(layer "F.SilkS")
 			(hide yes)
 			(uuid "d91e9821-c48d-4e6b-9611-4c827babd344")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Rohm"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "41af0887-cbcb-4901-84ab-dab8a0b90524")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MCR03EZPFX1500"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "2713cbaf-7062-4bf5-afb2-27de8f34aebc")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5933,6 +6131,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -5944,6 +6143,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -5955,6 +6155,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -6384,6 +6585,29 @@
 			(layer "F.SilkS")
 			(hide yes)
 			(uuid "1f33f469-5f19-4e1a-a9eb-50842132fb03")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Rohm"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "31e2c5c9-1a92-40e4-90ee-ee8ea014ccea")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MCR03EZPFX1500"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "43c0eb22-8ac6-4f25-b79b-43addbcbd1db")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7320,6 +7544,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -7331,6 +7556,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -7651,6 +7877,29 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Rohm"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "ba7a9ebe-ce5f-436d-b6b6-aac4223e5aa2")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MCR03EZPFX2003"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "0fe88752-baa6-42a0-a226-172e138cf78b")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -7845,6 +8094,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -7856,6 +8106,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -7867,6 +8118,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -10436,7 +10688,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Murata"
+		(property "Manufacturer" "Samsung"
 			(at 0 0 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -10444,10 +10696,11 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
-		(property "MPN" "GRM31CR71H106KA12L"
+		(property "MPN" "CL31B106KBHNNNE"
 			(at 0 0 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -10455,6 +10708,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -10466,6 +10720,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -10738,6 +10993,29 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "TDK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "d6de18bb-2664-4188-a3c0-9fc95b012ac1")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "C1608X7R1H104KT000N"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "6c0ae274-0e02-4d2a-b103-26c77f5ecba4")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -10917,6 +11195,29 @@
 			(layer "F.SilkS")
 			(hide yes)
 			(uuid "319f3af8-4340-48fc-a2e1-2f1c0578258e")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Vishay"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "21f57d67-46dc-48c2-9743-2fbee2ff7c66")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CRCW0603100KFKEA"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "fd56db46-94fd-4734-99a0-ff63926870a1")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11102,6 +11403,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -11113,6 +11415,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -11124,6 +11427,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -11461,6 +11765,29 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Rohm"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "6460be3c-f86b-40ab-ae36-35a4dbeeebed")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MCR03EZPFX1500"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "a3ee3598-7515-4518-8a60-18af23ad617f")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -11643,6 +11970,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -11654,6 +11982,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -11665,6 +11994,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -11984,6 +12314,29 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Rohm"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "b4c30c1c-8ffe-4a40-b311-59fa1890d410")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MCR03EZPFX4701"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "2e84b96b-37e6-46ca-a36c-2d92b54f90b8")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -12274,6 +12627,29 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "UniOhm"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "b09efda0-f7cd-4928-9d24-8e459f25f5bf")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "0603WAF5232T5E"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "9fa1b7b8-31ae-480f-8c7a-b5c0bd41bc92")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -12448,7 +12824,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Samsung"
+		(property "Manufacturer" "Murata"
 			(at 0 0 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -12456,10 +12832,11 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
-		(property "MPN" "CL31B226KOHNNNE"
+		(property "MPN" "GRM31CZ71C226ME15L"
 			(at 0 0 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -12467,6 +12844,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -12478,6 +12856,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -12657,6 +13036,29 @@
 			(layer "F.SilkS")
 			(hide yes)
 			(uuid "d8ab0b4d-b358-4f41-adee-f7f6bb39b761")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "TDK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "d1e8c05c-1168-47cf-a680-da0517707b21")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "C1608X7R1H104KT000N"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "7a02475b-e79f-4fff-8a19-dc256bd2b28b")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -12855,7 +13257,7 @@
 				)
 			)
 		)
-		(property "Value" "5.6nF 50V"
+		(property "Value" "5.6nF 50V C0G"
 			(at 0 1.43 90)
 			(layer "F.Fab")
 			(uuid "0e01e2dd-e89c-4d46-9d7e-e13c3faac249")
@@ -12929,6 +13331,29 @@
 			(layer "F.SilkS")
 			(hide yes)
 			(uuid "09280909-45ac-49f4-b072-5c02f2ad030f")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "TDK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "a2bd1253-7e9a-4bda-ba9a-fdae44901c37")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "CGA3E2C0G1H562JT0Y0N"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "363a8ffd-05aa-4a8b-8beb-7bb35cad6f83")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13114,6 +13539,29 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Rohm"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "eea39933-9342-45e3-b870-7aeb8403346e")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MCR03EZPFX4701"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "b028f855-3e19-49cb-b345-8c5446fb03eb")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -13293,6 +13741,29 @@
 			(layer "F.SilkS")
 			(hide yes)
 			(uuid "bd6505d9-44aa-4d0b-99f8-3d8b6c3dafb0")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Rohm"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "ff2de224-b904-4b29-935c-184a9e58c758")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MCR03EZPFX1402"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "52ce6dcc-eaa3-4675-9b4d-da74beeeabc7")
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -13478,6 +13949,29 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "Rohm"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "2d11d69c-359e-4b5a-a2cd-692ee80788e0")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "MCR03EZPFX4701"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "38a53625-d4b6-4dc0-825d-c8277db35ece")
+			(effects
+				(font
+					(size 1.27 1.27)
 				)
 			)
 		)
@@ -13652,7 +14146,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Murata"
+		(property "Manufacturer" "Samsung"
 			(at 0 0 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -13660,10 +14154,11 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
-		(property "MPN" "GRM31CR71H106KA12L"
+		(property "MPN" "CL31B106KBHNNNE"
 			(at 0 0 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -13671,6 +14166,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -13682,6 +14178,7 @@
 			(effects
 				(font
 					(size 1.27 1.27)
+					(thickness 0.15)
 				)
 			)
 		)
@@ -13861,6 +14358,29 @@
 			(layer "F.SilkS")
 			(hide yes)
 			(uuid "7eafb5e8-e8b0-40f6-a6b8-fe5d594db6b8")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+			)
+		)
+		(property "Manufacturer" "TDK"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "3eba275a-eab9-40b3-91e9-5ed6a177c69c")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "C2012X7R1H105KT000S"
+			(at 0 0 0)
+			(layer "F.SilkS")
+			(hide yes)
+			(uuid "cefb8586-20df-48bc-89cc-d2112f694403")
 			(effects
 				(font
 					(size 1.27 1.27)
