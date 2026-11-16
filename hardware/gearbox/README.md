@@ -81,8 +81,13 @@ part for bed-contact area and for overhang area (down-facing area steeper
 than 45° that isn't on the bed):
 
 - **Lid:** printed with its flat outer face down. It needs no supports.
-- **Driver gear, driven gear, shaft attachment:** printed with their large
-  flat end down. They need essentially no supports.
+- **Driver gear, driven gear:** printed with their large flat end down.
+  They need essentially no supports.
+- **Shaft attachment:** printed upside down from its STL, with the flat end
+  that faces the gear down (chosen for the best use of support material).
+  The bed holds about 200 mm² of it. A ledge of about 330 mm² sits 0.5 mm
+  up and a step of about 240 mm² sits 3.1 mm up, so let the slicer support
+  those.
 - **Idler gear:** printed with its bearing hub down. The 36 T wheel's
   underside is 1.5 mm off the bed (about 780 mm² of overhang), so it needs
   support. *Support on build plate only* is enough. Printing it with the
@@ -95,7 +100,9 @@ than 45° that isn't on the bed):
   and printing it on its side puts large ceilings 60–70 mm up.
 
 `print/make_plates.py` builds the plates from the per-part STLs. It only
-translates parts, with no rotation or mirroring, so each hand is preserved.
+translates parts, except those in its `FLIP` set (the shaft attachment),
+which it turns 180° about X. That's a rotation, not a mirror, so each hand
+is preserved.
 Rerun it (`python3 hardware/gearbox/print/make_plates.py`) whenever the
 part STLs change.
 

@@ -3,10 +3,11 @@
 
 Pure standard library. Run from anywhere:  python3 make_plates.py
 
-Every part keeps the orientation it has in ../stl/ (its flat print face is
-already its -Z face, see README "Printing"), so parts are only translated:
-no rotation, no mirroring, and each hand is preserved. Parts sit 10 mm apart,
-rows are stacked in Y, and the plate is centred on the 256 x 256 mm bed.
+Parts keep the orientation they have in ../stl/ unless listed in FLIP,
+which turns a part upside down (180 degrees about X: a proper rotation, so
+it never mirrors and each hand is preserved). See README "Printing". Parts
+sit 10 mm apart, rows are stacked in Y, and the plate is centred on the
+256 x 256 mm bed.
 """
 import math
 import struct
@@ -24,6 +25,9 @@ PLATES = {
     "x2d-housing-left.stl": [["gear-housing-left"], ["gear-housing-lid-left"]],
     "x2d-housing-right.stl": [["gear-housing-right"], ["gear-housing-lid-right"]],
 }
+
+# Parts printed upside down relative to ../stl/.
+FLIP = {"shaft-attachment"}
 
 
 def load(path):
@@ -70,6 +74,8 @@ def build(name, rows):
         x, row_depth = 0.0, 0.0
         for part in row:
             tris = load(SRC / f"{part}.stl")
+            if part in FLIP:
+                tris = [tuple((p[0], -p[1], -p[2]) for p in t) for t in tris]
             lo, hi = bbox(tris)
             plate += shift(tris, x - lo[0], y - lo[1], -lo[2])
             x += hi[0] - lo[0] + GAP
