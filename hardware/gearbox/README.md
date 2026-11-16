@@ -3,10 +3,10 @@
 The 3D-printed spur-gear reduction between the stepper and the roller tube.
 It replaces the old `Blinds 2.step` reference. The source of truth is the
 Fusion design **Blinds gearbox assembly** in the Fusion project
-`BlindsController2`. Everything here was exported on 2026-11-16 from version 11 of that design,
-which references `gear housing` v10, `Gear Housing Lid` v6,
+`BlindsController2`. Everything here was exported on 2026-11-16 from version 15 of that design,
+which references `gear housing` v13, `Gear Housing Lid` v6,
 `Driven Gear 60 teeth` v6, `Idler Gear` v3, `Driver Gear` v1 and
-`Blinds Shaft Attachment` v3.
+`Blinds Shaft Attachment` v7.
 
 ![Assembled gearbox](renders/assembly-top.png)
 ![Gear train, housing and lid hidden](renders/geartrain-top.png)
@@ -27,7 +27,30 @@ not a true idler. Tooth counts and centre distances were measured from the
 model's geometry, not taken from a parameter table, because the design has no
 user parameters.
 
-## Files
+## Motion
+
+The Fusion assembly is set up to move. The left housing is grounded. Each
+gear has an as-built revolute joint about its own axis: `Rev Driver Gear`,
+`Rev Idler Gear` and `Rev Driven Gear 60 teeth`. The shaft attachment is
+rigidly joined to the driven gear. The lid and the four bearings are
+rigidly joined to the housing. Two motion links set the ratios:
+
+| Motion link | Joint 1 | Joint 2 | Values |
+|---|---|---|---|
+| `Link driver-idler 3:1` | Rev Driver Gear | Rev Idler Gear | 360° : 120°, reversed |
+| `Link idler-driven 5:1` | Rev Idler Gear | Rev Driven Gear 60 teeth | 360° : 72°, reversed |
+
+To animate it, use **Assemble → Drive Joints** on `Rev Driver Gear` (or drag
+the driver gear), or set up a **Motion Study**. Driving the driver 30° turns
+the idler 10° the opposite way, and turns the driven gear and the shaft
+attachment 2° the same way as the driver: 15:1.
+
+The gears were already meshed at rest. An interference check on the three
+gears finds only tooth contact (0.01–0.05 mm³) both at rest and with the
+driver turned 30°. The same check flags 3.5 mm³ of overlap between the
+shaft attachment and the driven gear's hub at their current positions.
+
+
 
 | Path | What it is |
 |---|---|
@@ -51,7 +74,7 @@ user parameters.
 | Driver gear, 12 T | `driver-gear-12t.stl` | Fits on the motor shaft. |
 | Idler gear, 36 T + 12 T | `idler-gear-36t-12t.stl` | The compound middle stage. |
 | Driven gear, 60 T | `driven-gear-60t.stl` | The output stage. |
-| Shaft attachment | `shaft-attachment.stl` | Ø 31.5 × 35.5 mm splined spigot that drives the roller tube. It sits on the driven gear's axis, below the output bearing. |
+| Shaft attachment | `shaft-attachment.stl` | Ø 31.5 × 22.6 mm splined spigot that drives the roller tube. It sits on the driven gear's axis, below the output bearing. |
 
 ### Bearings (bought)
 
@@ -69,7 +92,7 @@ dual-nozzle print area (235.5 mm wide).
 
 | File | Parts | Footprint × height |
 |---|---|---|
-| `x2d-gears.stl` | Driven gear 60 T, idler 36/12 T, shaft attachment, driver gear 12 T: one gearbox's worth | 175.5 × 62.0 × 35.5 mm |
+| `x2d-gears.stl` | Driven gear 60 T, idler 36/12 T, shaft attachment, driver gear 12 T: one gearbox's worth | 175.5 × 62.0 × 22.6 mm |
 | `x2d-housing-left.stl` | Left housing + left lid | 108.9 × 156.7 × 23.5 mm |
 | `x2d-housing-right.stl` | Right housing + right lid | 108.9 × 156.7 × 23.5 mm |
 
@@ -85,9 +108,9 @@ than 45° that isn't on the bed):
   They need essentially no supports.
 - **Shaft attachment:** printed upside down from its STL, with the flat end
   that faces the gear down (chosen for the best use of support material).
-  The bed holds about 200 mm² of it. A ledge of about 330 mm² sits 0.5 mm
-  up and a step of about 240 mm² sits 3.1 mm up, so let the slicer support
-  those.
+  The bed holds about 160 mm² of it. Ledges of about 205 mm² at 0.5 mm,
+  86 mm² at 1.0 mm and 240 mm² at 3.1 mm up need the slicer to support
+  them.
 - **Idler gear:** printed with its bearing hub down. The 36 T wheel's
   underside is 1.5 mm off the bed (about 780 mm² of overhang), so it needs
   support. *Support on build plate only* is enough. Printing it with the
@@ -119,15 +142,6 @@ and hides `Right` in both.
 
 The housing mirror was checked on the B-rep: identical volume, area and face
 count, and 300 of 300 random sample points agree under the mirror.
-
-### Assembly timeline note
-
-`Blinds gearbox assembly` contains three features left from an earlier
-attempt to mirror in the assembly: `MirrorComponent1`, `Move1` and `Move2`.
-They were already reporting errors in v8, and they block the update to the
-new housing, so they are **suppressed**, not deleted. (`Position3` and one
-`RemoveInstance` are suppressed too, as of v11.) If nothing needs them, they
-can be deleted.
 
 ## Re-exporting
 
