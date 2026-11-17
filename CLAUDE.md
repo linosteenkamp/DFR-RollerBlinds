@@ -1,34 +1,44 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file gives guidance to Claude Code (claude.ai/code) when it works
+with the code in this repository.
 
 ## Project Overview
 
-ESP32-C6 IoT firmware (C / ESP-IDF via PlatformIO) for a **mains-powered
-stepper-driven roller blind controller that joins Zigbee as a Router** and
-presents a standard **Window Covering (0x0102)** device to Zigbee2MQTT / Home
-Assistant. Motion comes from a TMC2209-driven bipolar stepper through a
-3D-printed 1:15 reduction; position is open-loop step counting against
-one-time-calibrated soft limits stored in NVS. A 3-key membrane keypad
-(Up / Down / Fn) gives full local control and hosts the calibration UX.
+This is ESP32-C6 IoT firmware (C and ESP-IDF through PlatformIO) for a
+roller blind controller. The controller uses mains power and a stepper
+motor. It **joins Zigbee as a Router** and shows a standard **Window
+Covering (0x0102)** device to Zigbee2MQTT and Home Assistant. A
+TMC2209-driven bipolar stepper moves the blind through a 3D-printed 1:15
+reduction. The position is open-loop step counting between soft limits.
+A one-time calibration sets these limits, and NVS stores them. A
+membrane keypad with three keys (Up, Down and Fn) gives full local
+control. It also gives the calibration procedure.
 
-**Target board:** Seeed XIAO ESP32C6 (`seeed_xiao_esp32c6`), driving a
-BIGTREETECH TMC2209 V1.3 in StealthChop2 mode. (Rev 1 was a DFRobot
-FireBeetle 2 + DRV8825; the swap kept 1/8 microstepping, so all step-count
-math and motion constants carried over unchanged.)
+**Target board:** Seeed XIAO ESP32C6 (`seeed_xiao_esp32c6`). It drives a
+BIGTREETECH TMC2209 V1.3 in StealthChop2 mode. (Rev 1 used a DFRobot
+FireBeetle 2 and a DRV8825. The new hardware kept 1/8 microstepping.
+Thus all the step-count calculations and motion constants did not
+change.)
 
-**Library:** this is the first consumer of `esp-zb-common` (pinned to
-**v0.2.0** in `src/idf_component.yml`), the shared component extracted from
-`../DFR-DoorSensor`'s proven Zigbee/OTA code. It supplies `zb_core` (stack
-init, BDB steering/join, endpoint/cluster registration via an app-supplied
-builder callback) and `ota_client` (Zigbee OTA download + rollback
-self-check). This project's own modules sit on top of the library.
+**Library:** this project is the first user of `esp-zb-common`. It is
+pinned to **v0.2.0** in `src/idf_component.yml`. This shared component
+came from the proven Zigbee and OTA code of `../DFR-DoorSensor`. It
+supplies two parts:
+
+- `zb_core`: stack initialization, BDB steering and join, and endpoint
+  and cluster registration through a builder callback that the
+  application supplies.
+- `ota_client`: the Zigbee OTA download and the rollback self-check.
+
+The modules of this project are on top of the library.
 
 **Design spec:** [docs/superpowers/specs/2026-07-18-roller-blinds-design.md](docs/superpowers/specs/2026-07-18-roller-blinds-design.md)
 
-**Vocabulary:** see [CONTEXT.md](CONTEXT.md) for the ubiquitous language
-(Open/Closed/Lift, Tap/Hold, Calibration Mode, Mark, Span, Position Unknown,
-Re-home, Calibrated, Motor Reversed) — used throughout this file and the code.
+**Vocabulary:** refer to [CONTEXT.md](CONTEXT.md) for the ubiquitous
+language (Open/Closed/Lift, Tap/Hold, Calibration Mode, Mark, Span,
+Position Unknown, Re-home, Calibrated, Motor Reversed). This file and
+the code use these terms.
 
 ## Build, Flash & Test Commands
 
@@ -49,60 +59,72 @@ pio run --target erase
 
 ## Architecture
 
-`app_main()` runs once and never sleeps:
+`app_main()` runs one time and does not sleep:
 
-1. `nvs_flash_init()` + default event loop.
-2. `blind_store_init()` / `position_init()` — restore span + last position
-   from NVS; an unclean shutdown mid-move (`move_in_progress` flag still set)
-   drops straight to Position Unknown.
-3. `motion_init()` — STEP/DIR/EN GPIOs (`EN̅` high = disabled at idle), GPTimer.
-4. `status_led_init()`, `keypad_init()` — LED pattern player, keypad GPIOs +
-   integrator debounce → `APP_EVT_KEYPAD` events.
-5. `zb_core_init()` (library) — Router bring-up; `covering_build_clusters` /
-   `covering_post_register` register Basic / Identify / Window Covering / OTA.
-6. `ctl_init()` restores state (an unclean mid-move shutdown drops to Position
-   Unknown here); `app_main` sets the LED from `ctl_led_pattern()`, creates
-   the dispatcher, waits for the join, then posts `APP_EVT_BOOT_SYNC`.
+1. `nvs_flash_init()` and the default event loop.
+2. `blind_store_init()` / `position_init()`: restore the span and the
+   last position from NVS. After an unclean shutdown during a move (the
+   `move_in_progress` flag is still set), the device goes directly to
+   Position Unknown.
+3. `motion_init()`: the STEP, DIR and EN GPIOs (`EN̅` high = disabled at
+   idle), and the GPTimer.
+4. `status_led_init()`, `keypad_init()`: the LED pattern player, the
+   keypad GPIOs, and the integrator debounce, which sends
+   `APP_EVT_KEYPAD` events.
+5. `zb_core_init()` (library): starts the Router.
+   `covering_build_clusters` / `covering_post_register` register Basic,
+   Identify, Window Covering and OTA.
+6. `ctl_init()` restores the state. (An unclean shutdown during a move
+   sets Position Unknown here.) `app_main` sets the LED from
+   `ctl_led_pattern()` and creates the dispatcher. Then it waits for the
+   join and sends `APP_EVT_BOOT_SYNC`.
 
 ### Module Responsibilities
 
 | Module | File | Purpose | Host tests |
 |---|---|---|---|
-| `position` | `src/position.c` | Pure: steps↔lift %, clamping, calibration/re-home state machine, wipe/unknown transitions | `test/test_position/` |
-| `ramp` | `src/ramp.c` | Pure: trapezoid/triangle step-interval planning | `test/test_ramp/` |
-| `ctl` | `src/ctl.c` | Pure: every dispatcher decision (gesture matrix, calibration flow, preemption, persistence policy) behind `ctl_ports_t` | `test/test_ctl/` |
-| `keypad_logic` | `src/keypad_logic.c` | Pure: press/release+time → Tap / Hold / Fn-long / three-key reset. Every key classified independently — no cross-key latches | `test/test_keypad/`, `test/test_press_classification/` |
+| `position` | `src/position.c` | Pure: steps↔lift %, clamping, the calibration and re-home state machine, the wipe and unknown transitions | `test/test_position/` |
+| `ramp` | `src/ramp.c` | Pure: planning of trapezoid and triangle step intervals | `test/test_ramp/` |
+| `ctl` | `src/ctl.c` | Pure: all dispatcher decisions (gesture matrix, calibration procedure, preemption, persistence policy), behind `ctl_ports_t` | `test/test_ctl/` |
+| `keypad_logic` | `src/keypad_logic.c` | Pure: press/release + time → Tap / Hold / Fn-long / three-key reset. It classifies each key independently. There are no cross-key latches. | `test/test_keypad/`, `test/test_press_classification/` |
 | `blind_store` | `src/blind_store.c` | NVS persistence (namespace `blind`) | — |
-| `motion` | `src/motion.c` | GPTimer ISR step generation, DIR/EN, step counter, done-events to queue | — |
-| `status_led` | `src/status_led.c` | LED pattern player (single external LED) | — |
-| `covering` | `src/covering.c` | Window Covering cluster build/report + action-handler → queue | — |
-| `keypad` | `src/keypad.c` | 5 ms poller (no ISR) + `key_filter` integrator → feeds `keypad_logic`, events to queue. No GPIO glitch filter on the key pins (removed 2026-09-26 — see `src/keypad.c` comment: it latched a released key "pressed" while the motor ran) | — |
-| `key_filter` | `src/key_filter.c` | Pure: integrator debounce — the output flips only after a full rail-to-rail traverse | `test/test_key_filter/` |
-| `trace_ring` | `src/trace_ring.c` | Pure: fixed-size ring of decision records | `test/test_trace_ring/` |
-| `trace` | `src/trace.c` | RTC_NOINIT storage + boot dump; survives resets, not power loss | — |
-| `main` | `src/main.c` | Wiring: GPIO map, constants, ports table binding ctl to the real modules, queues, dispatcher loop | — |
-| `app_event` | `include/app_event.h` | The one queue item type shared by keypad/covering/motion/main | — |
+| `motion` | `src/motion.c` | GPTimer ISR step generation, DIR/EN, the step counter, done events to the queue | — |
+| `status_led` | `src/status_led.c` | LED pattern player (one external LED) | — |
+| `covering` | `src/covering.c` | Window Covering cluster build and reports, and the action handler that sends to the queue | — |
+| `keypad` | `src/keypad.c` | 5 ms poller (no ISR) + `key_filter` integrator. It sends to `keypad_logic`, and sends events to the queue. The key pins have no GPIO glitch filter. It was removed on 2026-09-26 because it latched a released key as "pressed" while the motor ran (refer to the comment in `src/keypad.c`). | — |
+| `key_filter` | `src/key_filter.c` | Pure: integrator debounce. The output changes only after a full traverse from one rail to the other. | `test/test_key_filter/` |
+| `trace_ring` | `src/trace_ring.c` | Pure: a ring of decision records with a fixed size | `test/test_trace_ring/` |
+| `trace` | `src/trace.c` | RTC_NOINIT storage and the boot dump. The data stays after a reset, but not after a power loss. | — |
+| `main` | `src/main.c` | Wiring: the GPIO map, the constants, the ports table that connects ctl to the real modules, the queues, the dispatcher loop | — |
+| `app_event` | `include/app_event.h` | The single queue item type that keypad, covering, motion and main share | — |
 | `ota_ids` / `fw_version` | `include/ota_ids.h`, `include/fw_version.h` | OTA identity (image type 0x0003) | — |
 | converter | `z2m/dfr_roller_blinds.js` | z2m external converter (cover + motor_reversed + calibrated + travel_time) | — |
-| OTA CI | `.github/workflows/release-ota.yml` | Tag-triggered OTA build/publish | — |
+| OTA CI | `.github/workflows/release-ota.yml` | OTA build and publish when a tag is pushed | — |
 
 ### Concurrency rule: ISR and action handler never decide
 
-The GPTimer step ISR (`motion.c`, `IRAM_ATTR`) only decrements a step budget
-and toggles STEP — it makes no decisions and touches no Zigbee/NVS API. The
-Zigbee action handler (`covering_action_handler`) only validates and enqueues
-— it never calls `motion_start`/`motion_stop` directly. **Every decision**
-(ramp profile choice, limit clamping, persistence, reporting, lockout checks)
-happens in `ctl_handle()` (`src/ctl.c`), called only by `dispatcher_task`
-(`src/main.c`), one `app_event_t` at a time. The dispatcher waits on a
-FreeRTOS queue set: the main queue plus a one-slot queue for `MOTION_DONE`,
-which cannot overflow because ctl never starts a move while one is
-outstanding. ctl owns "move in progress" (`move_active`): the ISR's own flag
-clears at the last step, before the final position reaches the dispatcher,
-so it must not be used to decide anything.
-This is why the step ISR and its data live in IRAM: flash writes (OTA
-download, NVS commits) driven from the dispatcher must never stall stepping
-mid-move.
+The GPTimer step ISR (`motion.c`, `IRAM_ATTR`) only decreases a step
+budget and toggles STEP. It makes no decisions. It does not use a Zigbee
+API or an NVS API. The Zigbee action handler (`covering_action_handler`)
+only validates and puts items in the queue. It never calls
+`motion_start` or `motion_stop` directly.
+
+**All decisions** occur in `ctl_handle()` (`src/ctl.c`): ramp profile
+selection, limit clamping, persistence, reports and lockout checks. Only
+`dispatcher_task` (`src/main.c`) calls `ctl_handle()`, with one
+`app_event_t` at a time.
+
+The dispatcher waits on a FreeRTOS queue set. The set has the main queue
+and a queue with one slot for `MOTION_DONE`. This queue cannot overflow,
+because ctl never starts a move while a move is not complete.
+
+ctl owns "move in progress" (`move_active`). The ISR has its own flag,
+but that flag clears at the last step, before the final position gets
+to the dispatcher. Thus do not use the ISR flag to make a decision.
+
+The step ISR and its data are in IRAM for this reason: flash writes
+from the dispatcher (OTA download, NVS commits) must never stop the
+steps during a move.
 
 ### Key Configuration Constants (`src/main.c`, copied verbatim)
 
@@ -143,44 +165,54 @@ mid-move.
 #define REPORT_PERIOD_US (1LL * 1000000)
 ```
 
-Cruise speed (the travel move, not the jog) is no longer a compile-time
-constant: it is a per-unit runtime setting written from z2m as a full-travel
-duration in seconds, persisted under NVS key `spd`, and converted to
-`PROF_MOVE.cruise_us` against the calibrated span (`ramp_us_from_travel_time()`
-in `src/ramp.c`). Default before any value is set is `RAMP_DEFAULT_CRUISE_US`
+The cruise speed (of the travel move, not the jog) is not a compile-time
+constant. It is a runtime setting for each unit:
+
+- z2m writes it as a full-travel duration in seconds.
+- NVS stores it under the key `spd`.
+- `ramp_us_from_travel_time()` in `src/ramp.c` converts it to
+  `PROF_MOVE.cruise_us` from the calibrated span.
+
+Before a value is set, the default is `RAMP_DEFAULT_CRUISE_US`
 (`include/ramp.h`).
 
-At 1/8 microstep (M0-M2 hard-wired) through the 1:15 reduction that is
-1600 microsteps/motor-rev, 24 000 microsteps/output-rev.
+At 1/8 microstep (M0-M2 hard-wired) through the 1:15 reduction, there
+are 1600 microsteps for each motor revolution and 24 000 microsteps for
+each output revolution.
 
 ## Calibration, Re-home & Lockout
 
-Full behavioral detail lives in [CONTEXT.md](CONTEXT.md) (vocabulary) and the
-design spec §6 (calibration/recovery state machine) and §5 (Zigbee lockout).
-Summary for code navigation:
+[CONTEXT.md](CONTEXT.md) (vocabulary) and the design spec give the full
+behavior: §6 (calibration and recovery state machine) and §5 (Zigbee
+lockout). This is a summary to help you find the code:
 
-- **Calibration Mode** is entered by holding Fn ~3 s from standstill
-  (`enter_or_exit_cal()` in `main.c`, backed by `position_cal_enter()`).
-  Calibrated/never-calibrated → full calibration (two marks, Open then
-  Closed); Position Unknown → **Re-home** (span kept, one mark).
-  `position_cal_mark()` validates mark 2 lies below mark 1 by at least
-  `MIN_SPAN_STEPS`; an invalid mark is rejected (`LED_ERROR`, mode stays
-  waiting).
-- **Abort** (second Fn long-press or 10-minute timeout,
-  `CAL_TIMEOUT_US`): span/position untouched **unless** the blind was jogged
-  during the aborted session, in which case position drops to Position
-  Unknown (`cal_abort_position_policy()`) rather than trusting stale state.
-- **Position Unknown** happens whenever stored position can no longer be
-  trusted: boot with `move_in_progress` still set (power died mid-move), or
-  a jogged-then-aborted calibration session. Span is kept; only a Re-home
-  restores trust.
-- **Lockout**: `position_calibrated()` gates both remote motion
-  (`covering_set_motion_allowed()` / `zb_goto_request()`'s backstop check)
-  and taps (`handle_keypad()` — taps are inert on an uncalibrated device;
-  hold-to-jog always works, uncapped).
-- **Motor Reversed** toggle (`toggle_reversed()`) wipes span and position via
-  `position_wipe()` — all prior step counts were measured under the old
-  direction sense.
+- **Calibration Mode**: to enter it, hold Fn for approximately 3 s at
+  standstill (`enter_or_exit_cal()` in `main.c`, with
+  `position_cal_enter()`). From Calibrated or never calibrated, the
+  device does a full calibration (two marks: Open, then Closed). From
+  Position Unknown, it does a **Re-home** (the span stays, one mark).
+  `position_cal_mark()` makes sure that mark 2 is below mark 1 by
+  `MIN_SPAN_STEPS` or more. The device rejects a mark that is not valid
+  (`LED_ERROR`), and the mode continues to wait for a mark.
+- **Abort** (a second long press on Fn, or the 10-minute timeout,
+  `CAL_TIMEOUT_US`): the span and the position do not change. The
+  exception is when you jogged the blind during the aborted session.
+  Then the position goes to Position Unknown
+  (`cal_abort_position_policy()`). The device does not trust the old
+  state.
+- **Position Unknown** occurs when the device cannot trust the stored
+  position. Two events cause it: a boot with `move_in_progress` still set
+  (the power failed during a move), or a calibration session that was
+  jogged and then aborted. The span stays. Only a Re-home restores
+  trust.
+- **Lockout**: `position_calibrated()` controls two things. It controls
+  remote motion (`covering_set_motion_allowed()` / the backstop check in
+  `zb_goto_request()`). It also controls taps (`handle_keypad()`: taps
+  do nothing on a device that is not calibrated). Hold-to-jog always
+  operates, without a limit.
+- **Motor Reversed** toggle (`toggle_reversed()`): erases the span and
+  the position through `position_wipe()`. All the old step counts were
+  measured with the old direction.
 
 ## NVS
 
@@ -188,39 +220,46 @@ Namespace **`blind`** (`blind_store.c`), keys:
 
 | Key | Type | Meaning |
 |---|---|---|
-| `span_ok` | u8 bool | `span_valid` — `span` is trustworthy |
-| `span` | i32 | `closed_steps` — calibrated Open→Closed travel |
-| `pos_ok` | u8 bool | `pos_known` — `pos` is trustworthy |
-| `pos` | i32 | `cur_steps` — last known absolute position |
+| `span_ok` | u8 bool | `span_valid`: you can trust `span` |
+| `span` | i32 | `closed_steps`: the calibrated travel from Open to Closed |
+| `pos_ok` | u8 bool | `pos_known`: you can trust `pos` |
+| `pos` | i32 | `cur_steps`: the last known absolute position |
 | `rev` | u8 bool | `motor_reversed` |
-| `spd` | u16 | full-travel time in seconds; `0` = never set, use `RAMP_DEFAULT_CRUISE_US` |
-| `moving` | u8 bool | `move_in_progress` — set at move start, cleared on clean completion |
+| `spd` | u16 | The full-travel time in seconds. `0` = never set; use `RAMP_DEFAULT_CRUISE_US`. |
+| `moving` | u8 bool | `move_in_progress`: set when a move starts, cleared when the move completes correctly |
 
 ## OTA
 
 Identity (`include/ota_ids.h`): `OTA_MANUFACTURER_CODE = 0xFEFE`,
 `OTA_IMAGE_TYPE = 0x0003` (soil tracker = 0x0001, door sensor = 0x0002),
-`OTA_MODEL_ID = "DFR-RollerBlinds"`. `.github/workflows/release-ota.yml`
-builds and publishes on a `v*` tag; it checks out `linosteenkamp/esp-zb-common`
-(now public) for its `tools/`. No secret/PAT is required — a fine-grained
-`ZB_COMMON_PAT` was used while that repo was private, but it kept 403-ing in
-practice (expiry/scope), so the repo was made public instead and the auth
-steps were dropped from the workflow.
+`OTA_MODEL_ID = "DFR-RollerBlinds"`.
 
-See [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) for the full pairing, calibration
-walkthrough, bench checklist, and release flow, and
-[HARDWARE.md](HARDWARE.md) for wiring and the Vref procedure.
+`.github/workflows/release-ota.yml` builds and publishes an image when a
+`v*` tag is pushed. It checks out `linosteenkamp/esp-zb-common` (now
+public) for its `tools/`. It does not need a secret or a PAT. Before, it
+used a fine-grained `ZB_COMMON_PAT` while that repo was private. The PAT
+frequently gave a 403 error (expiry or scope). Thus the repo was made
+public, and the authentication steps were removed from the workflow.
+
+For the full pairing procedure, the calibration procedure, the bench
+checklist and the release procedure, refer to
+[DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md). For the wiring and the Vref
+procedure, refer to [HARDWARE.md](HARDWARE.md).
 
 ## Agent skills
 
 ### Issue tracker
 
-Issues live in GitHub Issues on `linosteenkamp/DFR-RollerBlinds` (via the `gh` CLI). See `docs/agents/issue-tracker.md`.
+The issues are in GitHub Issues on `linosteenkamp/DFR-RollerBlinds`
+(through the `gh` CLI). Refer to `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
-Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+The default vocabulary is `needs-triage`, `needs-info`,
+`ready-for-agent`, `ready-for-human` and `wontfix`. Refer to
+`docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single context: `CONTEXT.md` and `docs/adr/` at the repo root. Refer to
+`docs/agents/domain.md`.

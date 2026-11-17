@@ -1,57 +1,72 @@
 # CONTEXT — DFR-RollerBlinds Ubiquitous Language
 
-Glossary only. No implementation details.
+This file is a glossary only. It does not contain implementation details.
 
 ## Terms
 
-**Open** — The blind fully raised: fabric rolled up onto the tube, window clear.
-Lift = 0 %. ("Up" always moves toward Open.)
+**Open**: the blind is fully up. The fabric is rolled onto the tube, and
+the window is clear. Lift = 0 %. ("Up" always moves the blind toward Open.)
 
-**Closed** — The blind fully lowered: fabric covering the window. Lift = 100 %.
-("Down" always moves toward Closed.)
+**Closed**: the blind is fully down. The fabric covers the window.
+Lift = 100 %. ("Down" always moves the blind toward Closed.)
 
-**Lift** — The blind's position expressed as a percentage of calibrated travel,
-0 % = Open, 100 % = Closed (ZCL Window Covering convention).
+**Lift**: the position of the blind, as a percentage of the calibrated
+travel. 0 % = Open, 100 % = Closed. This is the ZCL Window Covering
+convention.
 
-**Tap** — Short key press on a Calibrated, idle device: Up/Down commands full
-travel; any tap during motion stops in place. Taps never move an uncalibrated
-device.
+**Tap**: a short key press. On an idle device that is Calibrated, a tap
+on Up or Down starts a full travel. A tap on any key during a move stops
+the blind at its current position. A tap never moves a device that is
+not calibrated.
 
-**Hold (Jog)** — Press-and-hold moves the blind only while held; release stops.
-The one gesture that works in every device state. On an uncalibrated device it
-is deliberately the *only* way to move — a deadman control requiring a person
-at the blind.
+**Hold (Jog)**: press and hold a key to move the blind. The blind moves
+only while you hold the key. When you release the key, the blind stops.
+This gesture operates in all device states. On a device that is not
+calibrated, it is intentionally the *only* way to move the blind. It is a
+deadman control: a person must be at the blind.
 
-**Calibration Mode** — Local-only mode (entered by long-pressing Fn) where
-travel limits are set by jogging and marking. Network motion is rejected while
-active. Entered from a Calibrated state it redoes both limits; entered from
-Position Unknown it only re-zeros (span kept) — a **Re-home**.
+**Calibration Mode**: a local-only mode. To enter it, do a long press on
+Fn. In this mode, you jog the blind and mark the travel limits. The device
+rejects motion commands from the network while this mode is active. If
+you enter it from a Calibrated state, you set the two limits again. If
+you enter it from Position Unknown, you only set the zero again, and the
+Span stays. This is a **Re-home**.
 
-**Mark** — An Fn-tap inside Calibration Mode recording the current physical
-position as a limit: first mark = Open, second mark = Closed.
+**Mark**: a tap on Fn in Calibration Mode. It records the current
+physical position as a limit. The first mark is Open. The second mark is
+Closed.
 
-**Span** — The calibrated travel distance between Open and Closed. Survives
-power loss; only a full recalibration changes it. Also wiped by a Motor
-Reversed toggle.
+**Span**: the calibrated travel distance between Open and Closed. The
+Span stays after a power failure. Only a full calibration changes it. A
+Motor Reversed toggle also erases it.
 
-**Position Unknown** — The device has a Span but lost trust in its position
-(power died mid-move). Remote motion locks out until a Re-home. Also entered
-when a Calibration Mode session in which the blind was jogged is aborted
-(Fn long-press or timeout).
+**Position Unknown**: the device has a Span, but it cannot trust its
+position. This occurs when the power fails during a move. Remote motion
+is locked out until a Re-home. The device also goes to Position Unknown
+when you abort a Calibration Mode session in which you jogged the blind.
+An abort is a long press on Fn or a timeout.
 
-**Re-home** — Restoring position trust after Position Unknown: jog to Open,
-set one mark. Lighter than recalibration because the Span is kept.
+**Re-home**: the procedure that restores trust in the position after
+Position Unknown. Jog the blind to Open, then set one mark. This is
+shorter than a full calibration because the Span stays.
 
-**Calibrated** — The device knows both travel limits and its current position
-within them. Only a Calibrated device accepts motion commands from the network;
-an uncalibrated (or position-unknown) device can only be moved locally, hands-on,
-via hold-to-jog. Remote control is a privilege calibration unlocks.
+**Calibrated**: the device knows the two travel limits and its current
+position between them. Only a Calibrated device accepts motion commands
+from the network. You can move a device that is not calibrated (or is in
+Position Unknown) only at the blind, with hold-to-jog. Calibration
+unlocks remote control.
 
-**Motor Reversed** — Per-unit installer setting that flips which motor rotation
-direction counts as "Up". Exists because mechanics (front-roll vs back-roll,
-motor orientation) differ per window. One authoritative value per device,
-set from z2m. It was once also a keypad gesture (Up+Down held 3 s); that was
-retired because it cost a suppression latch a single stuck key line could
-strand, and because a 3 s hold silently wiped the calibration. All position vocabulary (Open/Closed/Up/Down/Lift) is defined
-*after* this setting is applied — a correctly configured unit always has "Up"
-moving toward Open.
+**Motor Reversed**: an installer setting for each unit. It changes which
+direction of motor rotation is "Up". The setting is necessary because
+the mechanics are different at each window (front roll or back roll, and
+the motor orientation). Each device has one value, and z2m sets it.
+Before, a keypad gesture also set it (hold Up+Down for 3 s). That gesture
+was removed for two reasons:
+
+- It needed a suppression latch, and one stuck key line could lock that
+  latch.
+- A 3 s hold erased the calibration without a warning.
+
+All the position terms (Open, Closed, Up, Down and Lift) apply *after*
+the device applies this setting. On a correctly set unit, "Up" always
+moves the blind toward Open.
