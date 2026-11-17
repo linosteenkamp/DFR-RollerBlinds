@@ -22,7 +22,7 @@ Thus all the step-count calculations and motion constants did not
 change.)
 
 **Library:** this project is the first user of `esp-zb-common`. It is
-pinned to **v0.2.0** in `src/idf_component.yml`. This shared component
+pinned to **v0.2.1** in `src/idf_component.yml`. This shared component
 came from the proven Zigbee and OTA code of `../DFR-DoorSensor`. It
 supplies two parts:
 
