@@ -65,4 +65,7 @@ Pairing, calibration, and OTA setup are in
 
 ## License
 
-Provided as-is for educational and development purposes.
+The firmware and the code are under the PolyForm Noncommercial License
+1.0.0. `hardware/` and `docs/` are under CC BY-NC-SA 4.0. You can use, change
+and share this work for noncommercial purposes. Commercial use is not
+permitted. Refer to [LICENSE.md](LICENSE.md).
