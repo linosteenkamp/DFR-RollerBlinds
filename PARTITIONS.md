@@ -2,13 +2,14 @@
 
 ## Overview
 
-`partitions.csv` divides the ESP32-C6's 4 MB flash into firmware slots, data
-storage, and system regions. The layout is **dual-OTA**: two equal application
-slots (`ota_0` / `ota_1`) plus an `otadata` selector, which is what enables Zigbee
-over-the-air updates with bootloader rollback. Offsets are pinned explicitly (see
-[Why offsets are explicit](#why-offsets-are-explicit)). The table is shared with the
-sibling DFR-DoorSensor and DFR-MoistureTracker projects so the whole family uses the
-same OTA scheme.
+`partitions.csv` divides the 4 MB flash of the ESP32-C6 into firmware
+slots, data storage and system regions. The layout is **dual-OTA**. It has
+two application slots of equal size (`ota_0` and `ota_1`) and an `otadata`
+selector. This layout permits Zigbee over-the-air updates with bootloader
+rollback. Each offset has an explicit value (refer to
+[Why offsets are explicit](#why-offsets-are-explicit)). The sibling
+projects DFR-DoorSensor and DFR-MoistureTracker use the same table. Thus
+all the devices in the family use the same OTA scheme.
 
 ## Partition Table
 
@@ -28,29 +29,33 @@ zb_fct,     data, fat,   0x328000, 0x400,
 
 | Partition | Type / SubType | Offset | Size | Purpose |
 |-----------|----------------|--------|------|---------|
-| `nvs` | data / nvs | 0x9000 | 24 KB | General NVS (`nvs_flash_init()`); also backs the app's own `blind` namespace (span, position, `motor_reversed`, `move_in_progress`) |
+| `nvs` | data / nvs | 0x9000 | 24 KB | General NVS (`nvs_flash_init()`). It also holds the `blind` namespace of the application (span, position, `motor_reversed`, travel time, `move_in_progress`). |
 | `phy_init` | data / phy | 0xf000 | 4 KB | RF (PHY) calibration data |
-| `otadata` | data / ota | 0x10000 | 8 KB | Records which app slot (`ota_0`/`ota_1`) is active + each slot's verify state |
+| `otadata` | data / ota | 0x10000 | 8 KB | Records which application slot (`ota_0` or `ota_1`) is active, and the verify state of each slot |
 | `ota_0` | app / ota_0 | 0x20000 | 1.5 MB | Application slot A |
 | `ota_1` | app / ota_1 | 0x1a0000 | 1.5 MB | Application slot B (OTA download target) |
-| `storage` | data / nvs | 0x320000 | 16 KB | Reserved NVS partition for future data |
+| `storage` | data / nvs | 0x320000 | 16 KB | NVS partition kept for data in the future |
 | `zb_storage` | data / fat | 0x324000 | 16 KB | Zigbee stack NVRAM (network keys, bindings) |
-| `zb_fct` | data / fat | 0x328000 | 1 KB | Zigbee factory/production data |
+| `zb_fct` | data / fat | 0x328000 | 1 KB | Zigbee factory and production data |
 
-Monitor image growth with `pio run -t size`; exceeding the 1.5 MB slot size aborts an
-OTA at the write stage.
+To monitor the image size, use `pio run -t size`. If the image is larger
+than the 1.5 MB slot, the OTA stops at the write stage.
 
 ## How OTA uses the slots
 
-1. The device boots from the slot `otadata` marks active (initially `ota_0`).
-2. During an update it writes the new image into the **inactive** slot.
-3. On completion it sets the new slot as the boot target and reboots into it.
-4. The new image stays `PENDING_VERIFY` until it boots cleanly to `app_main()`, at
-   which point `ota_client_mark_valid()` commits it ("booted = good"). If it crashes
-   before then, the bootloader rolls back to the previous slot on the next boot
+1. The device starts from the slot that `otadata` marks as active. At
+   first, this is `ota_0`.
+2. During an update, the device writes the new image into the
+   **inactive** slot.
+3. When the download is complete, the device sets the new slot as the
+   boot target. Then it restarts from the new slot.
+4. The new image stays `PENDING_VERIFY` until it starts correctly and
+   gets to `app_main()`. Then `ota_client_mark_valid()` commits the image
+   ("booted = good"). If the image crashes before this point, the
+   bootloader goes back to the previous slot at the next start
    (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y`).
 
-Full OTA procedure (release, rollout, rollback) is in
+For the full OTA procedure (release, rollout and rollback), refer to
 [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
 
 ## Flash Memory Layout
@@ -83,46 +88,51 @@ Full OTA procedure (release, rollout, rollback) is in
 
 ## Why offsets are explicit
 
-Offsets are written out rather than left blank because PlatformIO's *upload* offset
-parser otherwise diverges from ESP-IDF's app alignment and tries to flash the app at
-`0x10000`, colliding with `otadata` ("Detected overlap at address: 0x10000"). The
-build succeeds but `-t upload` fails. Pinning every offset keeps PlatformIO and the
-IDF `flasher_args.json` in agreement.
+Each offset has a written value. If an offset is blank, the *upload*
+offset parser of PlatformIO does not agree with the application alignment
+of ESP-IDF. PlatformIO then tries to write the application at `0x10000`,
+which is in `otadata` ("Detected overlap at address: 0x10000"). The build
+is successful, but `-t upload` fails. When all offsets have a value,
+PlatformIO and the IDF `flasher_args.json` agree.
 
 ## NVS / storage namespaces
 
 | Namespace / partition | Partition | Keys / purpose |
 |-----------------------|-----------|----------------|
-| `blind` | `nvs` | `span_ok`/`span` (calibrated Open→Closed travel), `pos_ok`/`pos` (last known position), `rev` (`motor_reversed`), `moving` (`move_in_progress`) — see [CLAUDE.md](CLAUDE.md) |
-| (FAT, not NVS) | `zb_storage` / `zb_fct` | Zigbee stack-managed network / factory data |
-| (none) | `storage` | reserved for future use |
+| `blind` | `nvs` | `span_ok`/`span` (calibrated Open→Closed travel), `pos_ok`/`pos` (last known position), `rev` (`motor_reversed`), `spd` (full-travel time), `moving` (`move_in_progress`). Refer to [CLAUDE.md](CLAUDE.md). |
+| (FAT, not NVS) | `zb_storage` / `zb_fct` | Network data and factory data. The Zigbee stack manages them. |
+| (none) | `storage` | Kept for use in the future |
 
 ## Modifying partitions
 
-Referenced from [platformio.ini](platformio.ini):
+[platformio.ini](platformio.ini) refers to the table:
 
 ```ini
 board_build.partitions = partitions.csv
 ```
 
-To apply changes:
+To apply a change:
 
-1. Edit `partitions.csv` (keep offsets explicit and 4 KB-aligned).
-2. `pio run -t clean && pio run`
-3. The first flash after a partition change needs a full erase + re-pair:
-   `pio run -t erase -t upload` — this wipes the Zigbee network credentials, so the
-   device must re-join zigbee2mqtt afterwards.
+1. Edit `partitions.csv`. Keep each offset explicit and aligned to 4 KB.
+2. Run `pio run -t clean && pio run`.
+3. After a partition change, the first flash needs a full erase and a new
+   pairing. Run `pio run -t erase -t upload`. This erases the Zigbee
+   network credentials. Then join the device to zigbee2mqtt again.
 
-> **Warning**: changing the partition table erases stored data and forces a re-pair.
+> **Warning**: a change to the partition table erases the stored data.
+> You must then pair the device again.
 
 ## Troubleshooting
 
-- **`app partition is too small`** — the image exceeds 1.5 MB; trim the build
-  (`-Os`, drop components) or enlarge both slots symmetrically.
-- **`Detected overlap at address: 0x10000` on upload** — offsets went blank; restore
-  the explicit offsets above.
-- **`Partitions overlap` / unaligned** — keep offsets 4 KB-aligned and within 4 MB.
-- **NVS init fails after a layout change** — `pio run -t erase`, then re-flash.
+- **`app partition is too small`**: the image is larger than 1.5 MB. Make
+  the build smaller (`-Os`, remove components), or make the two slots
+  larger by the same amount.
+- **`Detected overlap at address: 0x10000` on upload**: one or more
+  offsets are blank. Put back the explicit offsets above.
+- **`Partitions overlap` or not aligned**: keep each offset aligned to
+  4 KB and in the 4 MB flash.
+- **NVS init fails after a layout change**: run `pio run -t erase`, then
+  flash again.
 
 ## References
 
