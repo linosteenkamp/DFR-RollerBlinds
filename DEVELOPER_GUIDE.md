@@ -10,7 +10,7 @@ zigbee2mqtt. A membrane keypad with three keys gives local control and
 calibration. The firmware updates over the air.
 
 This project uses the shared `esp-zb-common` library, pinned to
-**v0.2.0**. The library came from the proven Zigbee and OTA code of
+**v0.2.1**. The library came from the proven Zigbee and OTA code of
 `../DFR-DoorSensor`. It has two parts:
 
 - `zb_core`: stack initialization, join, and endpoint and cluster
@@ -438,7 +438,7 @@ The workflow then does these steps:
 1. It checks out this repo at **the pushed tag**
    (`ref: ${{ github.ref }}`). Thus it builds the commit that you
    tagged, which is not always `main`. It also checks out
-   `linosteenkamp/esp-zb-common` at `v0.2.0` (for its `tools/`).
+   `linosteenkamp/esp-zb-common` at `v0.2.1` (for its `tools/`).
    `esp-zb-common` is **public**. Thus this checkout does not need a
    token. The component-manager clone that `pio run` does during the
    build also does not need a token.
