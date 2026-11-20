@@ -3,8 +3,10 @@
 This is the 3D-printed spur-gear reduction between the stepper and the
 roller tube. It replaces the old `Blinds 2.step` reference. The source of
 truth is the Fusion design **Blinds gearbox assembly** in the Fusion
-project `BlindsController2`. All the files here were exported on
-2026-11-16 from version 15 of that design. Version 15 refers to these
+project `BlindsController2`. The STEP and the assembly `.f3d` were
+exported on 2026-11-20 from version 17 of that design. The parts did not
+change after version 15. Thus the STLs, the plates and the `.f3d` files
+of the parts are the 2026-11-16 exports. All these exports use these
 part versions: `gear housing` v13, `Gear Housing Lid` v6,
 `Driven Gear 60 teeth` v6, `Idler Gear` v3, `Driver Gear` v1 and
 `Blinds Shaft Attachment` v7.
@@ -52,7 +54,13 @@ The gears were already meshed at rest. An interference check on the
 three gears finds only tooth contact (0.01–0.05 mm³), at rest and with
 the driver turned 30°. The same check finds 3.5 mm³ of overlap between
 the shaft attachment and the hub of the driven gear at their current
-positions.
+positions. This check was done on version 15.
+
+Versions 16 and 17 only turn the gear train through its joints. The
+idler is 42° from its version 15 position, and the driven gear and the
+shaft attachment are 63.6° from theirs. This is the 5:1 ratio of stage 2. The
+shaft attachment has a rigid joint to the driven gear. Thus the 3.5 mm³
+overlap does not change.
 
 ## Files
 
@@ -161,8 +169,11 @@ assembly**:
 
 - The STEP comes from the root component. Thus the hidden `Right` bodies
   are not in it.
-- Each STL comes from the single body of its part. Export it as binary
-  at high refinement.
+- Each STL comes from the single body of its part. Export it as binary,
+  with custom refinement: surface deviation 0.028 mm and normal
+  deviation 3°. Do not use the **High** preset. In Fusion 2706.1,
+  **High** uses a normal deviation of 10°. It gave approximately half
+  the triangles of the committed STLs.
 - Each `.f3d` of a part comes from
   `exportManager.createFusionArchiveExportOptions(path, occurrence.component)`.
 
