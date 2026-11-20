@@ -4,12 +4,14 @@ This is the 3D-printed spur-gear reduction between the stepper and the
 roller tube. It replaces the old `Blinds 2.step` reference. The source of
 truth is the Fusion design **Blinds gearbox assembly** in the Fusion
 project `BlindsController2`. The STEP and the assembly `.f3d` were
-exported on 2026-11-20 from version 17 of that design. The parts did not
-change after version 15. Thus the STLs, the plates and the `.f3d` files
-of the parts are the 2026-11-16 exports. All these exports use these
-part versions: `gear housing` v13, `Gear Housing Lid` v6,
-`Driven Gear 60 teeth` v6, `Idler Gear` v3, `Driver Gear` v1 and
+exported on 2026-11-21 from version 19 of that design. Version 19 refers
+to these part versions: `gear housing` v13, `Gear Housing Lid` v6,
+`Driven Gear 60 teeth` v7, `Idler Gear` v3, `Driver Gear` v1 and
 `Blinds Shaft Attachment` v7.
+
+Only the driven gear changed after the 2026-11-16 export. Thus its STL,
+its `.f3d` and the `x2d-gears.stl` plate are 2026-11-21 exports. The
+files of all the other parts are the 2026-11-16 exports.
 
 ![Assembled gearbox](renders/assembly-top.png)
 ![Gear train, housing and lid hidden](renders/geartrain-top.png)
@@ -54,13 +56,13 @@ The gears were already meshed at rest. An interference check on the
 three gears finds only tooth contact (0.01–0.05 mm³), at rest and with
 the driver turned 30°. The same check finds 3.5 mm³ of overlap between
 the shaft attachment and the hub of the driven gear at their current
-positions. This check was done on version 15.
+positions. This check was done on version 15, and again on version 19
+with the same results.
 
-Versions 16 and 17 only turn the gear train through its joints. The
-idler is 42° from its version 15 position, and the driven gear and the
-shaft attachment are 63.6° from theirs. This is the 5:1 ratio of stage 2. The
-shaft attachment has a rigid joint to the driven gear. Thus the 3.5 mm³
-overlap does not change.
+Versions 16 to 19 turn the gear train through its joints. Thus the gear
+angles in the STEP are different from version 15. The shaft attachment
+has a rigid joint to the driven gear. Thus the 3.5 mm³ overlap does not
+change.
 
 ## Files
 
@@ -85,7 +87,7 @@ overlap does not change.
 | Gear housing lid, right | `gear-housing-lid-right.stl` | An exact mirror of the left lid. Fits the right housing. |
 | Driver gear, 12 T | `driver-gear-12t.stl` | Fits on the motor shaft. |
 | Idler gear, 36 T + 12 T | `idler-gear-36t-12t.stl` | The compound middle stage. |
-| Driven gear, 60 T | `driven-gear-60t.stl` | The output stage. |
+| Driven gear, 60 T | `driven-gear-60t.stl` | The output stage. It has two screw holes, 5 mm from the axis. Each hole has a Ø 6.0 mm counterbore, 12 mm deep from the bottom face, and a Ø 3.5 mm hole through the remaining 4.5 mm. (In v6, the counterbore was Ø 5.5 × 10 mm.) |
 | Shaft attachment | `shaft-attachment.stl` | A splined spigot, Ø 31.5 × 22.6 mm, that turns the roller tube. It is on the axis of the driven gear, below the output bearing. |
 
 ### Bearings (bought)
