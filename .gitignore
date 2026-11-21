@@ -6,3 +6,4 @@ sdkconfig.pinwalk
 __pycache__/
 .pytest_cache/
 .superpowers/
+.DS_Store
