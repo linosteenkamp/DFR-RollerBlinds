@@ -59,26 +59,6 @@ pio run --target erase
 
 ## Architecture
 
-`app_main()` runs one time and does not sleep:
-
-1. `nvs_flash_init()` and the default event loop.
-2. `blind_store_init()` / `position_init()`: restore the span and the
-   last position from NVS. After an unclean shutdown during a move (the
-   `move_in_progress` flag is still set), the device goes directly to
-   Position Unknown.
-3. `motion_init()`: the STEP, DIR and EN GPIOs (`EN̅` high = disabled at
-   idle), and the GPTimer.
-4. `status_led_init()`, `keypad_init()`: the LED pattern player, the
-   keypad GPIOs, and the integrator debounce, which sends
-   `APP_EVT_KEYPAD` events.
-5. `zb_core_init()` (library): starts the Router.
-   `covering_build_clusters` / `covering_post_register` register Basic,
-   Identify, Window Covering and OTA.
-6. `ctl_init()` restores the state. (An unclean shutdown during a move
-   sets Position Unknown here.) `app_main` sets the LED from
-   `ctl_led_pattern()` and creates the dispatcher. Then it waits for the
-   join and sends `APP_EVT_BOOT_SYNC`.
-
 ### Module Responsibilities
 
 | Module | File | Purpose | Host tests |
@@ -126,44 +106,9 @@ The step ISR and its data are in IRAM for this reason: flash writes
 from the dispatcher (OTA download, NVS commits) must never stop the
 steps during a move.
 
-### Key Configuration Constants (`src/main.c`, copied verbatim)
+### Motion constants
 
-```c
-/* ---- GPIO map: XIAO ESP32C6, D-number → GPIO (see HARDWARE.md) ----
- * The D-numbers are what the silkscreen and the wiring harness use; the
- * GPIO numbers below are what the driver API wants. Grouped to match the
- * implementation board's physical layout: driver signals on D7-D9 at one
- * end of the header, keypad on D3-D5 at the other, LED on D2. D6 is left
- * empty between them (v2.4.0 pin map; Fn was on D6 before).
- * D7 carries one of the C6's default UART0 pins — free here because the
- * console runs on USB-Serial-JTAG (CONFIG_ESP_CONSOLE_UART_NUM = -1). */
-#define PIN_STEP     19     /* D8 */
-#define PIN_DIR      17     /* D7 */
-#define PIN_EN       20     /* D9 */
-#define PIN_BTN_UP   22     /* D4 */
-#define PIN_BTN_DOWN 23     /* D5 */
-#define PIN_BTN_FN   21     /* D3 — off D6, away from the driver pins */
-#define PIN_LED_EXT  2      /* D2 — sole indicator; no onboard mirror on XIAO */
-
-/* On-board RF switch, not on the header. Nothing drives these unless the
- * firmware does, and left alone the radio barely hears its neighbours
- * (bench3 A/B, 2026-09-27: LQI at the coordinator 77 → 128). Every unit
- * has a U.FL antenna fitted, so the switch is enabled and pointed at it. */
-#define PIN_RF_SW_EN 3      /* low = switch enabled */
-#define PIN_RF_ANT   14     /* low = ceramic, high = U.FL */
-
-/* ---- motion tuning (bench constants, spec §6) ---- */
-#define START_US        500      /* ~2 kHz first/last step */
-#define ACCEL_STEPS     800
-#define JOG_CRUISE_US   300      /* jog slower than travel but fast enough to
-                                  * cross a full 2.5 m span within the cal timeout */
-#define JOG_START_US    900      /* jog starts slower than its cruise */
-#define MIN_SPAN_STEPS  6000     /* ~1/4 output rev: min valid calibration */
-#define HARD_CAP_MARGIN 2400     /* watchdog: allowed overshoot of span */
-#define JOG_UNBOUNDED   2000000  /* "infinite" jog target while uncalibrated */
-#define CAL_TIMEOUT_US  (10LL * 60 * 1000000)  /* must exceed a full-span jog */
-#define REPORT_PERIOD_US (1LL * 1000000)
-```
+The GPIO map and the motion constants are in `src/main.c`.
 
 The cruise speed (of the travel move, not the jog) is not a compile-time
 constant. It is a runtime setting for each unit:
