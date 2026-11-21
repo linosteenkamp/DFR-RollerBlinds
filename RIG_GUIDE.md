@@ -172,6 +172,11 @@ position does not come back to the start.
 
 3. To stop, push Ctrl+C. The script sends `stop`.
 
+The script rests 30 s after each move (`--pause`). The driver is
+disabled during the rest, so the motor cools. With 2 s of rest, a
+17HS4401 at 100 µs became too hot to hold after 7 cycles of ±10
+revolutions.
+
 The firmware has no feedback. The script cannot see a stall, so watch
 the mark.
 

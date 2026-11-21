@@ -91,7 +91,8 @@ def main() -> int:
     ap.add_argument("--cycles", type=int, default=50)
     ap.add_argument("--revs", type=float, default=10, help="output revolutions for each move")
     ap.add_argument("--interval", type=int, default=100, help="step interval in µs (40..1000)")
-    ap.add_argument("--pause", type=float, default=2.0, help="seconds between the moves")
+    ap.add_argument("--pause", type=float, default=30.0,
+                    help="seconds of rest between the moves (the motor cools; the spec uses 30 s)")
     ap.add_argument("--port", default=None)
     args = ap.parse_args()
 
