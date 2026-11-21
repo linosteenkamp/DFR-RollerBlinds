@@ -11,7 +11,6 @@
  */
 #include "motion.h"
 #include "ramp.h"
-#include "app_event.h"
 
 #include "driver/gpio.h"
 #include "driver/gptimer.h"
@@ -39,6 +38,7 @@ static DRAM_ATTR volatile bool    s_moving;
 static DRAM_ATTR volatile bool    s_stop_req;     /* decel-stop latch */
 static DRAM_ATTR volatile int32_t s_stop_at_idx;  /* index to halt at after stop req */
 static DRAM_ATTR volatile uint32_t s_done_post_failed;   /* see TRC_DONE_POST_FAILED */
+static DRAM_ATTR volatile bool    s_hold_at_idle;  /* keep EN low after a move */
 
 static IRAM_ATTR bool timer_cb(gptimer_handle_t timer,
                                const gptimer_alarm_event_data_t *edata, void *ctx)
@@ -57,10 +57,10 @@ static IRAM_ATTR bool timer_cb(gptimer_handle_t timer,
                            : (s_step_idx >= s_plan.total);
     if (done) {
         gptimer_stop(timer);
-        gpio_set_level(s_pins.gpio_en, 1);   /* disable driver at idle */
+        if (!s_hold_at_idle)
+            gpio_set_level(s_pins.gpio_en, 1);   /* disable driver at idle */
         s_moving = false;
-        app_event_t ev = { .type = APP_EVT_MOTION_DONE,
-                           .steps = s_pos, .completed = !s_stop_req };
+        motion_done_t ev = { .steps = s_pos, .completed = !s_stop_req };
         /* The ISR runs from IRAM and may not call the (flash-resident) trace;
          * count here, and the dispatcher reports it. */
         if (xQueueSendFromISR(s_queue, &ev, &hpw) != pdTRUE) s_done_post_failed++;
@@ -108,6 +108,14 @@ esp_err_t motion_init(const motion_pins_t *pins, QueueHandle_t q)
 
 void motion_set_reversed(bool reversed) { s_reversed = reversed; }
 
+void motion_set_hold_at_idle(bool hold)
+{
+    s_hold_at_idle = hold;
+    /* Release at once when idle. During a move, the ISR applies the flag at
+     * the last step. */
+    if (!hold && !s_moving) gpio_set_level(s_pins.gpio_en, 1);
+}
+
 esp_err_t motion_start(int32_t from_steps, int32_t to_steps,
                        const motion_profile_t *prof, int32_t hard_cap)
 {
@@ -115,8 +123,7 @@ esp_err_t motion_start(int32_t from_steps, int32_t to_steps,
 
     int32_t delta = to_steps - from_steps;
     if (delta == 0) {
-        app_event_t ev = { .type = APP_EVT_MOTION_DONE,
-                           .steps = from_steps, .completed = true };
+        motion_done_t ev = { .steps = from_steps, .completed = true };
         if (xQueueSend(s_queue, &ev, 0) != pdTRUE) s_done_post_failed++;
         return ESP_OK;
     }

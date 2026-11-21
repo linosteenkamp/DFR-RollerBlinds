@@ -30,7 +30,11 @@ typedef struct {
  * expected to stall under real blind load, and a stall silently desyncs the
  * open-loop position. See
  * docs/superpowers/specs/2026-08-10-configurable-travel-time-design.md */
+/* A firmware env can set a different floor with a build flag (the gearbox
+ * test rig sweeps faster than a blind may run). The blind keeps 60 us. */
+#ifndef RAMP_MIN_CRUISE_US
 #define RAMP_MIN_CRUISE_US      60u
+#endif
 #define RAMP_MAX_CRUISE_US      1000u
 #define RAMP_DEFAULT_CRUISE_US  150u
 

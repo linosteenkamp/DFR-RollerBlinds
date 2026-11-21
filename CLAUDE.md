@@ -68,7 +68,8 @@ pio run --target erase
 | `ctl` | `src/ctl.c` | Pure: all dispatcher decisions (gesture matrix, calibration procedure, preemption, persistence policy), behind `ctl_ports_t` | `test/test_ctl/` |
 | `keypad_logic` | `src/keypad_logic.c` | Pure: press/release + time → Tap / Hold / Fn-long / three-key reset. It classifies each key independently. There are no cross-key latches. | `test/test_keypad/`, `test/test_press_classification/` |
 | `blind_store` | `src/blind_store.c` | NVS persistence (namespace `blind`) | — |
-| `motion` | `src/motion.c` | GPTimer ISR step generation, DIR/EN, the step counter, done events to the queue | — |
+| `motion` | `src/motion.c` | GPTimer ISR step generation, DIR/EN, the step counter. It posts its own `motion_done_t` item to a queue with one slot. The blind dispatcher converts that item to `APP_EVT_MOTION_DONE`. The driver is disabled after each move, unless hold at idle is set (the test rig sets it). | — |
+| `rf_switch` | `src/rf_switch.c` | Enables the XIAO RF switch and selects the antenna, before the radio starts | — |
 | `status_led` | `src/status_led.c` | LED pattern player (one external LED) | — |
 | `covering` | `src/covering.c` | Window Covering cluster build and reports, and the action handler that sends to the queue | — |
 | `keypad` | `src/keypad.c` | 5 ms poller (no ISR) + `key_filter` integrator. It sends to `keypad_logic`, and sends events to the queue. The key pins have no GPIO glitch filter. It was removed on 2026-09-26 because it latched a released key as "pressed" while the motor ran (refer to the comment in `src/keypad.c`). | — |
@@ -76,10 +77,20 @@ pio run --target erase
 | `trace_ring` | `src/trace_ring.c` | Pure: a ring of decision records with a fixed size | `test/test_trace_ring/` |
 | `trace` | `src/trace.c` | RTC_NOINIT storage and the boot dump. The data stays after a reset, but not after a power loss. | — |
 | `main` | `src/main.c` | Wiring: the GPIO map, the constants, the ports table that connects ctl to the real modules, the queues, the dispatcher loop | — |
-| `app_event` | `include/app_event.h` | The single queue item type that keypad, covering, motion and main share | — |
+| `app_event` | `include/app_event.h` | The single queue item type that keypad, covering and main share (`motion` has its own `motion_done_t`) | — |
 | `ota_ids` / `fw_version` | `include/ota_ids.h`, `include/fw_version.h` | OTA identity (image type 0x0003) | — |
 | converter | `z2m/dfr_roller_blinds.js` | z2m external converter (cover + motor_reversed + calibrated + travel_time) | — |
 | OTA CI | `.github/workflows/release-ota.yml` | OTA build and publish when a tag is pushed | — |
+
+### Shared modules and FW_APP
+
+`motion`, `ramp`, `key_filter` and `rf_switch` are shared modules. The
+blind firmware and the gearbox test rig use them. The CMake variable
+`FW_APP` selects the source list of the firmware. PlatformIO sets it in
+`board_build.cmake_extra_args`. The default is `blind`. A shared module
+must not include `app_event.h` or another header of only one firmware.
+An env can set `RAMP_MIN_CRUISE_US` with a build flag. The blind keeps
+60 µs.
 
 ### Concurrency rule: ISR and action handler never decide
 

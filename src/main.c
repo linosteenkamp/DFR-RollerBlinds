@@ -17,6 +17,7 @@
 #include "app_event.h"
 #include "position.h"
 #include "motion.h"
+#include "rf_switch.h"
 #include "blind_store.h"
 #include "keypad.h"
 #include "status_led.h"
@@ -160,7 +161,16 @@ static void dispatcher_task(void *pv)
         /* The set hands back queues in the order their items arrived, so
          * event order is unchanged by MOTION_DONE having its own queue. */
         QueueSetMemberHandle_t q = xQueueSelectFromSet(s_qset, portMAX_DELAY);
-        if (q == NULL || xQueueReceive(q, &ev, 0) != pdTRUE) continue;
+        if (q == NULL) continue;
+        if (q == s_done_q) {
+            /* motion posts its own type; convert it to the blind's event. */
+            motion_done_t d;
+            if (xQueueReceive(s_done_q, &d, 0) != pdTRUE) continue;
+            ev = (app_event_t){ .type = APP_EVT_MOTION_DONE,
+                                .steps = d.steps, .completed = d.completed };
+        } else if (xQueueReceive(q, &ev, 0) != pdTRUE) {
+            continue;
+        }
         ctl_handle(&s_ctl, &ev);
         uint32_t f = motion_done_post_failures();
         if (f != done_fail_seen) {
@@ -180,12 +190,7 @@ void app_main(void)
     TRACE(TRC_BOOT, esp_reset_reason(), 0);    /* then mark the new session */
 
     /* Before anything touches the radio. */
-    gpio_config_t rf = { .pin_bit_mask = (1ULL << PIN_RF_SW_EN) | (1ULL << PIN_RF_ANT),
-                         .mode = GPIO_MODE_OUTPUT };
-    ESP_ERROR_CHECK(gpio_config(&rf));
-    gpio_set_level(PIN_RF_SW_EN, 0);
-    gpio_set_level(PIN_RF_ANT, 1);
-    ESP_LOGW(TAG, "RF switch: enabled, U.FL antenna");
+    ESP_ERROR_CHECK(rf_switch_init(PIN_RF_SW_EN, PIN_RF_ANT, true));   /* U.FL */
 
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -196,7 +201,7 @@ void app_main(void)
 
     s_queue = xQueueCreate(16, sizeof(app_event_t));
     configASSERT(s_queue);
-    s_done_q = xQueueCreate(1, sizeof(app_event_t));
+    s_done_q = xQueueCreate(1, sizeof(motion_done_t));
     configASSERT(s_done_q);
     s_qset = xQueueCreateSet(16 + 1);        /* sum of the member lengths */
     configASSERT(s_qset);
