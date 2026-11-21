@@ -73,7 +73,7 @@ it. "Check" means that you possibly have it: make sure before you order.
 | Buck regulator 24 → 5 V (Mini560 Pro) | 1 | 5 V for the XIAO | Have |
 | 220 µF 35 V electrolytic capacitor | 1 | At the VM pin | Have |
 | 100 nF ceramic capacitor (`K104K20X7RH5TL2`) | 1 | At the VM pin, optional | Have |
-| 1N5822 Schottky diode | 1 | Buck 5 V to the XIAO 5V pin, against USB backfeed | Check (ordered 2026-09-27) |
+| 1N5822 Schottky diode | 1 | Buck 5 V to the XIAO 5V pin, against USB backfeed | Have (installed on the test board, 2026-11-21) |
 | 4.7 kΩ resistor (`RS-C-4K7-5%-0.5W`) | 1 (+2) | DS18B20 pull-up. Add 2 for SDA and SCL if the AS5600 module has no pull-ups. | Have |
 | 150 Ω resistor (`MF0204FTE52-150R`) and 3 mm LED (`L-7104SURC-E`) | 1 each | Status LED on D2, optional | Have |
 | U.FL antenna, 2.4 GHz | 1 | Wi-Fi (ticket #36) | Have |
