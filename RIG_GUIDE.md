@@ -99,14 +99,23 @@ tube length. Add the bearing to this list when the CAD selects it.
 
 ## Build and flash
 
-1. Connect the XIAO ESP32C6 of the rig board to the Mac with a USB-C cable.
-2. Build the rig firmware, flash it, and open the serial monitor:
+**CAUTION: Connect USB before the 24 V supply.** When 24 V is on, the
+buck puts approximately 4.7 V on the USB VBUS line through the 1N5822.
+A USB-C port on the Mac then does not start the connection, and the
+board does not appear. This occurred on 2026-11-21 with the Mac
+connected directly.
+
+1. Disconnect the 24 V supply.
+2. Connect the XIAO ESP32C6 of the rig board to the Mac with a USB-C cable.
+3. If macOS asks "Allow accessory to connect?", click Allow.
+4. Connect the 24 V supply.
+5. Build the rig firmware, flash it, and open the serial monitor:
 
    ```bash
    pio run -e seeed_xiao_esp32c6_rig -t upload -t monitor
    ```
 
-3. Make sure that the monitor shows the line `test rig ready`.
+6. Make sure that the monitor shows the line `test rig ready`.
 
 The env `seeed_xiao_esp32c6_rig` sets two build values:
 
