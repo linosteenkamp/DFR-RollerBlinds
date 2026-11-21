@@ -5,7 +5,7 @@
 
 /* The RF switch of the Seeed XIAO ESP32C6 selects the antenna. The firmware
  * must drive it before the radio starts, or the radio gets a weak signal.
- * The blind and the rig use it (refer to HARDWARE.md, "Fitting the U.FL
+ * The blind and the test rig use it (refer to HARDWARE.md, "Fitting the U.FL
  * antenna").
  *
  * gpio_enable: low = switch enabled (GPIO3 on the XIAO ESP32C6).

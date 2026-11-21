@@ -112,7 +112,9 @@ void motion_set_hold_at_idle(bool hold)
 {
     s_hold_at_idle = hold;
     /* Disable the driver immediately when idle. During a move, the ISR
-     * applies the flag at the last step. */
+     * applies the flag at the last step. This read of the ISR flag s_moving
+     * is safe: only the dispatcher calls this function and motion_start, and
+     * the C6 has one core. */
     if (!hold && !s_moving) gpio_set_level(s_pins.gpio_en, 1);
 }
 

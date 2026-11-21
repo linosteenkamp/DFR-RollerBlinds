@@ -85,9 +85,9 @@ pio run --target erase
 ### Shared modules and FW_APP
 
 `motion`, `ramp`, `key_filter` and `rf_switch` are shared modules. The
-blind firmware and the gearbox test rig use them. The CMake variable
-`FW_APP` selects the source list of the firmware. PlatformIO sets it in
-`board_build.cmake_extra_args`. The default is `blind`. A shared module
+blind firmware and the test rig use them. The CMake variable `FW_APP`
+selects the source list of the firmware. The default is `blind`. An env
+can set `FW_APP` in `board_build.cmake_extra_args`. A shared module
 must not include `app_event.h` or another header of only one firmware.
 An env can set `RAMP_MIN_CRUISE_US` with a build flag. The blind keeps
 60 µs.
