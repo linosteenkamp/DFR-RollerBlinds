@@ -156,6 +156,25 @@ move of more than 400 000 microsteps.
 The words are case-sensitive. The rig rejects a command that is not
 correct and tells you why.
 
+## Cycle script
+
+`tools/rig_cycle.py` runs back-and-forth cycles through the serial
+console. Each cycle is one move forward and one move back. The script
+stops at a move that is not complete, at a rejected command, or when the
+position does not come back to the start.
+
+1. Close the serial monitor. Only one program can use the port.
+2. Run the script, for example 50 cycles of ±10 revolutions at 100 µs:
+
+   ```bash
+   ~/.platformio/penv/bin/python tools/rig_cycle.py --cycles 50 --revs 10 --interval 100
+   ```
+
+3. To stop, push Ctrl+C. The script sends `stop`.
+
+The firmware has no feedback. The script cannot see a stall, so watch
+the mark.
+
 ## Output
 
 The rig writes each record as one line: the topic, a space, and a JSON
