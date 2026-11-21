@@ -111,8 +111,8 @@ void motion_set_reversed(bool reversed) { s_reversed = reversed; }
 void motion_set_hold_at_idle(bool hold)
 {
     s_hold_at_idle = hold;
-    /* Release at once when idle. During a move, the ISR applies the flag at
-     * the last step. */
+    /* Disable the driver immediately when idle. During a move, the ISR
+     * applies the flag at the last step. */
     if (!hold && !s_moving) gpio_set_level(s_pins.gpio_en, 1);
 }
 

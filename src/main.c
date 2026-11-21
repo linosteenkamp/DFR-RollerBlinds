@@ -190,7 +190,7 @@ void app_main(void)
     TRACE(TRC_BOOT, esp_reset_reason(), 0);    /* then mark the new session */
 
     /* Before anything touches the radio. */
-    ESP_ERROR_CHECK(rf_switch_init(PIN_RF_SW_EN, PIN_RF_ANT, true));   /* U.FL */
+    ESP_ERROR_CHECK(rf_switch_init(PIN_RF_SW_EN, PIN_RF_ANT, RF_ANT_UFL));
 
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {

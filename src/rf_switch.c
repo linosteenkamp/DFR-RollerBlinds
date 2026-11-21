@@ -9,14 +9,15 @@
 
 static const char *TAG = "RF_SW";
 
-esp_err_t rf_switch_init(int gpio_enable, int gpio_select, bool external_antenna)
+esp_err_t rf_switch_init(int gpio_enable, int gpio_select, rf_antenna_t antenna)
 {
     gpio_config_t io = { .pin_bit_mask = (1ULL << gpio_enable) | (1ULL << gpio_select),
                          .mode = GPIO_MODE_OUTPUT };
     esp_err_t err = gpio_config(&io);
     if (err != ESP_OK) return err;
     gpio_set_level(gpio_enable, 0);
-    gpio_set_level(gpio_select, external_antenna ? 1 : 0);
-    ESP_LOGW(TAG, "RF switch: enabled, %s antenna", external_antenna ? "U.FL" : "ceramic");
+    gpio_set_level(gpio_select, antenna == RF_ANT_UFL ? 1 : 0);
+    ESP_LOGI(TAG, "RF switch: enabled, %s antenna",
+             antenna == RF_ANT_UFL ? "U.FL" : "ceramic");
     return ESP_OK;
 }
