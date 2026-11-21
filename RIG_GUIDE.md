@@ -21,6 +21,16 @@ come in later tickets.
 The driver is disabled after each move. Hold at idle stays off until the
 firmware sets `IHOLD` through UART (ticket #33).
 
+**Bench result, 2026-11-21.** On the present test board, with the
+17HS4401 gearbox unit and no load, `move 24000 150` turned the output
+one revolution. `move -24000 150` turned it back to the start mark.
+
+Set Vref to 1.92 V before the first move. At 1.2 V, the gearbox unit
+did not turn at 150 µs, and it only vibrated at 1000 µs. A free motor
+turned correctly, so the board and the firmware were not the cause.
+Also make sure that the 24 V supply is on: without VM, the firmware
+reports each move as complete, but the motor does not turn.
+
 **WARNING:** Do not hang a load on the rig with this version. The driver
 is disabled between the moves, and the load can turn the gearbox
 backwards.
