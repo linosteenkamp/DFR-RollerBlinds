@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Extract the diagrams of a wiring page into standalone SVG files.
+"""Extract the diagrams of the rig wiring page into standalone SVG files.
 
 The HTML page in docs/wiring/ is the master. Each <svg> with a
 data-export="<name>.svg" attribute goes to docs/wiring/<name>.svg, with
-the light colours of the page put in, so that GitHub and a Markdown
-viewer show it.
+the light colours of the page added, so that GitHub and a Markdown
+viewer show it. The blind page has no data-export attributes yet.
 
 Usage: python3 tools/extract_wiring_svg.py docs/wiring/rig-wiring.html
 """
@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 # The light colours of the page (the :root values in its <style>).
+# If you change the colours of the page, change them here also.
 STYLE = """<style>
   svg { color: #34464c; font-family: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; }
   text { font-size: 12px; fill: currentColor; }

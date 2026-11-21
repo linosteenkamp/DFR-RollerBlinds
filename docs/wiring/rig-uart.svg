@@ -45,5 +45,5 @@
         <text x="420" y="152" text-anchor="middle">at the XIAO end</text>
         <text x="450" y="226" text-anchor="middle">RX connects directly</text>
       </g>
-      <text x="500" y="284" text-anchor="middle" class="t-muted">One wire to the driver. The 1 kΩ lets the driver set the level when it replies.</text>
+      <text x="500" y="284" text-anchor="middle" class="t-muted">One wire to the driver. When the driver replies, the 1 kΩ permits it to set the level.</text>
     </svg>

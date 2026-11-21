@@ -377,7 +377,7 @@ ol.steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 72
         <text x="420" y="152" text-anchor="middle">at the XIAO end</text>
         <text x="450" y="226" text-anchor="middle">RX connects directly</text>
       </g>
-      <text x="500" y="284" text-anchor="middle" class="t-muted">One wire to the driver. The 1 kΩ lets the driver set the level when it replies.</text>
+      <text x="500" y="284" text-anchor="middle" class="t-muted">One wire to the driver. When the driver replies, the 1 kΩ permits it to set the level.</text>
     </svg>
     </div>
     <figcaption>Fig. 2. The UART line. The two UART tags in fig. 1 are this connection. The XIAO also receives the bytes that it sends. The firmware ignores them (ticket #33). Do not bridge the R10 pads: the second PDN pin stays open. The datasheet of the TMC2209 shows this method in §4.3.</figcaption>
@@ -393,7 +393,7 @@ ol.steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 72
     <tbody>
       <tr><td class="mono">D0</td><td class="num">0</td><td><span class="chip">UART RX</span> from the first PDN pin</td><td class="mono">5V</td><td>—</td><td>buck 5 V, through the 1N5822</td></tr>
       <tr><td class="mono">D1</td><td class="num">1</td><td><span class="chip">DS18B20</span> DQ, 4.7&nbsp;kΩ pull-up to 3V3</td><td class="mono">GND</td><td>—</td><td>common ground</td></tr>
-      <tr><td class="mono">D2</td><td class="num">2</td><td>status LED, optional, through 150&nbsp;Ω</td><td class="mono">3V3</td><td>—</td><td>TMC VDD, AS5600, DS18B20, pull-up</td></tr>
+      <tr><td class="mono">D2</td><td class="num">2</td><td>status LED, optional, through 150&nbsp;Ω</td><td class="mono">3V3</td><td>—</td><td>TMC VDD, AS5600, DS18B20, the pull-ups</td></tr>
       <tr><td class="mono">D3</td><td class="num">21</td><td><span class="chip">KW11-2</span> NC, internal pull-up</td><td class="mono">D10</td><td class="num">18</td><td><span class="chip">UART TX</span> through 1&nbsp;kΩ</td></tr>
       <tr><td class="mono">D4</td><td class="num">22</td><td><span class="chip">AS5600</span> SDA</td><td class="mono">D9</td><td class="num">20</td><td>EN̅</td></tr>
       <tr><td class="mono">D5</td><td class="num">23</td><td><span class="chip">AS5600</span> SCL</td><td class="mono">D8</td><td class="num">19</td><td>STEP</td></tr>
@@ -406,13 +406,13 @@ ol.steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 72
 
 <section>
   <h2>Connectors</h2>
-  <p>Use JST XH (2.54&nbsp;mm) connectors on the board. Then each cable comes off for a unit change or a repair.</p>
+  <p>Use JST XH (2.54&nbsp;mm) connectors on the board. Then you can disconnect each cable for a unit change or a repair.</p>
   <div class="table-wrap">
   <table>
     <thead><tr><th>Connector</th><th>Pins</th><th>Wires</th><th>Cable to</th></tr></thead>
     <tbody>
       <tr><td class="mono">J1</td><td class="num">4</td><td>A2, A1, B1, B2</td><td>The motor of the installed unit. Each unit has its own cable, with a label. The two motors have different lead sequences, so a cable for one motor gives the wrong coil pairs on the other.</td></tr>
-      <tr><td class="mono">J2</td><td class="num">4</td><td>3V3, GND, SDA, SCL</td><td>The AS5600 on bracket 2. Use a 4-core cable. Keep it away from the motor cable.</td></tr>
+      <tr><td class="mono">J2</td><td class="num">4</td><td>3V3, GND, SDA, SCL</td><td>The AS5600 on bracket 2. Use a 4-core cable. Keep it away from the motor cable. The AS5600 needs VDD5V and VDD3V3 connected together for 3.3&nbsp;V. If the module has a 3.3&nbsp;V jumper or pads, bridge them. If the module has no I²C pull-ups, install 4.7&nbsp;kΩ from SDA and from SCL to 3V3 on the board.</td></tr>
       <tr><td class="mono">J3</td><td class="num">3</td><td>3V3, GND, DQ</td><td>The DS18B20 on the motor case</td></tr>
       <tr><td class="mono">J4</td><td class="num">2</td><td>D3, GND</td><td>The KW11-2 under the board: NC to D3, COM to GND</td></tr>
       <tr><td>power</td><td class="num">2</td><td>+24 V, −</td><td>The 24 V PSU. The terminal block of the present test board.</td></tr>
@@ -429,8 +429,8 @@ ol.steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 72
     <li>Install the 1N5822 between the buck 5&nbsp;V output and the XIAO 5V pin. Put the band toward the XIAO.</li>
     <li>Make sure that the 220&nbsp;µF capacitor is at the VM pin. The stripe goes to GND.</li>
     <li>Make sure that MS1 and MS2 connect to GND.</li>
-    <li>Install the 1&nbsp;kΩ from D10 to the first PDN pin. Connect D0 to the same pin.</li>
-    <li>If the board has the keypad RC filter on D4 and D5, remove the two 100&nbsp;nF capacitors. They make the I²C edges too slow. The 4.7&nbsp;kΩ pull-ups can stay, because I²C needs them.</li>
+    <li>Install the 1&nbsp;kΩ from D10 to the first PDN pin. Connect D0 to the same pin. Do not bridge the R10 pads.</li>
+    <li>If the board has the keypad RC filter on D3 to D5, remove the 100&nbsp;nF capacitors on D4 and D5. They make the I²C edges too slow. The 4.7&nbsp;kΩ pull-ups on D4 and D5 can stay, because I²C needs them. The filter on D3 can stay for the limit switch.</li>
     <li>Install J2, J3 and J4, and the 4.7&nbsp;kΩ pull-up on D1.</li>
   </ol>
 </section>
@@ -439,10 +439,10 @@ ol.steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 72
   <h2>Checks before power</h2>
   <ol class="steps">
     <li>Find the NC pin of the KW11-2 with a multimeter before you solder. NC has continuity to COM when the lever is free.</li>
-    <li>Measure D3 to GND with the switch connected and the lever free. Expect 0&nbsp;Ω. Push the lever. Expect an open circuit.</li>
+    <li>Measure D3 to GND with the switch connected and the lever free. Expect 0&nbsp;Ω, or 150&nbsp;Ω if D3 has the keypad RC filter. Push the lever. Expect an open circuit.</li>
     <li>Measure the coil resistance of each motor at its cable end. Identify the two pairs.</li>
     <li>Set Vref to 1.92&nbsp;V for the two units. The firmware sets the current of each unit through <code>IRUN</code> (ticket #33).</li>
-    <li>Supply only 24&nbsp;V. Measure about 4.6&nbsp;V on the XIAO 5V pin. Then supply only USB. Measure about 0&nbsp;V on VM.</li>
+    <li>Supply only 24&nbsp;V. Measure approximately 4.6&nbsp;V on the XIAO 5V pin. Then supply only USB. Measure approximately 0&nbsp;V on VM.</li>
   </ol>
 </section>
 

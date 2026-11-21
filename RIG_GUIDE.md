@@ -52,8 +52,9 @@ To change the wiring:
 
 3. Commit the HTML and the SVGs together.
 
-The pin map is in the spec, and in `src/rig_main.c` when the firmware
-uses a pin. If you change a pin, change the three places.
+The pin map is in three places: the spec, the HTML page, and
+`src/rig_main.c` when the firmware uses the pin. If you change a pin,
+change the three places. Then extract the SVGs again.
 
 ## Parts list
 
@@ -77,14 +78,14 @@ it. "Check" means that you possibly have it: make sure before you order.
 | 150 Ω resistor (`MF0204FTE52-150R`) and 3 mm LED (`L-7104SURC-E`) | 1 each | Status LED on D2, optional | Have |
 | U.FL antenna, 2.4 GHz | 1 | Wi-Fi (ticket #36) | Have |
 | 5 L water container (80 g empty) | 1 | Test load | Have |
-| AS5600 module | 1 (+1 spare) | Angle of the spool tube, on bracket 2 | Buy |
+| AS5600 module | 1 (+1 spare) | Angle of the spool tube, on bracket 2. It must operate at 3.3 V (VDD5V and VDD3V3 connected together). | Buy |
 | Diametric magnet, 6 × 2.5 mm, N35 or stronger | 1 | In the end of the spool tube. Many AS5600 modules include one. The CAD sets the final size. | Buy |
 | DS18B20, TO-92 or a probe in a metal tube | 1 | Motor case temperature | Buy |
 | 1 kΩ resistor, 0.25 W | 1 | UART TX, D10 to the first PDN pin | Buy |
 | JST XH 2.54 mm headers, housings and crimp contacts: 2-, 3- and 4-pin | 1 of each | J2, J3 and J4 | Buy |
 | 4-core cable | 0.5 m | AS5600 to J2 | Buy |
 | 2-core and 3-core cable | 1 m each | KW11-2 to J4, DS18B20 to J3 | Check |
-| Braided cord, 2 mm (for example Dyneema), rated well above 5 kg | 3 m | Spool to the container | Buy |
+| Braided cord, 2 mm (for example Dyneema), rated 20 kg or more | 3 m | Spool to the container | Buy |
 | Cord stopper: a bead with a 2 mm hole, or a crimp ferrule | 2 | Pushes the KW11-2 lever at the top limit | Buy |
 | M4 bolts, nuts and washers (the CAD sets the length) | 4 | Gearbox housing to bracket 1 | Buy |
 | M2 screws and nuts | 2 | KW11-2 to the board | Buy |
