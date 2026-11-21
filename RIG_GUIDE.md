@@ -1,6 +1,7 @@
 # Gearbox test rig guide
 
-This guide tells you how to build, flash and use the test rig firmware.
+This guide tells you how to wire the test rig board, and how to build,
+flash and use the test rig firmware.
 The test rig measures the top speed and the wear of a gearbox unit. The
 design is in the spec
 [docs/superpowers/specs/2026-11-21-gearbox-test-rig-design.md](docs/superpowers/specs/2026-11-21-gearbox-test-rig-design.md)
@@ -23,6 +24,77 @@ firmware sets `IHOLD` through UART (ticket #33).
 **WARNING:** Do not hang a load on the rig with this version. The driver
 is disabled between the moves, and the load can turn the gearbox
 backwards.
+
+## Wiring
+
+This diagram shows the full rig board, on the pin map of the spec. The
+parts in teal are new for the rig. The other parts are the same as on
+the blind board.
+
+![Rig board wiring](docs/wiring/rig-wiring.svg)
+
+This diagram shows the single-wire UART of the driver. D10 sends
+through 1 kΩ, and D0 receives on the same wire:
+
+![The driver UART line: D10 through 1 kΩ, D0 direct, to the first PDN pin](docs/wiring/rig-uart.svg)
+
+**The HTML page is the master.** `docs/wiring/rig-wiring.html` has the
+two diagrams, the XIAO header table, the connectors, the changes to the
+present test board and the checks before power. Open it in a browser.
+To change the wiring:
+
+1. Change the HTML.
+2. Extract the SVGs again:
+
+   ```bash
+   python3 tools/extract_wiring_svg.py docs/wiring/rig-wiring.html
+   ```
+
+3. Commit the HTML and the SVGs together.
+
+The pin map is in the spec, and in `src/rig_main.c` when the firmware
+uses a pin. If you change a pin, change the three places.
+
+## Parts list
+
+"Have" means that you have the part now. "Buy" means that you must get
+it. "Check" means that you possibly have it: make sure before you order.
+
+| Part | Quantity | Function | Status |
+|---|---|---|---|
+| Seeed XIAO ESP32C6 | 1 | Controller | Have |
+| BIGTREETECH TMC2209 V1.3 | 1 | Stepper driver | Have |
+| Gearbox unit with a 17HS4401 | 1 | Unit 1 | Have |
+| Gearbox unit with a 42HS60-1504JA05-D20-03 | 1 | Unit 2 | Have |
+| Motor cable for each unit, with a label | 2 | J1 to the motor. The two cables are not interchangeable. | Have |
+| KW11-2 microswitch with a roller lever | 1 | Top limit switch | Have |
+| 24 V PSU (LRS-50-24) | 1 | Power | Have |
+| Buck regulator 24 → 5 V (Mini560 Pro) | 1 | 5 V for the XIAO | Have |
+| 220 µF 35 V electrolytic capacitor | 1 | At the VM pin | Have |
+| 100 nF ceramic capacitor (`K104K20X7RH5TL2`) | 1 | At the VM pin, optional | Have |
+| 1N5822 Schottky diode | 1 | Buck 5 V to the XIAO 5V pin, against USB backfeed | Check (ordered 2026-09-27) |
+| 4.7 kΩ resistor (`RS-C-4K7-5%-0.5W`) | 1 (+2) | DS18B20 pull-up. Add 2 for SDA and SCL if the AS5600 module has no pull-ups. | Have |
+| 150 Ω resistor (`MF0204FTE52-150R`) and 3 mm LED (`L-7104SURC-E`) | 1 each | Status LED on D2, optional | Have |
+| U.FL antenna, 2.4 GHz | 1 | Wi-Fi (ticket #36) | Have |
+| 5 L water container (80 g empty) | 1 | Test load | Have |
+| AS5600 module | 1 (+1 spare) | Angle of the spool tube, on bracket 2 | Buy |
+| Diametric magnet, 6 × 2.5 mm, N35 or stronger | 1 | In the end of the spool tube. Many AS5600 modules include one. The CAD sets the final size. | Buy |
+| DS18B20, TO-92 or a probe in a metal tube | 1 | Motor case temperature | Buy |
+| 1 kΩ resistor, 0.25 W | 1 | UART TX, D10 to the first PDN pin | Buy |
+| JST XH 2.54 mm headers, housings and crimp contacts: 2-, 3- and 4-pin | 1 of each | J2, J3 and J4 | Buy |
+| 4-core cable | 0.5 m | AS5600 to J2 | Buy |
+| 2-core and 3-core cable | 1 m each | KW11-2 to J4, DS18B20 to J3 | Check |
+| Braided cord, 2 mm (for example Dyneema), rated well above 5 kg | 3 m | Spool to the container | Buy |
+| Cord stopper: a bead with a 2 mm hole, or a crimp ferrule | 2 | Pushes the KW11-2 lever at the top limit | Buy |
+| M4 bolts, nuts and washers (the CAD sets the length) | 4 | Gearbox housing to bracket 1 | Buy |
+| M2 screws and nuts | 2 | KW11-2 to the board | Buy |
+| Thermal paste and heat-resistant tape | 1 | DS18B20 on the motor case | Check |
+| Snap hook | 1 | Cord to the container handle | Check |
+| Board, 300 × 1200 mm, and 2 clamps | 1 | The rig base on the work surface | Check |
+| Soft pad (foam or a towel) | 1 | Under the container, in case it falls | Check |
+
+The CAD work (ticket #30) sets the support bearing of bracket 2 and the
+tube length. Add the bearing to this list when the CAD selects it.
 
 ## Build and flash
 
