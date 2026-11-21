@@ -178,8 +178,8 @@ static void test_parse_long_line_is_safe(void)
     TEST_ASSERT_TRUE(strlen(ERR) < RIG_MSG_LEN);
 }
 
-/* A valid command with padding past the buffer must not parse as the
- * command at the start of the line. */
+/* A valid command, with spaces after it to a length past the buffer,
+ * must not parse as the command at the start of the line. */
 static void test_parse_rejects_a_line_that_is_too_long(void)
 {
     char line[200];

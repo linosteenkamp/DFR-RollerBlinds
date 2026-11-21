@@ -19,7 +19,8 @@ static bool is_sep(char c)
     return c == ' ' || c == '\t' || c == '\r' || c == '\n';
 }
 
-/* Split buf in place. Returns the number of words, up to MAX_WORDS. */
+/* Divide buf into words, in the same memory. Returns the number of
+ * words, up to MAX_WORDS. */
 static int split(char *buf, char *words[MAX_WORDS])
 {
     int n = 0;

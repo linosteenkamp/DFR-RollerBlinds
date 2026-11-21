@@ -38,8 +38,8 @@ backwards.
 The env `seeed_xiao_esp32c6_rig` sets two build values:
 
 - `FW_APP=rig` selects the rig source files in `src/CMakeLists.txt`.
-- `RAMP_MIN_CRUISE_US=40u` lowers the fastest step interval to 40 µs
-  for the speed sweep. The blind keeps 60 µs. A build of the rig that
+- `RAMP_MIN_CRUISE_US=40u` sets the fastest step interval to 40 µs for
+  the speed sweep. The blind keeps 60 µs. A build of the rig that
   does not get this flag stops with an error.
 
 To put the blind firmware back on the board, flash the env
@@ -47,7 +47,7 @@ To put the blind firmware back on the board, flash the env
 
 ## Serial commands
 
-Type a command in the serial monitor, then push Enter. The monitor
+Type a command in the serial monitor. Then push the Enter key. The monitor
 shows what you type (`monitor_echo = yes`).
 
 | Command | Effect |
@@ -68,7 +68,8 @@ correct and tells you why.
 
 The rig writes each record as one line: the topic, a space, and a JSON
 object. Later, the MQTT adapter (ticket #36) sends the same records to
-the broker.
+the broker. The topics then also contain the unit, for example
+`rig/<unit>/move` (ticket #33).
 
 | Topic | When | Fields |
 |---|---|---|

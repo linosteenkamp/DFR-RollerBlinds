@@ -19,7 +19,7 @@ static const char *TAG = "RIG_CON";
 
 #define IN_LINE_LEN  128   /* longer than the parser limit, so that the
                             * parser sees and rejects a line that is too long */
-#define OUT_LINE_LEN 192
+#define OUT_LINE_LEN 448   /* a reply text can become 6 times longer in JSON */
 #define OUT_DEPTH    16
 
 static QueueHandle_t s_cmd_q;
@@ -42,7 +42,7 @@ static void post_line(const char *line)
     }
     if (xQueueSend(s_cmd_q, &ev, 0) != pdTRUE) {
         /* This task is not the dispatcher, so it can write here. */
-        printf("rig: the queue is full, the command was dropped\n");
+        printf("rig: the queue is full, the command was not sent\n");
     }
 }
 
@@ -64,8 +64,8 @@ static void reader_task(void *pv)
         } else if (n < sizeof line - 1) {
             line[n++] = (char)c;
         }
-        /* When the line is full, the remaining bytes are dropped. The
-         * parser then rejects the line as too long. */
+        /* When the line is full, the reader ignores the remaining bytes.
+         * The parser then rejects the line as too long. */
     }
 }
 
@@ -85,11 +85,14 @@ bool rig_console_publish(const rig_record_t *rec, uint8_t qos, bool retain)
 {
     (void)qos;
     (void)retain;
-    char json[OUT_LINE_LEN];
-    if (rig_record_json(rec, json, sizeof json) < 0) return false;
+    /* One buffer: "<topic> ", then the JSON, then LF. */
     char line[OUT_LINE_LEN];
-    int n = snprintf(line, sizeof line, "%s %s\n", rig_record_topic(rec->topic), json);
-    if (n < 0 || (size_t)n >= sizeof line) return false;
+    int t = snprintf(line, sizeof line, "%s ", rig_record_topic(rec->topic));
+    if (t < 0 || (size_t)t >= sizeof line) return false;
+    int j = rig_record_json(rec, line + t, sizeof line - (size_t)t - 1);
+    if (j < 0) return false;
+    line[t + j]     = '\n';
+    line[t + j + 1] = '\0';
     return xQueueSend(s_out_q, line, 0) == pdTRUE;
 }
 
@@ -102,8 +105,8 @@ esp_err_t rig_console_init(QueueHandle_t cmd_q)
     usb_serial_jtag_driver_config_t cfg = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
     esp_err_t err = usb_serial_jtag_driver_install(&cfg);
     if (err != ESP_OK) return err;
-    /* The driver gives blocking reads. The reader task handles CR and LF
-     * itself, so the VFS must not change them. */
+    /* With the driver, a read waits for data. The reader task finds CR
+     * and LF itself, so the VFS must not change them. */
     usb_serial_jtag_vfs_set_rx_line_endings(ESP_LINE_ENDINGS_LF);
     usb_serial_jtag_vfs_use_driver();
     setvbuf(stdin, NULL, _IONBF, 0);

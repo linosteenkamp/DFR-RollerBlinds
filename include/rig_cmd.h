@@ -1,7 +1,7 @@
 #ifndef RIG_CMD_H
 #define RIG_CMD_H
 
-/* The command parser of the test rig (pure). It turns one line of text
+/* The command parser of the test rig (pure). It changes one line of text
  * from the serial console (and later MQTT) into a rig_cmd_t. It checks
  * only the syntax. rig_ctl checks the ranges and makes all decisions. */
 

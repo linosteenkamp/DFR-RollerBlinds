@@ -89,7 +89,8 @@ static void handle_stop(rig_t *r)
 
 static void handle_motion_done(rig_t *r, int32_t steps, bool completed)
 {
-    /* Only a move that rig_ctl started can end. Ignore a stray item. */
+    /* Only a move that rig_ctl started can end. Ignore an item that
+     * comes when no move is in progress. */
     if (r->state != RIG_STATE_MOVING) return;
     r->pos   = steps;
     r->state = RIG_STATE_IDLE;

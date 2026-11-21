@@ -25,8 +25,8 @@ typedef struct {
                               const motion_profile_t *prof, int32_t hard_cap);
     void      (*motion_stop)(void);
     int32_t   (*motion_steps)(void);   /* the live position */
-    /* publish: the adapter must not block. It returns false when it
-     * dropped the record. rig_ctl does not change a decision for that. */
+    /* publish: the adapter must not block. It returns false when it did
+     * not send the record. rig_ctl does not change a decision for that. */
     bool (*publish)(const rig_record_t *rec, uint8_t qos, bool retain);
 } rig_ports_t;
 

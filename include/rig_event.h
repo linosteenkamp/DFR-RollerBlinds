@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* The length of a message text, with the terminating NUL. */
+/* The length of a message text, with the NUL at the end. */
 #define RIG_MSG_LEN 64
 
 typedef enum {

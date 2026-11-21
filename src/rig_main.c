@@ -33,12 +33,14 @@ static const char *TAG = "RIG";
 #define START_US     500
 #define ACCEL_STEPS  800
 /* The travel is about 13.6 output revolutions (326 400 microsteps). The
- * cap is a runaway watchdog, a little more than the full travel. */
+ * cap is a safety limit for one move, a little more than the full travel. */
 #define HARD_CAP     400000
 
 /* The speed sweep needs 40 µs (spec, story 38). The rig env sets the floor
  * with a build flag. This check stops a build that did not get the flag. */
 _Static_assert(RAMP_MIN_CRUISE_US == 40u, "the rig env must set RAMP_MIN_CRUISE_US=40u");
+
+#define CMD_QUEUE_LEN 8
 
 static QueueHandle_t    s_queue;    /* commands */
 static QueueHandle_t    s_done_q;   /* motion_done_t only, one slot */
@@ -92,11 +94,11 @@ void app_main(void)
      * set now, so that it is correct before the radio starts. */
     ESP_ERROR_CHECK(rf_switch_init(PIN_RF_SW_EN, PIN_RF_ANT, RF_ANT_UFL));
 
-    s_queue = xQueueCreate(8, sizeof(rig_event_t));
+    s_queue = xQueueCreate(CMD_QUEUE_LEN, sizeof(rig_event_t));
     configASSERT(s_queue);
     s_done_q = xQueueCreate(1, sizeof(motion_done_t));
     configASSERT(s_done_q);
-    s_qset = xQueueCreateSet(8 + 1);        /* the sum of the member lengths */
+    s_qset = xQueueCreateSet(CMD_QUEUE_LEN + 1);        /* the sum of the member lengths */
     configASSERT(s_qset);
     xQueueAddToSet(s_queue, s_qset);        /* the two are empty here, as required */
     xQueueAddToSet(s_done_q, s_qset);
@@ -106,7 +108,7 @@ void app_main(void)
     motion_pins_t pins = { .gpio_step = PIN_STEP, .gpio_dir = PIN_DIR, .gpio_en = PIN_EN };
     ESP_ERROR_CHECK(motion_init(&pins, s_done_q));
     /* Hold at idle stays off (the driver is disabled after each move).
-     * Ticket #33 sets IHOLD through UART, and then turns hold at idle on. */
+     * Ticket #33 sets IHOLD through UART, and then sets hold at idle. */
     motion_set_hold_at_idle(false);
 
     ESP_ERROR_CHECK(rig_console_init(s_queue));
