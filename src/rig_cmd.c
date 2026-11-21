@@ -100,3 +100,26 @@ rig_parse_result_t rig_cmd_parse(const char *line, rig_cmd_t *out,
     snprintf(err, RIG_MSG_LEN, "unknown command '%.16s' (move, stop, status)", w[0]);
     return RIG_PARSE_ERROR;
 }
+
+void rig_line_reset(rig_line_t *l)
+{
+    l->n = 0;
+    l->done = false;
+    l->buf[0] = '\0';
+}
+
+bool rig_line_add(rig_line_t *l, char c)
+{
+    if (l->done) rig_line_reset(l);
+    if (c == '\r' || c == '\n') {
+        l->done = true;
+        return true;
+    }
+    if (c == '\b' || c == 0x7f) {
+        if (l->n > 0) l->n--;
+    } else if (l->n < sizeof l->buf - 1) {
+        l->buf[l->n++] = c;
+    }
+    l->buf[l->n] = '\0';
+    return false;
+}

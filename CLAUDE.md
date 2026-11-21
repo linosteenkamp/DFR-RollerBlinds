@@ -91,7 +91,7 @@ The test rig firmware (`FW_APP=rig`) has these modules. Refer to
 | Module | File | Purpose | Host tests |
 |---|---|---|---|
 | `rig_ctl` | `src/rig_ctl.c` | Pure: all the rig decisions, behind `rig_ports_t`. Only the dispatcher calls `rig_handle()`. | `test/test_rig_ctl/` |
-| `rig_cmd` | `src/rig_cmd.c` | Pure: the command parser (text → `rig_cmd_t`). It checks only the syntax. | `test/test_rig_ctl/` |
+| `rig_cmd` | `src/rig_cmd.c` | Pure: the command parser (text → `rig_cmd_t`). It checks only the syntax. It also assembles the console lines (Backspace and DEL remove a byte). | `test/test_rig_ctl/` |
 | `rig_record` | `src/rig_record.c` | Pure: the topic and the JSON text of a published record | `test/test_rig_ctl/` |
 | `rig_console` | `src/rig_console.c` | The serial console: it reads the command lines, and it is the publish port (it does not block) | — |
 | `rig_main` | `src/rig_main.c` | Wiring: the GPIO map, the constants, the ports table, the queues, the dispatcher loop | — |

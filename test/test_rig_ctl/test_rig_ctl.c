@@ -191,6 +191,65 @@ static void test_parse_rejects_a_line_that_is_too_long(void)
     TEST_ASSERT_EQUAL_STRING("the command is too long", ERR);
 }
 
+/* ======================= console line assembly ======================= */
+
+static rig_line_t L;
+
+/* Feed the bytes of s. Returns the number of completed lines. */
+static int feed(const char *s)
+{
+    int done = 0;
+    for (; *s; s++) if (rig_line_add(&L, *s)) done++;
+    return done;
+}
+
+static void test_line_ends_at_cr_or_lf(void)
+{
+    rig_line_reset(&L);
+    TEST_ASSERT_EQUAL_INT(1, feed("move 1 2\r"));
+    TEST_ASSERT_EQUAL_STRING("move 1 2", L.buf);
+    rig_line_reset(&L);
+    TEST_ASSERT_EQUAL_INT(1, feed("status\n"));
+    TEST_ASSERT_EQUAL_STRING("status", L.buf);
+}
+
+static void test_line_backspace_and_del_remove_the_last_byte(void)
+{
+    rig_line_reset(&L);
+    TEST_ASSERT_EQUAL_INT(1, feed("move 24000 1\x7f" "100\n"));
+    TEST_ASSERT_EQUAL_STRING("move 24000 100", L.buf);
+    rig_line_reset(&L);
+    TEST_ASSERT_EQUAL_INT(1, feed("mvo\b\bove 1 2\n"));
+    TEST_ASSERT_EQUAL_STRING("move 1 2", L.buf);
+}
+
+static void test_line_backspace_on_an_empty_line_does_nothing(void)
+{
+    rig_line_reset(&L);
+    TEST_ASSERT_EQUAL_INT(1, feed("\b\x7fstop\n"));
+    TEST_ASSERT_EQUAL_STRING("stop", L.buf);
+}
+
+static void test_line_starts_again_after_each_end(void)
+{
+    rig_line_reset(&L);
+    TEST_ASSERT_EQUAL_INT(1, feed("stop\n"));
+    TEST_ASSERT_EQUAL_INT(1, feed("status\n"));
+    TEST_ASSERT_EQUAL_STRING("status", L.buf);
+}
+
+/* A full line keeps its first bytes and drops the rest, so that the
+ * parser rejects it as too long. Backspace still works. */
+static void test_line_that_is_too_long_stays_too_long(void)
+{
+    rig_line_reset(&L);
+    for (int i = 0; i < 300; i++) rig_line_add(&L, 'x');
+    TEST_ASSERT_TRUE(rig_line_add(&L, '\n'));
+    TEST_ASSERT_EQUAL_size_t(RIG_LINE_LEN - 1, strlen(L.buf));
+    TEST_ASSERT_EQUAL(RIG_PARSE_ERROR, parse(L.buf));
+    TEST_ASSERT_EQUAL_STRING("the command is too long", ERR);
+}
+
 /* ======================= rig_ctl ======================= */
 
 static void test_boot_is_idle_at_zero(void)
@@ -478,6 +537,11 @@ int main(void)
     RUN_TEST(test_parse_status_and_stop_take_no_arguments);
     RUN_TEST(test_parse_long_line_is_safe);
     RUN_TEST(test_parse_rejects_a_line_that_is_too_long);
+    RUN_TEST(test_line_ends_at_cr_or_lf);
+    RUN_TEST(test_line_backspace_and_del_remove_the_last_byte);
+    RUN_TEST(test_line_backspace_on_an_empty_line_does_nothing);
+    RUN_TEST(test_line_starts_again_after_each_end);
+    RUN_TEST(test_line_that_is_too_long_stays_too_long);
 
     RUN_TEST(test_boot_is_idle_at_zero);
     RUN_TEST(test_move_starts_motion_with_the_blind_ramp);
