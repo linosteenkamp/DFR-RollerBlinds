@@ -1,0 +1,9 @@
+# Test rig env (FW_APP=rig). This file comes after sdkconfig.defaults.
+# The rig has no Zigbee.
+
+# Flash size (the board is 4MB).
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
+# The same partition table as the blind.
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
