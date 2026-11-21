@@ -290,7 +290,7 @@ The fields of each record are in the resolution of "Grilling: records and failur
 - Grilling: speed test profile (#21)
 - Grilling: wear test profile (#22)
 
-The three research notes are on the local branches `research/skip-detection`, `research/speed-limit` and `research/42hs60-speed-limit`. They are not pushed.
+The three research notes are in `docs/research/` on `main` (2026-11-21-skip-detection-options, 2026-11-21-speed-limit and 2026-11-21-42hs60-speed-limit). A copy of this spec is in `docs/superpowers/specs/2026-11-21-gearbox-test-rig-design.md`.
 
 Concept drawing (private): https://claude.ai/artifact/FXLXc8T28VVHLh5yVLnLWD
 
