@@ -26,8 +26,18 @@ if(FW_APP STREQUAL "blind")
         "status_led.c"
         "covering.c"
     )
+    set(APP_REQUIRES "")
+elseif(FW_APP STREQUAL "rig")
+    set(APP_SRCS
+        "rig_main.c"
+        "rig_ctl.c"
+        "rig_cmd.c"
+        "rig_record.c"
+        "rig_console.c"
+    )
+    set(APP_REQUIRES esp_driver_usb_serial_jtag vfs)
 else()
-    message(FATAL_ERROR "Unknown FW_APP '${FW_APP}' (expected: blind)")
+    message(FATAL_ERROR "Unknown FW_APP '${FW_APP}' (expected: blind, rig)")
 endif()
 
 idf_component_register(
@@ -41,4 +51,5 @@ idf_component_register(
         esp_timer
         esp_driver_gpio
         esp_driver_gptimer
+        ${APP_REQUIRES}
 )

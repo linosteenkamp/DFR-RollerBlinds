@@ -8,3 +8,4 @@ __pycache__/
 .pytest_cache/
 .superpowers/
 .DS_Store
+sdkconfig.seeed_xiao_esp32c6_rig

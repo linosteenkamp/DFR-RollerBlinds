@@ -49,7 +49,10 @@ pio run -e seeed_xiao_esp32c6_zigbee -t upload -t monitor
 # Bench build (identical; named env kept for sibling symmetry)
 pio run -e seeed_xiao_esp32c6_zigbee_test -t upload -t monitor
 
-# Host tests (position / ramp / keypad_logic / key_filter / trace_ring / ctl — pure C, Unity)
+# Gearbox test rig (FW_APP=rig; no Zigbee, no keypad; refer to RIG_GUIDE.md)
+pio run -e seeed_xiao_esp32c6_rig -t upload -t monitor
+
+# Host tests (position / ramp / keypad_logic / key_filter / trace_ring / ctl / rig_ctl — pure C, Unity)
 pio test -e native
 
 # Clean / erase flash (before re-provisioning in development)
@@ -68,7 +71,7 @@ pio run --target erase
 | `ctl` | `src/ctl.c` | Pure: all dispatcher decisions (gesture matrix, calibration procedure, preemption, persistence policy), behind `ctl_ports_t` | `test/test_ctl/` |
 | `keypad_logic` | `src/keypad_logic.c` | Pure: press/release + time → Tap / Hold / Fn-long / three-key reset. It classifies each key independently. There are no cross-key latches. | `test/test_keypad/`, `test/test_press_classification/` |
 | `blind_store` | `src/blind_store.c` | NVS persistence (namespace `blind`) | — |
-| `motion` | `src/motion.c` | GPTimer ISR step generation, DIR/EN, the step counter. It posts its own `motion_done_t` item to a queue with one slot. The blind dispatcher converts that item to `APP_EVT_MOTION_DONE`. The driver is disabled after each move, unless hold at idle is set (the test rig sets it). | — |
+| `motion` | `src/motion.c` | GPTimer ISR step generation, DIR/EN, the step counter. It posts its own `motion_done_t` item to a queue with one slot. The blind dispatcher converts that item to `APP_EVT_MOTION_DONE`. The driver is disabled after each move, unless hold at idle is set (the test rig will set it after ticket #33). | — |
 | `rf_switch` | `src/rf_switch.c` | Enables the XIAO RF switch and selects the antenna, before the radio starts | — |
 | `status_led` | `src/status_led.c` | LED pattern player (one external LED) | — |
 | `covering` | `src/covering.c` | Window Covering cluster build and reports, and the action handler that sends to the queue | — |
@@ -82,15 +85,28 @@ pio run --target erase
 | converter | `z2m/dfr_roller_blinds.js` | z2m external converter (cover + motor_reversed + calibrated + travel_time) | — |
 | OTA CI | `.github/workflows/release-ota.yml` | OTA build and publish when a tag is pushed | — |
 
+The test rig firmware (`FW_APP=rig`) has these modules. Refer to
+[RIG_GUIDE.md](RIG_GUIDE.md).
+
+| Module | File | Purpose | Host tests |
+|---|---|---|---|
+| `rig_ctl` | `src/rig_ctl.c` | Pure: all the rig decisions, behind `rig_ports_t`. Only the dispatcher calls `rig_handle()`. | `test/test_rig_ctl/` |
+| `rig_cmd` | `src/rig_cmd.c` | Pure: the command parser (text → `rig_cmd_t`). It checks only the syntax. | `test/test_rig_ctl/` |
+| `rig_record` | `src/rig_record.c` | Pure: the topic and the JSON text of a published record | `test/test_rig_ctl/` |
+| `rig_console` | `src/rig_console.c` | The serial console: it reads the command lines, and it is the publish port (it does not block) | — |
+| `rig_main` | `src/rig_main.c` | Wiring: the GPIO map, the constants, the ports table, the queues, the dispatcher loop | — |
+| `rig_event` | `include/rig_event.h` | The queue item of the rig | — |
+
 ### Shared modules and FW_APP
 
 `motion`, `ramp`, `key_filter` and `rf_switch` are shared modules. The
 blind firmware and the test rig use them. The CMake variable `FW_APP`
-selects the source list of the firmware. The default is `blind`. An env
-can set `FW_APP` in `board_build.cmake_extra_args`. A shared module
+selects the source list of the firmware. The default is `blind`. The
+env `seeed_xiao_esp32c6_rig` sets `FW_APP=rig` in
+`board_build.cmake_extra_args`. A shared module
 must not include `app_event.h` or another header of only one firmware.
 An env can set `RAMP_MIN_CRUISE_US` with a build flag. The blind keeps
-60 µs.
+60 µs. The rig env sets 40 µs, and `rig_main.c` stops a build without it.
 
 ### Concurrency rule: ISR and action handler never decide
 
