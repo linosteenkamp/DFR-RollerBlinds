@@ -34,6 +34,11 @@ primary source has the mark **(judgement)**.
   the driver 5 µs before the first step and disables it at the last
   step. Refer to [Automatic tuning](#automatic-tuning-at1-never-occurs).
 
+**Bench result (2026-11-26):** the owner changed `travel_time` in steps
+from 35 s to 41 s. The whine became much quieter. Thus the whine
+changes with speed, and the resonance cause is confirmed. Refer to
+[Bench result](#bench-result-2026-11-26).
+
 **Mitigations, in sequence of value for effort:**
 
 1. **Change `travel_time`** (no hardware change, no firmware change).
@@ -497,6 +502,35 @@ Record each result.
 **CAUTION:** do the speed sweep before the Vref change. A stall makes
 the position incorrect, and the device does not know this. If the
 motor stalls, do a Re-home.
+
+## Bench result (2026-11-26)
+
+The owner did step 1 of the test sequence on the production unit. This
+unit has the new greased gearbox and the US-17HS4401S motor. The drop
+is 2 m.
+
+| `travel_time` | Result (by ear) |
+|---|---|
+| 35 s | A small whine |
+| 35 s → 41 s, in steps | The whine became much quieter |
+
+The result agrees with the resonance cause in
+[Where the whine comes from](#where-the-whine-comes-from). The chopper
+frequency does not change with speed. Thus the chopper is not the
+cause.
+
+The test was by ear only. No sound level was measured. The span of the
+unit is not known, so the rpm at 41 s is not known.
+
+Next steps:
+
+- Try values above 41 s, one second at a time. On a span of 345 000
+  steps, the quietest band of the lounge unit is at 44–48 s. Stop when
+  the noise does not decrease more.
+- Do a check of the up move and the down move at the final value. The
+  load changes direction, so the two moves can sound different.
+- Mitigations 2 to 6 are not tested. They are optional if the
+  `travel_time` change is sufficient.
 
 ## Open points
 
