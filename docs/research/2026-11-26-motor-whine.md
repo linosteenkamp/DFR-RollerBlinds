@@ -517,6 +517,7 @@ is 2 m.
 | 41 s → 47 s, in steps | The noise continued to decrease |
 | **47 s** | **The quietest value** |
 | Above 47 s | The noise increased again |
+| 47 s, up and down | The two moves sound the same |
 
 The result agrees with the resonance cause in
 [Where the whine comes from](#where-the-whine-comes-from). The chopper
@@ -533,9 +534,8 @@ span of this unit is 345 000 steps.
 
 Next steps:
 
-- Keep `travel_time` at 47 s on this unit.
-- Do a check of the up move and the down move at the final value. The
-  load changes direction, so the two moves can sound different.
+- Keep `travel_time` at 47 s on this unit. The up move and the down
+  move sound the same at this value.
 - Mitigations 2 to 6 are not tested. They are optional if the
   `travel_time` change is sufficient.
 
