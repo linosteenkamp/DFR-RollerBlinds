@@ -36,8 +36,9 @@ primary source has the mark **(judgement)**.
 
 **Bench result (2026-11-26):** the owner changed `travel_time` in steps
 from 35 s to 41 s. The whine became much quieter. Thus the whine
-changes with speed, and the resonance cause is confirmed. Refer to
-[Bench result](#bench-result-2026-11-26).
+changes with speed, and the resonance cause is confirmed. The
+quietest value is **47 s**. Above 47 s, the noise increases again.
+Refer to [Bench result](#bench-result-2026-11-26).
 
 **Mitigations, in sequence of value for effort:**
 
@@ -513,6 +514,9 @@ is 2 m.
 |---|---|
 | 35 s | A small whine |
 | 35 s → 41 s, in steps | The whine became much quieter |
+| 41 s → 47 s, in steps | The noise continued to decrease |
+| **47 s** | **The quietest value** |
+| Above 47 s | The noise increased again |
 
 The result agrees with the resonance cause in
 [Where the whine comes from](#where-the-whine-comes-from). The chopper
@@ -520,13 +524,16 @@ frequency does not change with speed. Thus the chopper is not the
 cause.
 
 The test was by ear only. No sound level was measured. The span of the
-unit is not known, so the rpm at 41 s is not known.
+unit is not known, so the rpm at 47 s is not known.
+
+The quietest value (47 s) is in the band that this document predicted
+(44–48 s on a span of 345 000 steps). That band came from the lounge
+unit, with the same motor type. The result does not prove that the
+span of this unit is 345 000 steps.
 
 Next steps:
 
-- Try values above 41 s, one second at a time. On a span of 345 000
-  steps, the quietest band of the lounge unit is at 44–48 s. Stop when
-  the noise does not decrease more.
+- Keep `travel_time` at 47 s on this unit.
 - Do a check of the up move and the down move at the final value. The
   load changes direction, so the two moves can sound different.
 - Mitigations 2 to 6 are not tested. They are optional if the
