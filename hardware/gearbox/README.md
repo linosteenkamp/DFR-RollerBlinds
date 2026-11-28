@@ -4,14 +4,16 @@ This is the 3D-printed spur-gear reduction between the stepper and the
 roller tube. It replaces the old `Blinds 2.step` reference. The source of
 truth is the Fusion design **Blinds gearbox assembly** in the Fusion
 project `BlindsController2`. The STEP and the assembly `.f3d` were
-exported on 2026-11-21 from version 21 of that design. Version 21 refers
+exported on 2026-11-28 from version 22 of that design. Version 22 refers
 to these part versions: `gear housing` v13, `Gear Housing Lid` v6,
 `Driven Gear 60 teeth` v8, `Idler Gear` v3, `Driver Gear` v1 and
-`Blinds Shaft Attachment` v7.
+`Blinds Shaft Attachment` v8.
 
-Only the driven gear changed after the 2026-11-16 export. Thus its STL,
-its `.f3d` and the `x2d-gears.stl` plate are 2026-11-21 exports. The
-files of all the other parts are the 2026-11-16 exports.
+Only the shaft attachment changed after the 2026-11-21 export. Thus its
+STL, its `.f3d` and the `x2d-gears.stl` plate are 2026-11-28 exports. The
+driven gear files are 2026-11-21 exports. The files of all the other
+parts are the 2026-11-16 exports. The renders are from 2026-11-20, before
+the shaft attachment change.
 
 ![Assembled gearbox](renders/assembly-top.png)
 ![Gear train, housing and lid hidden](renders/geartrain-top.png)
@@ -56,8 +58,8 @@ The gears were already meshed at rest. An interference check on the
 three gears finds only tooth contact (0.01–0.05 mm³), at rest and with
 the driver turned 30°. The same check finds 3.5 mm³ of overlap between
 the shaft attachment and the hub of the driven gear at their current
-positions. This check was done on version 15, and again on versions 19
-and 21 with the same results.
+positions. This check was done on version 15, and again on versions 19,
+21 and 22 with the same results.
 
 Versions 16 to 19 turned the gear train through its joints. Version 21
 puts the gears back at their version 15 angles.
@@ -86,7 +88,7 @@ puts the gears back at their version 15 angles.
 | Driver gear, 12 T | `driver-gear-12t.stl` | Fits on the motor shaft. |
 | Idler gear, 36 T + 12 T | `idler-gear-36t-12t.stl` | The compound middle stage. |
 | Driven gear, 60 T | `driven-gear-60t.stl` | The output stage. It has two screw holes, 5 mm from the axis. Each hole has a Ø 6.0 mm counterbore, 12 mm deep from the bottom face, and a Ø 3.5 mm hole through the remaining 4.5 mm. (In v6, the counterbore was Ø 5.5 × 10 mm.) A slot, 3 mm wide and 3.5 mm deep, goes across the Ø 19.9 mm boss on the top face. (Before v8, the slot was 3.0 mm deep.) |
-| Shaft attachment | `shaft-attachment.stl` | A splined spigot, Ø 31.5 × 22.6 mm, that turns the roller tube. It is on the axis of the driven gear, below the output bearing. |
+| Shaft attachment | `shaft-attachment.stl` | A splined spigot, Ø 31.5 × 22.6 mm, that turns the roller tube. It is on the axis of the driven gear, below the output bearing. On the face toward the gear, a Ø 23 mm boss stands 1.0 mm above a flat annulus that goes to Ø 30 mm. (Before v8, the annulus had a raised ring, 0.5 mm high, with eight small Ø 1 mm features.) |
 
 ### Bearings (bought)
 
@@ -124,8 +126,8 @@ than 45° and is not on the bed.
 - **Shaft attachment**: print it upside down from its STL, with the flat
   end that is toward the gear down. This orientation gives the best use
   of support material. Approximately 160 mm² of the part touches the
-  bed. The slicer must support three ledges: approximately 205 mm² at
-  0.5 mm, 86 mm² at 1.0 mm and 240 mm² at 3.1 mm above the bed.
+  bed. The slicer must support two ledges: approximately 290 mm² at
+  1.0 mm and 240 mm² at 3.1 mm above the bed.
 - **Idler gear**: print it with its bearing hub down. The bottom of the
   36 T wheel is 1.5 mm above the bed (approximately 780 mm² of
   overhang). Thus it needs support. *Support on build plate only* is
